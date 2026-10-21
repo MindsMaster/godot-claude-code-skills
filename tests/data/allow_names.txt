@@ -19,3 +19,6 @@ Icon
 Rpc
 GodotSharp
 KinematicBody2D
+internationalization/locale/translations
+internationalization/locale/translation_remaps
+internationalization/locale/translations_pot_files
