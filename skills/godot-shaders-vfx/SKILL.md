@@ -1,6 +1,6 @@
 ---
 name: godot-shaders-vfx
-description: Godot 着色器与视觉特效，改 .gdshader、从 GDScript 或 C# 改 shader 参数、做受击闪白受伤变白溶解描边时用。先用内置材质 StandardMaterial3D CanvasItemMaterial 再写 shader 的判断, shader_type 与 render_mode, uniform instance uniform global uniform 的选择, hint_screen_texture hint_depth_texture 屏幕与深度纹理, VisualShader 何时用, shader include gdshaderinc, GPUParticles2D GPUParticles3D 与 CPUParticles 选择, ParticleProcessMaterial 子发射器 拖尾 碰撞, 后处理顺序 Environment glow tonemap fog 再 CompositorEffect 再全屏 shader, 2D glow 与 HDR 2D, 命中闪白 hit flash, GDScript 与 C# 设置 shader 参数 StringName 缓存, local_to_scene 材质共享问题. Use when writing shaders, tuning materials, building particle effects or post-processing.
+description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GDScript 与 C# 改 .gdshader 的 shader 参数 SetInstanceShaderParameter set_shader_parameter 时先用，多个敌人共用一份材质各自闪白也归这里。先用内置材质 StandardMaterial3D CanvasItemMaterial 再写 shader 的判断, shader_type 与 render_mode, uniform instance uniform global uniform 的选择, hint_screen_texture hint_depth_texture 屏幕与深度纹理, VisualShader 何时用, shader include gdshaderinc, GPUParticles2D GPUParticles3D 与 CPUParticles 选择, ParticleProcessMaterial 子发射器 拖尾 碰撞, 后处理顺序 Environment glow tonemap fog 再 CompositorEffect 再全屏 shader, 2D glow 与 HDR 2D, StringName 缓存, local_to_scene 材质共享问题. Use when writing shaders, hit flash, tuning materials, building particle effects or post-processing.
 ---
 
 # Godot 着色器与特效
