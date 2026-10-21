@@ -1,4 +1,4 @@
 schema_version: "1.1"
 name: 2d-camera
 context:
-  scaffold_script: ../_fixtures/platformer2d.sh
+  scaffold_script: scaffold.sh

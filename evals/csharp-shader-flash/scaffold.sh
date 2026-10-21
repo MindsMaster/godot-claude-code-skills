@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -e
+bash "$(dirname "$0")/../_fixtures/csharp_enemy.sh"
