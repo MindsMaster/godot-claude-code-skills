@@ -4,6 +4,9 @@
     "name": "An5w1r",
     "email": "an5w1r@163.com"
   },
+  "metadata": {
+    "description": "内部用的 Godot 4 skills 插件市场"
+  },
   "plugins": [
     {
       "name": "godot-skills",
