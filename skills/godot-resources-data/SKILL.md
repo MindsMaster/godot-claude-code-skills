@@ -1,6 +1,6 @@
 ---
 name: godot-resources-data
-description: Godot 4 数据与资源管理，用于游戏数据表、配置、存档、资源加载与缓存。Use when defining game data as custom Resource (class_name + @export, .tres, C# [GlobalClass]), deciding JSON vs Resource, converting JSON/CSV to Resource at import time, Resource sharing / duplicate / duplicate_deep / local_to_scene, ResourceLoader cache and CacheMode, load vs preload, load_threaded_request with progress bar, ResourceSaver, save games in user:// (JSON, ConfigFile, store_var), untrusted .tres security, uid:// references, DirAccess on res:// after export, ResourceLoader.list_directory, Curve / Gradient / CurveTexture / Animation instead of custom curve classes, texture cache Dictionary. 数据表 自定义资源 存档 异步加载 加载界面 资源缓存 导出后目录扫描。
+description: Godot 4 数据与资源管理，用于游戏数据表、配置、存档、资源加载与缓存。Use when defining game data as custom Resource (class_name + @export, .tres, C# [GlobalClass]), deciding JSON vs Resource, converting JSON/CSV to Resource at import time, Resource sharing / duplicate / duplicate_deep / local_to_scene, ResourceLoader cache and CacheMode, load vs preload, load_threaded_request with progress bar, ResourceSaver, save games in user:// (JSON, ConfigFile, store_var), untrusted .tres security, uid:// references, DirAccess on res:// after export, ResourceLoader.list_directory, Curve / Gradient / CurveTexture / Animation instead of custom curve classes, texture cache Dictionary. 数据表 自定义资源 存档 异步加载 加载界面 资源缓存 导出后目录扫描 导出后读不到 CSV include_filter importer keep。
 ---
 
 # Godot 资源与数据
@@ -206,6 +206,7 @@ func _process(_delta: float) -> void:
 
 导出后图片音频等导入资源的原文件不在包里，只剩 `.import`，转换结果放在 `.godot/imported`。`.tres` `.tscn` 默认转成二进制（`editor/export/convert_text_resources_to_binary`），原路径只剩 `.remap`。`DirAccess` 看到的目录和编辑器里不一样，直接扫目录会漏项或多出这些后缀。
 
+- 4.7.2 实测 `export_filter="all_resources"` 时 `.json` 默认进包，`.txt` 这类无导入器的文件要在 Resources 页的非资源过滤里写 `*.txt`，对应 `export_presets.cfg` 的 `include_filter`。`.csv` 默认被导入成 `Translation`，原文件不进包，`include_filter` 也带不进去，导出后 `FileAccess.open("res://data/x.csv")` 读不到。数据 CSV 要在 Import 面板把导入方式改成 Keep File，即 `.csv.import` 里写 `importer="keep"`
 - 清单是首选：一个数据库资源里 `@export var items: Array[ItemData]`，增删在 Inspector 里做
 - 必须枚举目录时用 `ResourceLoader.list_directory("res://data/items")`（4.4+），返回编辑器里看到的原文件名，子目录带 `/` 后缀，顺序不固定，需要稳定顺序时自己排序
 - 导出前 `list_directory("res://")` 会列出 `.godot/`，过滤掉
@@ -246,6 +247,7 @@ func _process(_delta: float) -> void:
 - `@export` 的 `Array[ItemData]` 里元素为 `null` 时 Inspector 不报错，运行时才崩。用到时判空
 - `ConfigFile` 与 `str_to_var` 会实例化文本里写的 `Object(...)`。来源不可信的文本用 `JSON`
 - 运行时 `DirAccess` 扫 `res://`，编辑器里正常，导出后行为不同
+- 运行时读 `res://` 下的数据 CSV，编辑器里正常，打包后文件不在。CSV 默认按翻译表导入，改成 `importer="keep"`
 - 为了存几个字段手写 70 行 JSON 解析。字段固定的数据用 `Resource`，解析交给引擎
 
 ## 参考
