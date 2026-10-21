@@ -198,7 +198,7 @@ limit_bottom = 720
 - 相机做玩家子节点，跟随、边界、平滑、死区都是内置。`limit_*` 是整数像素。
 - `limit_enabled` 自 4.5 起才有，4.4 上限制总是启用。
 - 震屏改 `offset` 不改节点位置，`offset` 可以越过 limit。噪声用 `FastNoiseLite`。
-- 瞬间切换位置后调 `reset_smoothing`，否则相机飞过去。
+- 复活、传送这类瞬移，在设置 `global_position` 的那段代码里紧接着调相机的 `reset_smoothing`，否则相机飞过去。同一帧调即可，4.7.2 实测下一帧就到位。不要在相机里每帧比较位移距离猜是否传送，冲刺快了会误判，阈值大了又漏判。
 - 跟随物理角色且画面抖：`process_callback` 改 `CAMERA2D_PROCESS_PHYSICS`，或打开 `physics/common/physics_interpolation`。
 - `zoom` 大于 1 是放大，视野变小。
 - 视差背景用 `Parallax2D`（4.3+）：子节点贴图左上角放 `(0, 0)`，`scroll_scale` 小于 1 是远景，`repeat_size` 填图的尺寸，缩小视野时加大 `repeat_times`。
