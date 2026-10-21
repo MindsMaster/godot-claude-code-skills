@@ -8,20 +8,20 @@
 |---|---|---|
 | `--headless` | 等于 `--display-driver headless --audio-driver Dummy` | 没有渲染，见下文渲染一节 |
 | `--path P` | 指定含 project.godot 的目录 | `-s` 的相对路径按 P 解析 |
-| `--no-header` | 不打印版本头 | 少两行噪音，grep 更干净 |
-| `--quit` | 第一次主循环迭代后退出 | 退出码 0，不触发导入，`.godot` 不会被创建 |
+| `--no-header` | 不打印版本头 | 无头下少一行，grep 更干净 |
+| `--quit` | 第一次主循环迭代后退出 | 要有主场景或场景参数，否则报 `no main scene defined in the project` 退出码 1。有场景时退出码 0，不触发导入，`.godot` 不会被创建 |
 | `--quit-after N` | N 次主循环迭代后退出，0 为不限 | 计的是 process 帧。N=30 时物理帧约 11。退出码 0，脚本出错也是 0 |
 | `--fixed-fps F` | 固定步长，关闭实时同步 | `--fixed-fps 60 --quit-after 60` 得 60 个 process 帧和 60 个物理帧，可复现 |
 | `--scene PATH` 或位置参数 | 运行指定场景 | `godot --path P res://main.tscn --quit-after 3` 可用。场景不存在时退出码 1 |
 | `-s`, `--script F` | 运行脚本 | 须继承 SceneTree 或 MainLoop，否则输出 `Can't load the script ... as it doesn't inherit from SceneTree or MainLoop.` 退出码 1。路径可写 `res://x.gd` 或相对工程的 `x.gd` |
 | `--check-only` | 与 `-s` 连用，只解析 | 通过时无输出退出码 0，失败时退出码 1 |
-| `--main-loop NAME` | 运行指定全局类名的 MainLoop | 与 `-s` 二选一 |
+| `--main-loop NAME` | 运行指定全局类名的 MainLoop | 同时给 `-s` 时 `-s` 生效。单独用要有主场景或场景参数。工程设置 `application/run/main_loop_type` 等价 |
 | `--` 或 `++` | 其后是用户参数 | `OS.get_cmdline_user_args()` 只返回分隔符之后的部分 |
 | `--log-file F` | 日志写到文件 | 终端仍照常输出。F 的目录须已存在，否则报 `Failed to open log file for writing` |
 | `-v`, `--verbose` | 详细输出 | 多出初始化细节与加载日志，退出时列出泄漏对象 `Leaked instance: Node:...` |
 | `--print-fps` | 打印 fps | |
 | `--audio-driver Dummy` | 不开声卡 | 非 headless 的 xvfb 下不加会出一堆 ALSA 报错，之后回退 Dummy |
-| `-d`, `--debug` | 本地调试器 | 脚本报错时停在 `Debugger Break ... debug>` 提示符，不要在无人值守的运行里用 |
+| `-d`, `--debug` | 本地调试器 | 脚本报错时停在 `Debugger Break ... debug>` 提示符。stdin 是 `/dev/null` 时运行时错误退出码 0，解析错误崩溃，不要在无人值守的运行里用 |
 
 `OS.get_cmdline_args()` 返回的只有引擎没消费的参数，例如 `["-s", "scripts/hello.gd"]`，用户参数用 `OS.get_cmdline_user_args()`。
 
@@ -29,7 +29,7 @@
 
 | 参数 | 作用 | 实测 |
 |---|---|---|
-| `--import` | 启动编辑器核心，导入资源并重建 class_name 缓存后退出 | 空工程 8 到 14 秒，之后更快。退出码恒为 0，即使有导入错误 |
+| `--import` | 启动编辑器核心，导入资源并重建 class_name 缓存后退出 | 空工程 8 到 14 秒，之后更快。打开工程后退出码恒为 0，导入错误和脚本语法错误都一样。路径无效或没有 `project.godot` 时为 1 |
 | `--editor --quit` | 同样会导入 | 输出与 `--import` 相同，用 `--import` 即可 |
 | `--export-release P F` | 按预设 P 导出到 F | 目录须已存在。缺导出模板或预设名不存在时退出码 1 |
 | `--export-debug P F` | 同上，用 debug 模板 | |
@@ -37,7 +37,7 @@
 | `--doctool [D]` | 把引擎 API 导出为 XML | 1 秒左右。只含签名，description 全是空的 |
 | `--doctool D --gdscript-docs res://dir` | 从 GDScript 的 `##` 注释生成 XML | 输出 `Class.xml`，含 brief_description 与参数 |
 | `--no-docbase` | 与 `--doctool` 连用，不导出基础类型 | |
-| `--build-solutions` | 构建 C# 工程 | 只在 mono 版。C# 编译失败时退出码 1，输出 `An EditorPlugin build callback failed` |
+| `--build-solutions` | 构建 C# 工程 | 用于 mono 版，标准版上无事可做，退出码 0。C# 编译失败时退出码 1，输出 `An EditorPlugin build callback failed` |
 | `--dump-extension-api` | 导出 GDExtension 用的 extension_api.json | 当前目录 |
 | `--validate-extension-api F` | 与旧版 API 比对 | 有不兼容时退出码非 0 |
 | `--convert-3to4` | Godot 3 工程迁移 | |
@@ -63,12 +63,12 @@ ERROR: Error importing 'res://bad.png'.
 | `quit(n)` 或 `get_tree().quit(n)` | n |
 | 运行时 SCRIPT ERROR | 不变。进程继续跑，所在函数被中断 |
 | `push_error`、`push_warning`、`printerr` | 0 |
-| `assert` 失败 | 不退出，进程卡住，只能被 `timeout -s KILL` 杀掉 |
+| `assert` 失败 | 不变，同运行时 SCRIPT ERROR。`-s` 脚本走不到 `quit()` 时卡住，只能被 `timeout -s KILL` 杀掉 |
 | `--quit-after` 到点 | 0 |
 | 外层 `timeout N` 到点 | 124 |
 | 外层 `timeout -s KILL N` 到点 | 137 |
 | 引擎崩溃 | 139 或 134，输出含 `handle_crash: Program crashed` |
-| `--import` | 0 |
+| `--import` | 0，路径无效或没有 `project.godot` 时 1 |
 | 导出失败 | 1 |
 | `--build-solutions` C# 编译失败 | 1 |
 
@@ -90,12 +90,12 @@ handle_crash: Program crashed with signal 11
 
 - 所有这些都写到 stderr，解析错误也是。用 `2>&1` 合并后再 grep
 - 报错的位置在下一行的 `at:` 里，格式 `at: 函数 (res://路径:行号)`
-- 退出时的 `ObjectDB instances were leaked` 是 WARNING，`resources still in use` 是 ERROR。测试脚本里 new 出节点之后 `free()`，两条都会消失
+- 退出时的 `ObjectDB instances were leaked` 是 WARNING，`resources still in use` 和 `RID allocations ... leaked at exit` 是 ERROR。测试脚本里 new 或 instantiate 出节点之后 `free()`，这些都会消失
 - 解析错误会成对出现，一条短描述加一条带变量名的长描述
 
 ## 警告当错误
 
-无头运行里 GDScript 警告（等级 1）不打印，`--check-only` 也不报。要让警告变失败，把对应项设为 2（Error）。不改工程文件的办法是在工程根目录放 `override.cfg`：
+命令行运行里 GDScript 警告（等级 1）不打印，无头和 xvfb 都一样，`--check-only` 也不报。要让警告变失败，把对应项设为 2（Error）。不改工程文件的办法是在工程根目录放 `override.cfg`：
 
 ```ini
 [debug]

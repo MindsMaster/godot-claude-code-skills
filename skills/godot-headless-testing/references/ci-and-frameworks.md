@@ -107,12 +107,13 @@ gdUnit4 命令行，选项来自其文档的 `-help` 输出：
 
 ```bash
 export GODOT_BIN=/path/to/godot
-./addons/gdUnit4/runtest.sh -a res://test
+./addons/gdUnit4/runtest.sh -a ./test
 ```
 
 - `-a` 加测试目录或套件，可重复。`-i` 忽略某套件或用例，`-c` 失败后继续（默认第一个失败就中止），`-conf` 指定配置文件
+- 退出码：全过为 0，有失败为 100，有警告为 101。`gdrun` 之类只认 0 的包装要把 101 单独处理
 - `runtest.sh` 读 `GODOT_BIN` 或 `--godot_binary`，检测到 mono 版会先执行 `dotnet build --debug`
-- 它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`，目的是避免脚本解析错误时本地调试器陷入无限的 `debug>` 循环。自己拼命令行时照抄这个做法
+- 6.2.0 起它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`，目的是避免脚本解析错误时本地调试器陷入无限的 `debug>` 循环。自己拼命令行时照抄这个做法
 - 本机没装 gdUnit4，没有实跑
 
 框架的断言失败有退出码，但引擎自己的运行时报错仍然不会让进程失败，所以 `gdrun` 里的 grep 照样要留。
@@ -124,6 +125,6 @@ godot --headless --no-header --path . --doctool out/doc
 godot --headless --no-header --path . --doctool out/doc --gdscript-docs res://scripts
 ```
 
-第一条把引擎所有类写到 `out/doc/doc/classes/*.xml` 和 `out/doc/modules/*/doc_classes/`，810 个 XML，约 1 秒，只有签名没有说明。第二条为带 `##` 注释的脚本生成 XML，类名文件如 `Unit.xml`，无 class_name 的脚本为 `scripts--player.gd.xml`，含 `brief_description`、参数与默认值。
+第一条把引擎所有类写到 `out/doc/doc/classes/*.xml` 和 `out/doc/modules/*/doc_classes/`，约 1000 个 XML，约 1 秒，只有签名没有说明。第二条为带 `##` 注释的脚本生成 XML，类名文件如 `Unit.xml`，无 class_name 的脚本为 `scripts--player.gd.xml`，含 `brief_description`、参数与默认值。
 
 引擎源码里的 `doc/classes/<类名>.xml` 才带完整说明。

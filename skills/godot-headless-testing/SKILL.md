@@ -47,7 +47,7 @@ gdrun() {
 	rc=$?
 	sed -i 's/\x1b\[[0-9;]*m//g' "$log"
 	cat "$log"
-	if [ "$rc" -eq 0 ] && grep -E 'SCRIPT ERROR|Parse Error|^ERROR:|Error importing|Debugger Break|handle_crash|^FAIL:|^LOAD_FAIL|^ENGINE_ERRORS' "$log" | grep -vqE 'resources still in use|singleton'; then
+	if [ "$rc" -eq 0 ] && grep -E 'SCRIPT ERROR|Parse Error|^ERROR:|Error importing|Debugger Break|handle_crash|^FAIL:|^LOAD_FAIL|^ENGINE_ERRORS' "$log" | grep -vqE 'resources still in use|RID allocations|singleton'; then
 		rc=1
 	fi
 	rm -f "$log"
@@ -70,7 +70,7 @@ GD_TIMEOUT=120 gdrun -s tests/smoke_level.gd
 | `push_error` | 1 | `ERROR: ...` |
 | 导入失败 | 1 | `ERROR: Error importing 'res://bad.png'.` |
 
-排除 `resources still in use` 是因为脚本里 new 出来的节点没释放时退出会打这条，同时有 `WARNING: ... ObjectDB instances were leaked`。测试脚本自己 `free()` 创建的节点就不会出现。
+排除 `resources still in use` 和 `RID allocations ... leaked at exit` 是因为脚本里 new 或 instantiate 出来的节点没释放时退出会打这两条 ERROR，同时有 `WARNING: ... ObjectDB instances were leaked`。测试脚本自己 `free()` 创建的节点就不会出现。
 
 退出码规则详表和每个参数的实测见 references/cli-flags.md。
 
@@ -164,10 +164,10 @@ func _initialize() -> void:
 
 - 运行时 SCRIPT ERROR 不会让进程退出，也不改退出码。`-s` 脚本在报错的函数里中断，没走到 `quit()` 就一直卡着。每个命令都套 `timeout -s KILL`，脚本里放看门狗
 - `--quit-after N` 到点退出码是 0，即使前面报过错。判失败要靠 grep 或 Logger 计数
-- `assert` 失败在无头下让进程卡住，只能 KILL。测试里不用 `assert`
-- `-d` 在脚本报错时停在 `debug>` 提示符，之后崩溃。命令行不要带 `-d`，输入重定向到 `/dev/null`
+- `assert` 失败和运行时错误一样，只打 `SCRIPT ERROR: Assertion failed` 并中断所在函数，退出码不变。`-s` 脚本在 `_initialize` 里断言失败，走不到 `quit()` 就卡住，只能 KILL。release 导出里 `assert` 整条被忽略。测试里不用 `assert`
+- `-d` 在脚本报错时停在 `debug>` 提示符。stdin 是 `/dev/null` 时读到 EOF：运行时错误直接退出，退出码 0，解析错误崩溃（134）。命令行不要带 `-d`，输入重定向到 `/dev/null`，`gdrun` 靠 `Debugger Break` 兜底
 - `load()` 一个缺 `ext_resource` 的 `.tscn` 仍返回非 null 的 PackedScene，只在输出里报 ERROR。别只检查 null
-- `--import` 退出码恒为 0。导入错误只在第一次打印，之后 `.import` 里记 `valid=false` 不再报
+- `--import` 打开工程后退出码恒为 0，导入错误和脚本语法错误都一样。路径无效或没有 `project.godot` 时才是 1。导入错误只在第一次打印，之后 `.import` 里记 `valid=false` 不再报
 - class_name 要先 `--import` 才进全局缓存。`--quit` 不导入也不建 `.godot`。没 import 就跑会报 `Identifier "X" not declared in the current scope`
 - `--check-only` 不认自动加载：引用 autoload 名的脚本会报 `Identifier not found`，是误报。SceneTree 脚本本身也不能用 autoload 名，要 `root.get_node("名字")`
 - `--quit-after` 数的是 process 帧，不是物理帧。要两者对齐加 `--fixed-fps 60`
@@ -175,8 +175,8 @@ func _initialize() -> void:
 - headless 下 `get_texture().get_image()` 返回 null，`await RenderingServer.frame_post_draw` 永远不触发，`--write-movie` 段错误。截图和录像必须 xvfb
 - `--write-movie`、`--log-file` 的输出目录必须已存在
 - 标准版 Godot 不加载 `.cs`。C# 要 mono 版加 `dotnet build`，没构建就跑会卡住。见 references/ci-and-frameworks.md
-- 无头里 GDScript 警告不打印。想让警告变失败，在工程根放 `override.cfg` 把对应 `gdscript/warnings/...` 设为 2，用完删除
-- grep `ERROR:` 会命中几种无害行：退出时 `resources still in use`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。要排除就具体排除，不要整类忽略
+- 命令行运行 GDScript 警告不打印，无头和 xvfb 都一样，`--check-only` 也不报。想让警告变失败，在工程根放 `override.cfg` 把对应 `gdscript/warnings/...` 设为 2，用完删除
+- grep `ERROR:` 会命中几种无害行：退出时 `resources still in use` 与 `RID allocations ... leaked at exit`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。要排除就具体排除，不要整类忽略
 - 退出时的 `WARNING: N ObjectDB instances were leaked` 说明测试脚本创建的节点没 `free`，不是引擎问题，加 `--verbose` 看 `Leaked instance`
 - `--log-file` 不会让终端静默，两边都有输出
 

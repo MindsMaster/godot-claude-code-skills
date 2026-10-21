@@ -11,10 +11,13 @@ extends SceneTree
 
 class ErrorCounter extends Logger:
 	var count: int = 0
+	var _mutex := Mutex.new()
 
 	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
 		if error_type != Logger.ERROR_TYPE_WARNING:
+			_mutex.lock()
 			count += 1
+			_mutex.unlock()
 
 var _errors := ErrorCounter.new()
 var _failures: int = 0
@@ -61,7 +64,8 @@ func _finish(code: int) -> void:
 - 30 秒的 `create_timer` 是看门狗。`_run` 里任何一行报错，整个协程会被中断而 `_finish(0)` 永远不执行，没有看门狗进程就卡住
 - `_run` 在 `_initialize` 里不 await 地调用，协程在第一个 await 处交还控制权
 - 用 `_initialize` 不用 `_init`：自动加载节点在 `_initialize` 里已经在 `root` 下，`_init` 里还没有
-- 不用 `assert`，无头下失败的 `assert` 会让进程卡住
+- 不用 `assert`：失败只打 `SCRIPT ERROR: Assertion failed` 并中断所在函数，退出码不变，release 导出里整条被忽略
+- `_log_error` 可能在其他线程调用，所以计数加了 `Mutex`
 - 运行 `bash` 命令见 SKILL.md 的 `gdrun`
 
 ## 加载全部场景与脚本
