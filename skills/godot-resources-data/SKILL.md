@@ -101,6 +101,8 @@ public partial class ItemData : Resource
 - 数据很少改：`@tool` 的 `EditorScript` 一键把 `res://data/*.json` 转成 `.tres`，把转换结果提交进仓库
 - 数据常改：`EditorImportPlugin`，源文件放进工程就自动导入，改源文件自动重导，做法见 godot-editor-tooling
 
+表格工具和编辑器都想改同一份数据时，先定唯一源头：表格还在导出就以 JSON 为源，`.tres` 只生成不手改；改在 Inspector 里就以 `.tres` 为源，用 `@tool` 按钮或 `EditorPlugin` 导出 JSON 给外部服务。两边各改一份迟早不一致。
+
 两种做法的 `ResourceSaver` 代码见 [references/baking-data.md](references/baking-data.md)。运行时不再有解析代码，类型错误在导入时暴露，不拖到玩家机器上。
 
 ## 共享 复制 local_to_scene
