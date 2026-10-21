@@ -57,11 +57,13 @@ func _ready() -> void:
 	texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	shaded = true
-	offset.y = texture.get_height() / float(vframes) * 0.5
+	var used := texture.get_image().get_used_rect()
+	offset.y = used.end.y - texture.get_height() * 0.5
 ```
 
 - `pixel_size` 默认 0.01，一张 32 像素的图只有 0.32 米。按每米多少个贴图像素定，32 像素每米就是 `1.0 / 32.0`。
-- `offset` 单位是贴图像素。居中的精灵向上偏移半个高度，原点就落在脚底，脚底贴地、旋转和缩放以脚为轴。
+- `offset` 单位是贴图像素。居中的精灵向上偏移半个高度，原点就落在图片下沿；脚底贴地、旋转和缩放以脚为轴，要对准的是不透明脚底，不是图片下沿。
+- 贴图底部常留透明行，直接取半个高度会让脚悬空。先量脚底行：`Image.get_used_rect()` 的 `end.y` 是最后一个不透明行的下沿，`offset.y` 取它减半个高度。16x16 的图最后一行透明，`offset.y` 是 7 不是 8，`pixel_size` 为 0.0625 时脚悬空 0.0625 米。上面的代码只适用于单帧贴图，精灵表要按帧区域量。写 `.tscn` 时读不了运行时数据，用脚本或 PIL 读像素算出常数。
 - `shaded` 默认 false，精灵不受光，光照与阴影接收都要手动开。
 - `texture_filter` 默认 `TEXTURE_FILTER_LINEAR_WITH_MIPMAPS`，像素图会糊。
 - 导入页的 Detect 3D：贴图第一次被 3D 使用时编辑器自动把它改成 VRAM Compressed 加 mipmap，并输出日志，像素图会出块。在 Import 面板把 Detect 3D > Compress To 设为 Disabled 并保持 Compress > Mode 为 Lossless，再重导入。
@@ -121,7 +123,7 @@ func face(direction_x: float) -> void:
 - MSAA 对 alpha 裁剪的边缘效果差，需要精灵的 `alpha_antialiasing_mode` 设为 `ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE`，或开 FXAA、TAA。
 - `double_sided` 默认 true。设为 false 后，光从精灵背面来时不投影，实测同一光照下双面投 320 像素、单面 0 像素。billboard 精灵的正面朝相机，背光的主光会让阴影消失，要投影就保持双面。
 - `billboard` 与阴影同时开时，阴影渲染按场景里的相机朝向，多相机场景结果未定义。
-- 相机绕角色转时，billboard 精灵的影子跟着相机转向变形，光从相机侧面来时变窄。4.7.2 Compatibility 实测同一精灵同一光照下，顺光影子 2016 像素，侧光 0 像素，夹角 45 度 1383 像素。要稳定的影子：可见精灵 `cast_shadow` 关掉，另加同贴图、同 `alpha_cut`、不开 billboard 的副本，`cast_shadow` 设 `SHADOW_CASTING_SETTING_SHADOWS_ONLY`，正面朝主光的水平方向。副本方案实测顺光 2016 像素，侧光 1978 像素，夹角 45 度 1991 像素，差在像素取样。
+- 相机绕角色转时，billboard 精灵的影子跟着相机转向变形，光从相机侧面来时变窄。4.7.2 Compatibility 实测同一精灵同一光照下，顺光影子 2016 像素，侧光 0 像素，夹角 45 度 1383 像素。要稳定的影子：可见精灵 `cast_shadow` 关掉，另加同贴图、同 `alpha_cut`、同 `offset`、不开 billboard 的副本，`cast_shadow` 设 `SHADOW_CASTING_SETTING_SHADOWS_ONLY`，正面朝主光的水平方向。副本方案实测顺光 2016 像素，侧光 1978 像素，夹角 45 度 1991 像素，差在像素取样。
 - 混合透明的物体不写深度，也不进法线粗糙度缓冲，依赖这些缓冲的 SSAO 等效果不会作用在它上面。HD-2D 角色用不透明系的 `alpha_cut`。
 
 排序只在 `ALPHA_CUT_DISABLED` 时调。实测两张重叠精灵，A 在前 0.5 米：
