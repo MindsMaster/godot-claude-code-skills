@@ -32,8 +32,8 @@ func _ready() -> void:
 | `size` | 512x512 | 渲染目标的像素数，Sprite3D 世界尺寸是 `size × pixel_size` |
 | `transparent_bg` | false | 不开时背景是默认清屏色，实测灰色 0.3，贴到 3D 里是一块灰底 |
 | `disable_3d` | false | 纯 2D 内容开 true，不创建 3D 渲染 |
-| `render_target_update_mode` | `UPDATE_WHEN_VISIBLE` | 贴图在某帧被绘制才重渲。`UPDATE_ONCE` 渲一次后停，`UPDATE_ALWAYS` 每帧渲，`UPDATE_DISABLED` 不渲 |
-| `render_target_clear_mode` | `CLEAR_MODE_ALWAYS` | 每帧清屏。`CLEAR_MODE_NEVER` 保留上一帧，做拖影或累积 |
+| `render_target_update_mode` | `UPDATE_WHEN_VISIBLE` | 贴图在某帧被绘制才重渲。`UPDATE_ONCE` 渲一次后停，`UPDATE_ALWAYS` 每帧渲，`UPDATE_DISABLED` 不渲，`UPDATE_WHEN_PARENT_VISIBLE` 看父节点可见性 |
+| `render_target_clear_mode` | `CLEAR_MODE_ALWAYS` | 每帧清屏。`CLEAR_MODE_NEVER` 保留上一帧，做拖影或累积，`CLEAR_MODE_ONCE` 下一帧清一次后转 `NEVER` |
 | `canvas_item_default_texture_filter` | 线性 | 不继承项目设置，见下 |
 | `snap_2d_transforms_to_pixel` | false | 不继承项目设置 |
 | `use_hdr_2d` | false | 不继承项目设置 |
@@ -67,13 +67,13 @@ func _ready() -> void:
 ```
 
 - 默认值：`shaded` false、`cast_shadow` 关、`pixel_size` 0.005、`font_size` 32、`outline_size` 12、`alpha_cut` 为 `DISABLED`。
-- 多个带描边的 Label3D 重叠会排序错乱，`alpha_cut` 取 `ALPHA_CUT_DISCARD` 解决，代价是字边不如平滑；`ALPHA_CUT_OPAQUE_PREPASS` 保留平滑并可投影，仍有部分排序问题。
+- 多个带描边的 Label3D 重叠会排序错乱，`alpha_cut` 取 `ALPHA_CUT_DISCARD` 缓解，代价是字边不如平滑；`ALPHA_CUT_OPAQUE_PREPASS` 保留平滑并可投影，仍有部分排序问题。
 - 远处文字变糊：给字体开 mipmap，或改用 MSDF 字体渲染。
 - `fixed_size` 为 true 时文字在屏幕上大小不随距离变，大小仍受相机 fov 或正交 `size` 影响。
 - 要更清晰，把 `font_size` 调大同时把 `pixel_size` 调小。
 - `Label3D` 不继承 UI 主题，字体用字体子资源设置。
 
-选择：多数情况用 `Label3D`。要自定义 shader、字形有厚度或参与全局光照用 `TextMesh`，它只支持动态字体。要整套 Control 的主题、按钮交互，用投影到屏幕的 Control。
+选择：多数情况用 `Label3D`。要自定义 shader、字形有厚度、要自带投影用 `TextMesh`，它只支持动态字体，不支持位图字体。要整套 Control 的主题、按钮交互，用投影到屏幕的 Control。
 
 ## 投影到屏幕的 Control
 

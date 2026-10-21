@@ -8,15 +8,15 @@
 
 | 效果 | Forward+ | Mobile | Compatibility |
 |---|---|---|---|
-| `glow_enabled` | 支持 | 支持，范围偏小，`glow_hdr_threshold` 要降到 0.9 左右，`glow_intensity` 要升到 1.5 | 简化实现，`glow_levels/*`、`glow_strength`、`glow_blend_mode` 无效 |
+| `glow_enabled` | 支持 | 支持，动态范围上限 2.0，`glow_hdr_threshold` 要降到 0.9 左右，`glow_intensity` 要升到 1.5 | 简化实现，`glow_levels/*`、`glow_strength`、`glow_blend_mode` 无效 |
 | `ssao_enabled` | 支持 | 不支持 | 4.6 起有简化版，只有 radius 与 intensity 可调 |
-| `fog_enabled` | XML 无限制说明 | XML 无限制说明 | 4.7.2 llvmpipe 实测有效 |
+| `fog_enabled` | 支持 | 支持 | 支持，4.7.2 llvmpipe 实测有效 |
 | `volumetric_fog_enabled` | 支持 | 不支持 | 不支持 |
 | 景深 `dof_blur_*` | 支持 | 支持 | 不支持 |
 | `ssr_enabled`、`ssil_enabled`、SDFGI | 支持 | 不支持 | 不支持 |
 | `Decal` | 支持 | 支持，每个网格最多 8 个 | 4.7 不支持 |
 
-项目设置 `rendering/renderer/rendering_method` 选渲染器。HD-2D 的景深、体积雾要求 Forward+。
+项目设置 `rendering/renderer/rendering_method` 选渲染器。体积雾要求 Forward+，景深要求 Forward+ 或 Mobile。
 
 ## 配方
 
@@ -41,7 +41,6 @@ func _ready() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.7, 0.75, 0.9)
 	env.fog_density = 0.01
-	env.fog_aerial_perspective = 0.3
 
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.15
@@ -63,7 +62,7 @@ func _ready() -> void:
 - 光线要用 `DirectionalLight3D` 当主光，`shadow_enabled` 打开。角色用 `ALPHA_CUT_DISCARD` 或 `ALPHA_CUT_OPAQUE_PREPASS` 才投影，见 SKILL.md。
 - 环境光决定背光面的亮度，HD-2D 里常取偏冷的色加主光偏暖。`FIXED_Y` 精灵的法线水平，竖直向下的光照不到它。
 - `ssao_enabled` 要深度与法线，混合透明的精灵不进这些缓冲，不会被遮蔽。角色用不透明系的 `alpha_cut` 才吃到。
-- `fog_aerial_perspective` 让远处的天空色混进雾里，层次感更强。
+- `fog_aerial_perspective` 大于 0 时远处的天空色混进雾里，要求 `background_mode` 为 `BG_SKY`，上面的 `BG_COLOR` 配方下无效。
 
 ## 移轴景深
 
@@ -79,4 +78,4 @@ func _ready() -> void:
 ## 调试
 
 - 效果不出现时先看渲染器：Compatibility 下体积雾、景深、`Decal` 都不显示。
-- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0。要让精灵发光，把材质的亮度推过阈值，或降低阈值。在 4.7.2 Compatibility 加 llvmpipe 上读像素没有看到 glow 效果，原因未查明，这一条未验证。
+- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0。`SpriteBase3D.modulate` 不支持超过 1.0 的亮度，要让精灵发光就降低阈值或设 `glow_bloom`，局部发光用 `material_override` 的自发光。在 4.7.2 Compatibility 加 llvmpipe 上读像素没有看到 glow 效果，原因未查明，这一条未验证。

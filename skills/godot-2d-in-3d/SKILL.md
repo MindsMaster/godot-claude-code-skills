@@ -5,9 +5,9 @@ description: Godot 4 在 3D 场景里放 2D 角色，HD-2D 风格 像素角色�
 
 # Godot 2D 角色放进 3D 场景
 
-用 Sprite3D、SubViewport 把 2D 美术放进真 3D 场景，配 Environment 做 HD-2D 观感。纯 2D 项目、TileMapLayer、Camera2D 不在这里，见 godot-2d。动画状态机、着色器细节、UI 主题另见对应 skill。
+用 Sprite3D、SubViewport 把 2D 美术放进真 3D 场景，配 Environment 做 HD-2D 观感。纯 2D 项目、TileMapLayer、Camera2D 不在这里，见 godot-2d。动画状态机见 godot-animation，着色器细节见 godot-shaders-vfx，UI 主题见 godot-ui。
 
-本页标了实测的条目，是在 Godot 4.7.2 的 Compatibility 渲染器上用 xvfb 虚拟显示器加 llvmpipe 软件 OpenGL 渲染读像素得到的，方法见 references/render-check.md。Forward+ 与 Mobile 才有的效果只按 XML 与官方文档写。
+本页标了实测的条目，是在 Godot 4.7.2 的 Compatibility 渲染器上用 xvfb 虚拟显示器加 llvmpipe 软件 OpenGL 渲染读像素得到的，方法见 references/render-check.md。Forward+ 与 Mobile 上的效果，以及 Compatibility 上的 glow 与 SSAO，只按 XML 与官方文档写。
 
 ## 先查内置
 
@@ -35,14 +35,14 @@ description: Godot 4 在 3D 场景里放 2D 角色，HD-2D 风格 像素角色�
 | 相机自由度 | 固定角度，旋转或俯仰要重写公式 | 任意移动、旋转、改 fov |
 | 前后遮挡 | 手改 `z_index` 或 `y_sort_enabled` | 深度缓冲，透明物要处理排序 |
 | 光照阴影 | `Light2D` 平面光，阴影靠 `LightOccluder2D` | 真 3D 光源，精灵可接受并投射阴影 |
-| 雾、景深、SSAO | 没有，只有 glow 且要 HDR 2D | `Environment` 与相机属性全套 |
+| 雾、景深、SSAO | 没有，只有 glow，要 HDR 2D 或 `BG_CANVAS` | `Environment` 与相机属性，按渲染器取舍 |
 | 像素对齐 | 项目设置一键取整，见 godot-2d | 要满足整数倍像素规则，见下 |
 | 物理 | `CharacterBody2D` 现成 | 用 3D 物理，或 2D 逻辑再映射 xz |
 | 地图工具 | `TileMapLayer` | `GridMap` 或自建网格 |
-| 渲染器限制 | 全部渲染器一致 | 部分效果只有 Forward+，见 references/hd2d-environment.md |
-| 适合 | 横版、固定视角、深度只是缩放层 | 视角会转或俯仰、要真实光影与景深 |
+| 渲染器限制 | HDR 2D 不支持 Compatibility | 效果随渲染器增减，见 references/hd2d-environment.md |
+| 适合 | 横版、固定视角、深度仅作缩放层 | 视角会转或俯仰、要真实光影与景深 |
 
-需要旋转镜头、动态光影、雾、景深中的任意一个，直接走真 3D。只是为了让前景大、后景小，手算缩放更省事。
+需要旋转镜头、动态光影、雾、景深中的任意一个，直接走真 3D。只需要前景大、后景小时，手算缩放更省事。
 
 ## 做法
 
@@ -118,7 +118,7 @@ func face(direction_x: float) -> void:
 
 - `ALPHA_CUT_HASH` 在 4.7.2 Compatibility 加 llvmpipe 上实测不裁剪任何像素，alpha 为 0 的区域照样画出。其他渲染器与显卡上未验证，Compatibility 项目先别用。
 - 要接收 `DirectionalLight3D` 阴影并给别的物体投影，选 `DISCARD`，像素风的首选。半透明羽化边才选 `OPAQUE_PREPASS`。
-- MSAA 不会给 alpha 裁剪的边缘抗锯齿，需要精灵的 `alpha_antialiasing_mode` 设为 `ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE`，或开 FXAA、TAA。
+- MSAA 对 alpha 裁剪的边缘效果差，需要精灵的 `alpha_antialiasing_mode` 设为 `ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE`，或开 FXAA、TAA。
 - `double_sided` 默认 true。设为 false 后，光从精灵背面来时不投影，实测同一光照下双面投 320 像素、单面 0 像素。billboard 精灵的正面朝相机，背光的主光会让阴影消失，要投影就保持双面。
 - `billboard` 与阴影同时开时，阴影渲染按场景里的相机朝向，多相机场景结果未定义。
 - 混合透明的物体不写深度，也不进法线粗糙度缓冲，依赖这些缓冲的 SSAO 等效果不会作用在它上面。HD-2D 角色用不透明系的 `alpha_cut`。
@@ -211,7 +211,7 @@ SubViewport 贴图、世界内 UI、Label3D、屏幕叠加 HUD 见 references/su
 - 图片被 3D 使用后被自动改成 VRAM Compressed，像素图出块。关掉 Detect 3D 的压缩。
 - `Decal` 在 Compatibility 4.7 不可用，用平放 Sprite3D 替代。
 - 手算透视缩放伪 3D 时每帧维护位置、缩放、排序与光照，需求里出现旋转镜头、动态光影或景深就改真 3D。
-- 本页没有在 Forward+ 与 Mobile 上渲染验证的条目：HASH 在 Forward+ 的表现、SSAO、体积雾、景深、HDR 2D 的 SubViewport 色彩。
+- 本页没有在 Forward+ 与 Mobile 上渲染验证的条目：HASH 在 Forward+ 的表现、glow、SSAO、体积雾、景深、HDR 2D 的 SubViewport 色彩。
 
 ## 参考
 
