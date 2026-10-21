@@ -106,6 +106,8 @@
 | int uint | int | 64 位转 32 位 |
 | float | float | 64 位转 32 位 |
 | ivec2 uvec2 | Vector2i | |
+| ivec3 uvec3 | Vector3i | |
+| ivec4 uvec4 | Vector4i | |
 | vec2 | Vector2 | |
 | vec3 | Vector3 Color | Color 取 rgb |
 | vec4 | Vector4 Color Rect2 Plane Quaternion | Rect2 为 位置 x y 大小 x y |
@@ -124,7 +126,7 @@
 ## 限制
 
 - 单个 shader 的 uniform 总大小：桌面常见 65536 字节，手机常见 16384 字节。vec2 与 vec3 按 vec4 补齐，标量不补，bool 按 int 补齐。大数组改存贴图
-- 逐实例 uniform 每个 shader 最多 16 个
+- 逐实例 uniform 每个 shader 最多 16 个，只支持标量与向量，不支持纹理与数组，`particles` `sky` `fog` 不支持
 - `varying` 不能在自定义函数和 `light()` 里赋值
 - Compatibility 的 GLSL 3.3 下不能用逐实例 uniform 直接索引采样器数组，改用 `switch` 选择
 - Compatibility 的深度范围是 `[-1, 1]`，Forward+ 与 Mobile 是 `[0, 1]` 且反向 Z

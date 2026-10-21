@@ -171,7 +171,7 @@ void fragment() {
 }
 ```
 
-节点设置：`MeshInstance3D` 的网格用 `QuadMesh`，`size` 为 2 乘 2，开 `flip_faces`，作为相机的子节点，或把 `extra_cull_margin` 设到最大。顶点着色器绕过变换直接写裁剪空间，CPU 看不见这点，所以会被视锥剔除。这种雾只是示例，真要雾先用 `Environment` 的 fog 与 `FogVolume`。
+节点设置：`MeshInstance3D` 的网格用 `QuadMesh`，`size` 为 2 乘 2，开 `flip_faces`，作为相机的子节点，或把 `extra_cull_margin` 设到最大。顶点着色器绕过变换直接写裁剪空间，CPU 看不见这点，所以会被视锥剔除。这种雾仅作示例，要雾先用 `Environment` 的 fog 与 `FogVolume`。
 
 ## 风摇 global uniform
 

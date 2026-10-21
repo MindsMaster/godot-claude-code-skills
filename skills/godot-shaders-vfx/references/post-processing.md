@@ -4,7 +4,7 @@
 
 | 级 | 手段 | Compatibility | Mobile | Forward+ |
 |---|---|---|---|---|
-| 1 | `Environment`：glow tonemap adjustments fog ssao 等 | 是 泛光为简化实现 | 无 SSAO SSR SSIL 体积雾 | 全部 |
+| 1 | `Environment`：glow tonemap adjustments fog ssao 等 | 有 SSAO 无 SSR SSIL 体积雾，泛光为简化实现 | 无 SSAO SSR SSIL 体积雾 | 全部 |
 | 2 | `CompositorEffect`（4.3+） | 否 | 是 | 是 |
 | 3 | `CanvasLayer` 加 `ColorRect` 的全屏 shader | 是 | 是 | 是 |
 | 4 | 3D 全屏四边形 | 是 | 是 | 是 |
@@ -32,7 +32,7 @@
 
 景深与曝光在 `CameraAttributes` 上：`dof_blur_far_enabled` `dof_blur_far_distance` `dof_blur_amount`（`CameraAttributesPractical`），自动曝光 `auto_exposure_enabled` 仅 Forward+。景深模糊 Compatibility 不支持，且透明背景的视口不支持。
 
-泛光默认几乎看不见：阈值是 1.0 时只有超出色调映射白点的像素才会发光。降 `glow_hdr_threshold`，或设 `glow_bloom` 大于 0，后者会让整屏变亮。Mobile 的动态范围只到 2.0，阈值可降到 0.9，`glow_intensity` 提到 1.5。
+泛光默认几乎看不见：阈值是 1.0 时只有超出色调映射白点的像素才会发光。降 `glow_hdr_threshold`，或设 `glow_bloom` 大于 0，后者会让整屏变亮。Mobile 的动态范围只到 2.0，阈值可降到 0.9，`tonemap_white` 也要设在 2.0 以下。
 
 ## 2D 的 glow
 
@@ -176,9 +176,17 @@ func _render_callback(_effect_callback_type: int, render_data: RenderData) -> vo
 
 - 类参考标为实验性，接口可能随版本变
 - 回调在渲染线程，不能碰场景树，初始化用 `RenderingServer.call_on_render_thread()`，编辑器里改 shader 文本要加互斥锁
-- 开 `needs_motion_vectors` `needs_normal_roughness`（仅 Forward+）`access_resolved_color` `access_resolved_depth` 申请额外缓冲
+- 开 `needs_motion_vectors` `needs_normal_roughness`（仅 Forward+）申请额外缓冲，`access_resolved_color` `access_resolved_depth` 在开 MSAA 时先做解析
 - 本页示例只验证了 GDScript 能解析，没有在 Vulkan 上运行。官方示例项目 `compute/post_shader` 可对照
 - 仅 Mobile 与 Forward+，Compatibility 里需要改走第 3 或第 4 级
+
+## 用 glow 模糊画面
+
+菜单背景模糊可以不写 shader，仅 Forward+ 与 Mobile，Compatibility 没有 `glow_normalized` `glow_blend_mode`：
+
+- `Environment.glow_enabled` 与 `glow_normalized` 开，`glow_levels/N` 只留一档为 1.0，档位越大越糊
+- `glow_intensity` 与 `glow_bloom` 设 1.0，`glow_blend_mode` 设 `Environment.GLOW_BLEND_MODE_REPLACE`，`glow_hdr_luminance_cap` 设 1.0
+- 只影响 3D，要连 2D 一起模糊把背景模式设为 `BG_CANVAS`，UI 放进层号大于 `background_canvas_max_layer` 的 `CanvasLayer`
 
 ## 低分辨率渲染
 

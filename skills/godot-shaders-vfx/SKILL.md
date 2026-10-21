@@ -24,7 +24,7 @@ description: Godot 着色器与视觉特效 先用内置材质 StandardMaterial3
 | 子弹拖尾 刀光 | 粒子拖尾 `RibbonTrailMesh` 或 `Line2D` | 手拼网格 |
 | 弹孔 污渍 假阴影 | `Decal` | 运行时生成网格 |
 | 多个精灵合成后加描边与特效 | `CanvasGroup` 加材质 | 每个精灵各写一份 |
-| 屏幕模糊 菜单背景 | `hint_screen_texture` 配 `textureLod` | 额外相机加 `SubViewport` |
+| 屏幕模糊 菜单背景 | `hint_screen_texture` 配 `textureLod`，3D 场景也可用 `Environment` 的 glow 模糊 | 额外相机加 `SubViewport` |
 | 动态噪声 渐变 曲线贴图 | `NoiseTexture2D` `GradientTexture1D` `CurveTexture` 传给 uniform | 在脚本里逐像素生成 |
 | 受击闪白 | shader uniform 加 `Tween` | `modulate` 超过 1 |
 
@@ -55,9 +55,9 @@ description: Godot 着色器与视觉特效 先用内置材质 StandardMaterial3
 | global uniform | `global uniform float x;` | 整个项目 | `RenderingServer.global_shader_parameter_set(&"x", v)` |
 
 - 多个节点共用一个材质但各自状态不同（闪白 颜色变体 溶解进度）：用 instance uniform，不复制材质
-- instance uniform 在 `GeometryInstance3D` 上可用，`CanvasItem.set_instance_shader_parameter()` 是 4.4+
+- instance uniform 只用于 `spatial` 与 `canvas_item` shader，`particles` `sky` `fog` 不支持。3D 在 `GeometryInstance3D` 上设置，`CanvasItem.set_instance_shader_parameter()` 是 4.4+
 - instance uniform 不支持纹理与数组，每个 shader 最多 16 个，同一网格多个材质时靠 `instance_index` 提示避免冲突
-- global uniform 必须先在项目设置的 Shader Globals 页创建（写入 `shader_globals/<名字>`），否则 shader 保存时编译失败。适合风力 昼夜 玩家位置，设置很便宜，读取很贵（`global_shader_parameter_get()` 会同步渲染线程）
+- global uniform 必须先在项目设置的 Shader Globals 页创建（写入 `shader_globals/<名字>`），否则编辑器里保存 shader 时编译失败，运行时只有警告且取值不对。适合风力 昼夜 玩家位置，设置很便宜，读取很贵（`global_shader_parameter_get()` 会同步渲染线程）
 - 颜色 uniform 加 `source_color`，贴图 uniform 作反照率时也加
 
 ### 命中闪白
@@ -86,7 +86,7 @@ func hit() -> void:
 	_tween.tween_property(self, "instance_shader_parameters/flash", 0.0, 0.15)
 ```
 
-`modulate` 是乘法，黑色和暗部乘多大都到不了白，且不开 HDR 2D 时超过 1 的值会被截断。闪白要用 `mix` 到目标色。材质上有普通 uniform 时，可 `tween_property(material, "shader_parameter/flash", ...)`，但同一份材质被多个实例共享会一起闪，需要把材质的 `resource_local_to_scene` 打开，或改用 instance uniform。
+`modulate` 是乘法，黑色和暗部乘多大都到不了白，且不开 HDR 2D 时超过 1 的值会被截断。闪白要用 `mix` 到目标色。材质上有普通 uniform 时，可 `tween_property(material, "shader_parameter/flash", ...)`，前提是先 `set_shader_parameter()` 写过初值。同一份材质被多个实例共享会一起闪，需要把材质的 `resource_local_to_scene` 打开，或改用 instance uniform。
 
 ### 从 C# 设置
 
@@ -198,7 +198,7 @@ func _ready() -> void:
 
 ### 复用代码
 
-`.gdshaderinc` 放函数库，用 `#include "res://shaders/lib.gdshaderinc"` 引入。只有 `.gdshaderinc` 能被包含，不能循环包含，深度最多 25。别在包含文件里写 `shader_type`。
+`.gdshaderinc` 放函数库，用 `#include "res://shaders/lib.gdshaderinc"` 引入。只有 `.gdshaderinc` 能被包含，不能循环包含，深度最多 25。包含文件里一般不写 `shader_type`。
 
 ## 陷阱
 
@@ -207,7 +207,7 @@ func _ready() -> void:
 - 参数名要和 shader 完全一致，区分大小写
 - `ShaderMaterial` 共享于场景的所有实例。给一个实例改参数会连带所有实例。用 instance uniform 或 `resource_local_to_scene`
 - 不要每次受击 `duplicate()` 或 `new` 材质，会造成内存开销和材质管理混乱
-- 无头模式 `--headless` 下 `ShaderMaterial` 没有 `shader_parameter/*` 属性（实测），对它 `tween_property` 会报错，`await tween.finished` 永远不返回。`instance_shader_parameters/*` 可用。测试 shader 要用带渲染的运行
+- 没调用过 `set_shader_parameter()` 的 uniform 在 `ShaderMaterial` 上读出 `null`，shader 里的默认值不会回填。对它 `tween_property` 报 `does not exist`，tween 里没有 tweener，`await tween.finished` 永远不返回。先写初值再 tween，有无渲染都一样（实测 4.7.2 的 headless 与 Compatibility）
 - `TIME` 3600 秒回绕（`rendering/limits/time/time_rollover_secs`），受 `Engine.time_scale` 影响，不受暂停影响
 - 贴图当颜色必须 `source_color`，法线与数据贴图不要
 - uniform 总大小有上限，桌面 65536 字节，手机 16384 字节。大数组打包进贴图
