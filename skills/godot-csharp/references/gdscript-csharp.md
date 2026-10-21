@@ -77,7 +77,8 @@
 | `weakref` | `GodotObject.WeakRef` |
 | `var_to_str` `str_to_var` | `GD.VarToStr` `GD.StrToVar` |
 | `len` `range` | `.Length` 或 `.Count`，`GD.Range` 或 `Enumerable.Range` |
-| `print_debug` `print_stack` | 没有，用 `GD.Print(System.Environment.StackTrace)` |
+| `print_debug` | 没有 |
+| `print_stack` | `GD.Print(System.Environment.StackTrace)` |
 | `push_warning` | `GD.PushWarning` |
 | `printerr` | `GD.PrintErr` |
 | `print_rich` | `GD.PrintRich` |
@@ -161,6 +162,7 @@ public partial class Bridge : Node
 
 - 从 C# 访问 GDScript 成员只能用 `Get()` `Set()` `Call()` `Connect()`，名字是 GDScript 里的 `snake_case`。传错参数个数时 `Call()` 静默失败
 - GDScript 脚本里的信号不会生成 C# 事件，用 `Connect()`
+- GDScript 与 C# 脚本不能互相继承
 - 从 GDScript 访问 C# 成员用 C# 里的名字，`node.MyProperty`、`node.PrintNodeName(self)`
 - GDScript 里实例化 C# 脚本：`load("res://MyNode.cs").new()`。类名必须与 `.cs` 文件名一致，文件要在 `.csproj` 里被包含，类要派生自 Godot 类，否则报 `Invalid call. Nonexistent function 'new' in base`
 
@@ -172,4 +174,4 @@ public partial class Bridge : Node
 - `Transform3D` 的 `new Transform3D()` 全部分量是零，要单位变换写 `Transform3D.Identity`
 - `Input`、`OS` 等单例是静态类。需要 `GodotObject` 成员（如 `Connect()`）时用它们的 Singleton 属性
 - `EditorInterface` 在 C# 里不是静态类，用它的 Singleton 属性
-- 条件编译：`GODOT`、`TOOLS`（Debug 构建）、`GODOT_REAL_T_IS_DOUBLE`、平台宏 `GODOT_WINDOWS` `GODOT_LINUXBSD` `GODOT_MACOS` `GODOT_ANDROID` `GODOT_IOS` `GODOT_WEB`，导出时还有 `GODOT_PC` `GODOT_MOBILE`，版本宏 `GODOT4_4_OR_GREATER` 这一类
+- 条件编译：`GODOT`、`TOOLS`（Debug 配置）、`GODOT_REAL_T_IS_DOUBLE`，平台宏 `GODOT_WINDOWS` `GODOT_LINUXBSD` `GODOT_MACOS` `GODOT_ANDROID` `GODOT_IOS` `GODOT_WEB`，类别宏 `GODOT_PC` `GODOT_MOBILE`，版本宏 `GODOT4_4_OR_GREATER` 这一类。官方文档说类别宏只在导出时有，Godot.NET.Sdk 的 Sdk.props 按构建目标平台定义，Linux Debug 构建实测已有 `GODOT_LINUXBSD` 与 `GODOT_PC`
