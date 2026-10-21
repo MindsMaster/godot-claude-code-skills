@@ -1,6 +1,6 @@
 ---
 name: godot-headless-testing
-description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑通。无头运行 headless、命令行参数 command line、--headless --import --check-only --quit-after --script、SceneTree 脚本、冒烟测试 smoke test、退出码 exit code、从输出判失败 SCRIPT ERROR Parse Error、模拟输入 Input.parse_input_event action_press、截图 screenshot xvfb、--write-movie 录帧、GUT gdUnit4、CI 下载 Godot 二进制、导出 --export-pack、查 API ClassDB doctool、C# dotnet build 后再跑。修完脚本报错要确认整个项目没有脚本错误、改完 GDScript、场景、C# 后想自己验证、写自动化测试、配 CI 时用
+description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑通。无头运行 headless、命令行参数 command line、--headless --import --check-only --quit-after --script、SceneTree 脚本、冒烟测试 smoke test、退出码 exit code、从输出判失败 SCRIPT ERROR Parse Error、模拟输入 Input.parse_input_event action_press、截图 screenshot xvfb、--write-movie 录帧、GUT gdUnit4、CI 下载 Godot 二进制、导出 --export-pack、查 API ClassDB doctool、C# dotnet build 后再跑。修完脚本报错要确认整个项目没有脚本错误、没有 GDScript 警告 warning、改完 GDScript、场景、C# 后想自己验证、写自动化测试、配 CI 时用
 ---
 
 # Godot 无头测试与命令行验证
@@ -33,7 +33,7 @@ description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑�
 
 1. 新增或改了 class_name、资源、自动加载、输入映射：`--import`
 2. 每个改动的脚本 `--check-only`
-3. 加载全部场景与脚本，看输出里的 ERROR
+3. 加载全部场景与脚本，看输出里的 ERROR。要求没有警告时先做下面的警告转错误
 4. 冒烟脚本，覆盖改到的系统
 5. 工程里有 GUT 或 gdUnit4 测试时跑它们
 
@@ -73,6 +73,36 @@ GD_TIMEOUT=120 gdrun -s tests/smoke_level.gd
 排除 `resources still in use` 和 `RID allocations ... leaked at exit` 是因为脚本里 new 或 instantiate 出来的节点没释放时退出会打这两条 ERROR，同时有 `WARNING: ... ObjectDB instances were leaked`。测试脚本自己 `free()` 创建的节点就不会出现。
 
 退出码规则详表和每个参数的实测见 references/cli-flags.md。
+
+## 查 GDScript 警告
+
+命令行运行不打印警告，输出干净不等于没有警告。`tests/warn_as_error.gd` 在工程根生成 `override.cfg`，把等级为 Warn 的项都设成 Error，再运行就会让有警告的脚本报 `Warning treated as error`：
+
+```gdscript
+extends SceneTree
+
+func _initialize() -> void:
+	var cfg := ConfigFile.new()
+	for p: Dictionary in ProjectSettings.get_property_list():
+		var key: String = p["name"]
+		if not key.begins_with("debug/gdscript/warnings/"):
+			continue
+		if typeof(ProjectSettings.get_setting(key)) == TYPE_INT and ProjectSettings.get_setting(key) == 1:
+			cfg.set_value("debug", key.trim_prefix("debug/"), 2)
+	cfg.save("res://override.cfg")
+	quit()
+```
+
+```bash
+gdrun -s tests/warn_as_error.gd
+gdrun --quit-after 5
+gdrun --check-only -s enemies/slime.gd
+rm override.cfg
+```
+
+- 只有被加载的脚本才报，没挂进场景的脚本逐个 `--check-only`
+- 默认关闭的项如 `untyped_declaration`、`return_value_discarded` 不在其中，要查就在 `override.cfg` 的 `[debug]` 下手写 `gdscript/warnings/名字=2`
+- 项目目录只读时在副本里生成和运行，用完删掉 `override.cfg`，它对所有运行生效
 
 ## 冒烟脚本的写法
 
@@ -175,7 +205,7 @@ func _initialize() -> void:
 - headless 下 `get_texture().get_image()` 返回 null，`await RenderingServer.frame_post_draw` 永远不触发，`--write-movie` 段错误。截图和录像必须 xvfb
 - `--write-movie`、`--log-file` 的输出目录必须已存在
 - 标准版 Godot 不加载 `.cs`。C# 要 mono 版加 `dotnet build`，没构建就跑会卡住。见 references/ci-and-frameworks.md
-- 命令行运行 GDScript 警告不打印，无头和 xvfb 都一样，`--check-only` 也不报。想让警告变失败，在工程根放 `override.cfg` 把对应 `gdscript/warnings/...` 设为 2，用完删除
+- 命令行运行 GDScript 警告不打印，无头和 xvfb 都一样，`--check-only` 也不报。想让警告变失败，按上一节生成 `override.cfg`，用完删除
 - grep `ERROR:` 会命中几种无害行：退出时 `resources still in use` 与 `RID allocations ... leaked at exit`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。要排除就具体排除，不要整类忽略
 - 退出时的 `WARNING: N ObjectDB instances were leaked` 说明测试脚本创建的节点没 `free`，不是引擎问题，加 `--verbose` 看 `Leaked instance`
 - `--log-file` 不会让终端静默，两边都有输出
