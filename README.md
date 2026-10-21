@@ -6,14 +6,36 @@
 
 # 安装
 
-作为插件：
+内部使用，不发布到官方目录。仓库是私有的，本机 git 要能无交互拉取：ssh-agent 里有 key，或 `gh auth login` 后 `gh auth setup-git`。
+
+个人安装：
 
 ```
-/plugin marketplace add MindsMaster/godot-claude-code-skills
-/plugin install godot-skills@godot-claude-code-skills
+claude plugin marketplace add MindsMaster/godot-claude-code-skills
+claude plugin install godot-skills@godot-claude-code-skills
 ```
 
-只想放进某个项目：把 `skills/` 下需要的目录拷到项目的 `.claude/skills/`。
+让某个 Godot 项目的所有人自动启用，在那个项目提交 `.claude/settings.json`：
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "godot-claude-code-skills": {
+      "source": {
+        "source": "github",
+        "repo": "MindsMaster/godot-claude-code-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "godot-skills@godot-claude-code-skills": true
+  }
+}
+```
+
+队友打开项目并信任该目录后生效。`plugin.json` 不写 `version`，每次更新都按最新提交拉取，用 `claude plugin update godot-skills` 更新。
+
+本地调试：`claude plugin marketplace add ./godot-claude-code-skills` 指向本地克隆。
 
 # 内容
 
