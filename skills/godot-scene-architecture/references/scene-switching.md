@@ -6,7 +6,7 @@
 |---|---|
 | 整屏换关卡，旧的全部丢弃 | `SceneTree.change_scene_to_file(path)` |
 | 已经有 `PackedScene`（预加载过） | `SceneTree.change_scene_to_packed(scene)` |
-| 切换前要先建好场景、传参数 | `SceneTree.change_scene_to_node(node)`，4.6+ |
+| 切换前要先建好场景、传参数 | `SceneTree.change_scene_to_node(node)`，4.6+，`node` 不能已在树里 |
 | 重开当前关 | `SceneTree.reload_current_scene()` |
 | 菜单、对话框、小游戏叠在当前场景上 | `instantiate()` 后 `add_child`，不切换 |
 | 要保留旧场景状态再回来 | 自己管：旧场景 `remove_child` 不释放，或叠加方式 |
@@ -20,7 +20,7 @@
 
 - 调用后旧场景立即从树里移除，`get_tree()` 对旧场景返回 `null`，`current_scene` 为 `null`
 - 帧末旧场景释放，新场景加入。同一帧里拿不到新场景
-- 要拿新场景：`await get_tree().scene_changed`，4.5+
+- 要拿新场景：`await get_tree().scene_changed`，4.5+，须在 autoload 这类不会被切走的节点里等，旧场景里的函数随节点释放不会恢复
 - 在被切换掉的场景脚本里，调用 `change_scene_to_file` 之后的代码仍会运行，但 `get_tree()` 已经为 `null`。把它放在函数最后一行，或先取 `var tree := get_tree()`
 - Autoload 节点不受影响，留在 `/root` 下
 - `change_scene_to_node` 之后 `SceneTree` 接管该节点，之后再切换会释放它，别保留引用

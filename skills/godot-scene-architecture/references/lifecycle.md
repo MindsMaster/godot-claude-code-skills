@@ -37,12 +37,12 @@ func spawn(parent: Node, label_text: String) -> void:
 
 ## owner
 
-`owner` 只影响保存和编辑器显示，不影响运行时行为，除了 `%UniqueName` 查找。
+`owner` 影响保存和编辑器显示，运行时只有 `%UniqueName` 查找和 `find_child` 默认的 `owned` 过滤用到它。
 
 - 编辑器里摆好的节点，`owner` 是场景根；子场景实例里的节点，`owner` 是那个实例的根
 - 代码 `add_child` 的节点 `owner` 为 `null`，不会被 `PackedScene.pack` 打包，在编辑器里 `@tool` 脚本生成的节点也不会出现在场景面板
 - 要打包或在编辑器显示：`child.owner = root`，`root` 是要保存的那个场景根，不是直接父节点
-- `%Name` 查找以调用节点所在的 owner 为范围。先设 `owner` 再设 `unique_name_in_owner`，反了不生效
+- `%Name` 查找以调用节点所在的 owner 为范围。`owner` 为 `null` 的节点查不到，设了 `owner` 才生效，与 `unique_name_in_owner` 的设置先后无关
 
 ```gdscript
 extends Node
@@ -68,7 +68,6 @@ func build() -> PackedScene:
 | 子节点 `_ready` 里给父节点 `add_child` | `Parent node is busy setting up children` | `get_parent().add_child.call_deferred(node)` |
 | `_exit_tree` 或遍历子节点时改子节点列表 | `Parent node is busy removing children` | `remove_child.call_deferred(node)` |
 | 工作线程里改场景树 | 崩溃或随机报错 | `call_deferred` 回主线程 |
-| 想等本帧树改动全部落定再读结果 | 读到旧状态 | `await get_tree().process_frame` |
 
 ```gdscript
 extends Area2D
@@ -85,6 +84,7 @@ func _on_body_entered(_body: Node2D) -> void:
 	drop.set_deferred("global_position", global_position)
 ```
 
+- 想等本帧树改动全部落定再读结果，用 `await get_tree().process_frame`
 - 其他场合不要用 `call_deferred`。它让时序难读，只在上面几种有报错或确有同帧冲突时用
 - `Object.set_deferred` 和 `Object.call_deferred` 是 `Object` 上的方法，所有节点都有
 - 带参数的写法用 `Callable.call_deferred(args)`，比字符串名字少一次拼写错误
@@ -94,6 +94,8 @@ C# 对应：
 ```csharp
 public partial class Pickup : Area2D
 {
+    [Export] public PackedScene DropScene { get; set; }
+
     public override void _Ready()
     {
         BodyEntered += OnBodyEntered;
@@ -102,7 +104,9 @@ public partial class Pickup : Area2D
     private void OnBodyEntered(Node2D body)
     {
         SetDeferred(Area2D.PropertyName.Monitoring, false);
-        CallDeferred(Node.MethodName.QueueFree);
+        var drop = DropScene.Instantiate<Node2D>();
+        GetParent().CallDeferred(Node.MethodName.AddChild, drop);
+        drop.SetDeferred(Node2D.PropertyName.GlobalPosition, GlobalPosition);
     }
 }
 ```
@@ -112,12 +116,12 @@ public partial class Pickup : Area2D
 | 做法 | 行为 |
 |---|---|
 | `queue_free()` | 帧末释放，安全。子树一起释放 |
-| `free()` | 立即释放。节点在回调或信号处理中被锁定时报错，别对树内节点用 |
-| `remove_child(n)` | 只出树，不释放，`n` 变成孤儿，要自己 `free` 或重新挂回 |
+| `free()` | 立即释放。节点在回调或信号发射中被锁定时报错，别对树内节点用 |
+| `remove_child(n)` | 只出树，不释放，`n` 变成孤儿，要自己 `free` 或重新挂回，`owner` 不再是祖先时被清成 `null` |
 | `new()` 创建后没 `add_child` | 同样是孤儿，不用就 `free` |
 
 - `is_instance_valid(x)` 判断对象是否已释放。刚 `queue_free` 的节点在帧末之前仍然有效，要排除用 `x.is_queued_for_deletion()`
 - 持有其他节点引用的成员变量在对方释放后会变成无效引用，访问时报 `previously freed`。办法：监听对方的 `tree_exiting` 清空，或者每次使用前 `is_instance_valid`
 - 遍历子节点逐个释放：`for c in get_children(): c.queue_free()`。`get_children()` 返回副本，边遍历边释放安全
-- `await` 一个信号之后，发信号的对象或自己可能已被释放。恢复执行后先 `if not is_inside_tree(): return`
-- 调试内存泄漏：退出时的 `ObjectDB instances leaked` 警告，用 `Node.print_orphan_nodes()` 或 `--verbose` 找孤儿
+- `await` 期间自己被释放，函数不会恢复；被 `await` 的信号所属对象被释放，信号不会再发，函数一直挂起；自己只是出树时会恢复，恢复后先 `if not is_inside_tree(): return`
+- 调试内存泄漏，仅 debug 构建：退出时的 `ObjectDB instances leaked` 警告，用 `Node.print_orphan_nodes()` 或 `--verbose` 找孤儿

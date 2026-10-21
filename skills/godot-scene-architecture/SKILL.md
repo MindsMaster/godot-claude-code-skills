@@ -5,7 +5,7 @@ description: Godot 4 场景与节点结构设计，用于拆分场景、复用�
 
 # Godot 场景架构
 
-解决怎么把游戏拆成场景和节点：谁实例化谁，节点怎么互相找到，怎么通信，状态怎么管，场景怎么切。不管具体节点的用法，2D、UI、动画各有自己的 skill。资源当数据用见 godot-resources-data。
+解决怎么把游戏拆成场景和节点：谁实例化谁，节点怎么互相找到，怎么通信，状态怎么管，场景怎么切。不管具体节点的用法，见 godot-2d godot-ui godot-animation。资源当数据用见 godot-resources-data，C# 通用规则见 godot-csharp。
 
 默认做法：一个概念一个 `.tscn`，脚本挂在场景根上，场景自带它需要的子节点，对外只露 `@export` 属性、信号和少量方法。
 
@@ -92,7 +92,7 @@ func _process(_delta: float) -> void:
 
 - 直接子节点用 `$Name`，更深的节点在场景面板右键 `Access as Unique Name` 后用 `%Name`
 - 一律 `@onready` 缓存成带类型的成员变量，不在 `_process` 里取
-- `@export var x: Node2D` 在节点进树时解析为节点，`_enter_tree` 和 `_ready` 里可用，`_init` 里是 `null`
+- `@export var x: Node2D` 在 `instantiate()` 返回时已解析为节点，`_enter_tree` 和 `_ready` 里可用，`_init` 里是 `null`
 - 代码里 `instantiate()` 出来的场景，`@export` 节点引用要自己赋值
 - 找不到可能是正常情况时用 `get_node_or_null`
 
@@ -111,7 +111,7 @@ signal died
 
 @export var maximum: int = 100
 
-var current: int = maximum
+@onready var current: int = maximum
 
 func damage(amount: int) -> void:
 	current = maxi(current - amount, 0)
@@ -130,9 +130,9 @@ func _ready() -> void:
 ```
 
 - 信号名用过去式：`died` `item_collected`
+- 成员初始化器里读 `@export` 拿到的是脚本默认值，Inspector 里改的值在 `_ready` 之前才到，依赖它的初值用 `@onready`
 - 信号只用来响应，不用来发起指令。要对方做事就调方法
 - 编辑器 Node 面板里连的信号写在 `.tscn` 里，父场景重命名方法时不会提示，脚本里 `connect` 更好追踪
-- 一次性监听用 `CONNECT_ONE_SHOT`，或者 `await signal`
 
 C# 信号：
 
@@ -144,7 +144,9 @@ public partial class Health : Node
 
     [Export] public int Maximum { get; set; } = 100;
 
-    public int Current { get; private set; } = 100;
+    public int Current { get; private set; }
+
+    public override void _Ready() => Current = Maximum;
 
     public void Damage(int amount)
     {
@@ -191,7 +193,7 @@ Settings="*res://src/autoload/settings.gd"
 
 ## 组合优先于继承
 
-重复出现的行为做成子节点组件，宿主通过 `@export` 或 `get_parent()` 之外的方式拿到：
+重复出现的行为做成子节点组件，宿主用 `@export` 传进来，不靠 `get_parent()`：
 
 ```gdscript
 class_name HurtBox
@@ -218,7 +220,6 @@ extends Area2D
 - 继承留给同类事物的细分，一层够用。需要第三层时先想能否拆成组件
 - 场景继承（New Inherited Scene）用于同一模板的变体，比如换了贴图和数值的敌人。继承场景里改父场景的结构会影响所有变体
 - 嵌入的子场景默认只能改根节点属性，右键 `Editable Children` 才能改内部节点，改动写在宿主场景里，父场景改结构时容易失效
-- 组件脚本里不要 `get_parent().get_parent()`。需要宿主就 `@export var host: CharacterBody2D`
 
 ## 状态机
 
@@ -256,7 +257,6 @@ func _set_state(next: State) -> void:
 ```
 
 - 所有转移走一个入口函数，进入和退出的一次性逻辑放在里面
-- 互斥状态不用多个 bool 表示。`is_dashing and is_attacking` 同时为真是什么意思，没人说得清
 
 ## 暂停与 process_mode
 
@@ -264,7 +264,7 @@ func _set_state(next: State) -> void:
 extends Control
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	hide()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -275,8 +275,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ```
 
 - `PROCESS_MODE_INHERIT` 是默认值，沿父级走，根节点默认当 `PROCESS_MODE_PAUSABLE`
-- 暂停菜单根设 `WHEN_PAUSED`，需要一直跑的（背景音乐、转场）设 `ALWAYS`
-- `PROCESS_MODE_DISABLED` 关掉整棵子树的处理，比逐个 `set_process(false)` 干净。屏幕外的远处对象用它
+- 负责切换暂停的节点设 `ALWAYS`，`WHEN_PAUSED` 的节点未暂停时收不到输入。暂停菜单内容设 `WHEN_PAUSED`，背景音乐和转场设 `ALWAYS`
+- `PROCESS_MODE_DISABLED` 关掉整棵子树的处理，比逐个 `set_process(false)` 干净。屏幕外的对象用 `VisibleOnScreenEnabler2D` 或 `VisibleOnScreenEnabler3D`，它按可见性切 `PROCESS_MODE_DISABLED`
 - `Node.set_process(false)` 只关 `_process`，不影响 `_physics_process` 和输入
 - `SceneTree.paused` 同时停物理。`create_timer` 的 `process_always` 默认 `true`，暂停时也走
 
@@ -285,9 +285,9 @@ func _unhandled_input(event: InputEvent) -> void:
 - 子节点的 `_ready` 先于父节点。父的 `_ready` 里可以放心用子，子的 `_ready` 里不要假设父已就绪
 - `queue_free()` 后对象到帧末才释放，`is_instance_valid` 在这之前仍返回 `true`。判断是否已在销毁用 `is_queued_for_deletion()`
 - 物理回调（`body_entered` `area_entered`）里增删碰撞体、改 `monitoring`、改 `CollisionShape2D.disabled` 会报 `Can't change this state while flushing queries`。用 `set_deferred("disabled", true)` 或 `call_deferred`
-- `%Name` 只在同一个场景的 owner 内有效，跨实例化子场景取不到；代码里 `add_child` 的节点要先设 `owner` 再设 `unique_name_in_owner`，顺序反了静默失败
-- 节点在树外时 `get_tree()` 返回 `null`，`await get_tree().process_frame` 会崩。先 `add_child`
-- 场景切换后 `get_tree().current_scene` 在当前帧可能是 `null`。切换 API 的细节见 [references/scene-switching.md](references/scene-switching.md)
+- `%Name` 只在同一个场景的 owner 内有效，跨实例化子场景取不到；代码里 `add_child` 的节点 `owner` 为 `null` 时 `%Name` 查不到，设了 `owner` 才生效
+- 节点在树外时 `get_tree()` 返回 `null`，`await get_tree().process_frame` 报错。先 `add_child`
+- `change_scene_to_*` 调用后到帧末，`get_tree().current_scene` 是 `null`。切换 API 的细节见 [references/scene-switching.md](references/scene-switching.md)
 - lambda 里捕获了会被释放的节点，释放后触发会报错。用方法引用连接，Godot 会在对象释放时自动断开
 - `_process` 里每帧 `get_node` `find_child` `get_nodes_in_group`，或 `get_node("../Sibling")` 这类向上路径。缓存，或改成 `@export` 和信号
 - 上帝节点：一个 `Level.gd` 管相机、HUD、生成、计时、状态。按职责拆成子场景，各自有脚本，Level 只负责组装
