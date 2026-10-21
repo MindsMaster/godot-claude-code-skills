@@ -121,6 +121,7 @@ func face(direction_x: float) -> void:
 - MSAA 对 alpha 裁剪的边缘效果差，需要精灵的 `alpha_antialiasing_mode` 设为 `ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE`，或开 FXAA、TAA。
 - `double_sided` 默认 true。设为 false 后，光从精灵背面来时不投影，实测同一光照下双面投 320 像素、单面 0 像素。billboard 精灵的正面朝相机，背光的主光会让阴影消失，要投影就保持双面。
 - `billboard` 与阴影同时开时，阴影渲染按场景里的相机朝向，多相机场景结果未定义。
+- 相机绕角色转时，billboard 精灵的影子跟着相机转向变形，光从侧面来时变窄。要稳定的影子：可见精灵 `cast_shadow` 关掉，另加同贴图、同 `alpha_cut`、不开 billboard 的副本，`cast_shadow` 设 `SHADOW_CASTING_SETTING_SHADOWS_ONLY`，正面朝主光的水平方向。
 - 混合透明的物体不写深度，也不进法线粗糙度缓冲，依赖这些缓冲的 SSAO 等效果不会作用在它上面。HD-2D 角色用不透明系的 `alpha_cut`。
 
 排序只在 `ALPHA_CUT_DISABLED` 时调。实测两张重叠精灵，A 在前 0.5 米：
