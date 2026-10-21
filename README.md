@@ -39,7 +39,26 @@ claude plugin install godot-skills@godot-claude-code-skills
 
 # 内容
 
-<!-- skills-table -->
+| skill | 内容 |
+| --- | --- |
+| `godot-builtin-first` | 总入口 写功能前先查内置方案 指向细分 skill |
+| `godot-scene-architecture` | 场景组合 节点引用 信号 分组 autoload 状态机 生命周期 |
+| `godot-gdscript` | 静态类型 注解 信号与 await 警告设置 |
+| `godot-csharp` | 命名映射 源码生成器 StringName 缓存 生命周期 热重载 |
+| `godot-2d` | CharacterBody2D TileMapLayer Camera2D Parallax2D 像素风 2D 光照 |
+| `godot-3d` | CharacterBody3D 物理引擎 光照与 GI 导入管线 LOD 骨骼修改器 |
+| `godot-2d-in-3d` | Sprite3D billboard alpha 裁剪与阴影 SubViewport HD-2D 后处理 |
+| `godot-ui` | Container 布局 Theme 血条 RichTextLabel 拉伸模式 本地化 |
+| `godot-animation` | AnimationPlayer AnimationTree Tween SpriteFrames 确定性回放 |
+| `godot-input` | InputMap 动作 手柄 死区 改键存档 |
+| `godot-audio` | 总线布局 音量设置 AudioStreamRandomizer 复音 动态音乐 |
+| `godot-resources-data` | 自定义 Resource 线程加载 存档 导入期烘焙 内置曲线资源 |
+| `godot-shaders-vfx` | shader 参数 instance uniform 粒子 Environment 后处理 CompositorEffect |
+| `godot-editor-tooling` | @tool EditorPlugin Inspector 插件 导入插件 撤销 快捷键 |
+| `godot-headless-testing` | 无头命令行 冒烟场景 退出码 CI GUT gdUnit4 |
+| `godot-performance` | Profiler 与 Monitor MultiMesh 物理插值 WorkerThreadPool shader 编译卡顿 |
+
+`evals/` 是 `claude plugin eval` 用例，对比装与不装插件时 AI 是否选用内置方案。
 
 # 测试
 
