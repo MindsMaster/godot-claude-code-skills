@@ -1,5 +1,5 @@
 ---
 type: tool_used
 tool: Skill
-input_match: 'godot-(csharp|animation|builtin-first)'
+input_match: 'godot-(csharp|shaders-vfx)'
 ---
