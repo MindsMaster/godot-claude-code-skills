@@ -24,3 +24,7 @@ internationalization/locale/translation_remaps
 internationalization/locale/translations_pot_files
 DangerButton
 Health
+HurtBox
+MethodName
+PropertyName
+SignalName
