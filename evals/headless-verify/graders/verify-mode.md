@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '--import|--check-only|--quit|--script'
+pattern: '--import'
 match: contains
 target: trace
 ---

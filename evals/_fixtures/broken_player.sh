@@ -14,6 +14,7 @@ extends CharacterBody2D
 
 @export var speed := 220.0
 @export var jump_velocity := -420.0
+@export var stats: Stats
 
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
@@ -23,6 +24,12 @@ func _physics_process(delta: float) -> void:
 	velocity.x = Input.get_axis("ui_left", "ui_right") * speed
 	velocity = velocity.limit_speed_to(600.0)
 	move_and_slide()
+P
+cat > stats.gd <<'P'
+class_name Stats
+extends Resource
+
+@export var max_speed := 600.0
 P
 cat > main.tscn <<'P'
 [gd_scene load_steps=3 format=3]
