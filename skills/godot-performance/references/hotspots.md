@@ -10,7 +10,7 @@ SKILL.md 讲了选择，这里是 Server 绕过节点与对象池的完整示例
 extends Node2D
 
 var _items: Array[RID] = []
-var _positions: Array[Vector2] = []
+var _positions := PackedVector2Array()
 
 func spawn(texture: Texture2D, pos: Vector2) -> void:
 	var item := RenderingServer.canvas_item_create()
@@ -32,8 +32,9 @@ func _exit_tree() -> void:
 ```
 
 - 服务器对象用 `RID` 引用，没有引用计数，必须 `free_rid()`，漏掉就是泄漏
-- 碰撞用 `PhysicsServer2D.area_create()` 加 `area_add_shape()` 加 `area_set_space()`，回调用 `area_set_monitor_callback()`，官方示例是 Bullet Shower 演示项目
-- 服务器 API 线程安全，渲染与物理服务器需要在项目设置里开启线程模型才能在线程里用
+- 碰撞用 `PhysicsServer2D.body_create()` 加 `body_add_shape()` 加 `body_set_space()`，`body_set_state()` 设位置。只要进出事件时用 `area_create()` 加 `area_set_monitor_callback()`。官方示例是 Bullet Shower 演示项目，用 body 加一个节点的 `_draw()` 画全部子弹
+- 开了物理插值时，新建 canvas item 摆好位置后调 `RenderingServer.canvas_item_reset_physics_interpolation()`，否则出现时有瞬移
+- 服务器可在线程里调用。`PhysicsServer2D` 与 `PhysicsServer3D` 要开 `physics/2d/run_on_separate_thread` 或 `physics/3d/run_on_separate_thread`，开启后 API 只能在物理处理期间访问。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe
 - 状态存进 `PackedVector2Array` 等紧凑数组，不为每个对象建 `RefCounted`
 - 先试 MultiMesh 与对象池，它们够用就不要上服务器
 
@@ -92,7 +93,7 @@ func fill(count: int) -> void:
 ```
 
 - 数组长度必须等于实例数乘每实例 float 数，不符时打印错误且什么都不画
-- 开启物理插值时，`RenderingServer.multimesh_set_buffer_interpolated()` 同时传当前与上一 tick 的数据
+- 开启物理插值且实例顺序每 tick 会变时，用 `MultiMesh.set_buffer_interpolated()` 同时传当前与上一 tick 的数据。顺序不变时直接设 `buffer` 即可。新摆放的实例调 `MultiMesh.reset_instance_physics_interpolation()`
 - 逐个 `set_instance_transform_2d()` 每次一次调用，上千个实例每帧更新时改用 `buffer`
 - 位置由 shader 计算的场景（草、鱼群、星空），实例只存起点，时间推进在顶点着色器里，用 `INSTANCE_ID` 与 `INSTANCE_CUSTOM`
 

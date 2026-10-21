@@ -5,7 +5,7 @@ description: 排查和优化卡顿掉帧时用。先测再改：Debugger Profile
 
 # Godot 性能
 
-先测再改：定位瓶颈，选内置方案，再测一次确认。不管具体渲染特效，也不管 GDScript 与 C# 的语法写法，那些去 godot-gdscript 与 godot-csharp。
+先测再改：定位瓶颈，选内置方案，再测一次确认。不管具体渲染特效，也不管 GDScript 与 C# 的语法写法，着色器去 godot-shaders-vfx，3D 剔除与 LOD 去 godot-3d，语法去 godot-gdscript 与 godot-csharp。
 
 目标 4.7，最低 4.4。
 
@@ -14,12 +14,13 @@ description: 排查和优化卡顿掉帧时用。先测再改：Debugger Profile
 | 现象 | 用这个 | 别自己写 |
 |---|---|---|
 | 数千个相同物体 | `MultiMeshInstance2D`、`MultiMeshInstance3D` 加 `MultiMesh` | 每个物体一个 Sprite 或 MeshInstance 节点 |
-| 数千颗 2D 子弹或粒子 | `RenderingServer` 的 canvas item 与 `PhysicsServer2D`，或 `MultiMesh` 加数组存状态，至少做对象池 | 每颗子弹一个 Area2D 加 Sprite2D 节点 |
+| 数千颗 2D 子弹或粒子 | `RenderingServer` 的 canvas item 与 `PhysicsServer2D`，或一个节点的 `_draw()` 画全部，或 `MultiMesh` 加数组存状态，至少做对象池 | 每颗子弹一个 Area2D 加 Sprite2D 节点 |
 | 屏幕外的敌人或装置仍在运行 | `VisibleOnScreenEnabler2D`、`VisibleOnScreenEnabler3D` | 手写矩形相交判断 |
 | 只用于事件响应的节点 | 去掉空的 `_process`，`set_process(false)` | 空 `_process` 留着 |
 | 周期逻辑 | `Timer` 节点 | `_process` 里累加计时 |
 | 移动抖动 | 物理插值 | 在 `_process` 里手动推进物理体 |
 | 大批量计算 | `WorkerThreadPool.add_group_task()` | 自建 `Thread` 池 |
+| 远处网格太多 | `visibility_range` 与 `OccluderInstance3D`，见 godot-3d | 脚本逐帧算距离 |
 | 进关卡或换场景卡顿 | `ResourceLoader.load_threaded_request()` 加轮询 | 玩法中途同步 `load()` |
 | 特效第一次出现卡一下 | 预热场景，看 Pipeline 监视器 | 运行时第一次才实例化特效 |
 | 频繁创建销毁同类节点 | 对象池 | 每次 `instantiate()` 再 `queue_free()` |
@@ -35,7 +36,7 @@ description: 排查和优化卡顿掉帧时用。先测再改：Debugger Profile
 |---|---|---|
 | Profiler | Debugger 面板 | 脚本函数、物理、音频耗时，选 Self 而不是 Inclusive 找耗时的函数体 |
 | Visual Profiler | Debugger 面板 | 渲染各阶段的 CPU 与 GPU 耗时，不含脚本与物理 |
-| Monitors | Debugger 面板 | FPS、节点数、孤儿节点、绘制调用、显存、物理对子数、Pipeline 编译数 |
+| Monitors | Debugger 面板 | FPS、节点数、孤儿节点、绘制调用、显存、物理碰撞对数、Pipeline 编译数 |
 | Video RAM | Debugger 面板 | 每个资源占用的显存 |
 | ObjectDB Profiler | Debugger 面板 4.6+ | 对象快照与差异，查泄漏 |
 | 手动计时 | 代码 | `Time.get_ticks_usec()` 前后相减，跑 1000 次取平均 |
@@ -63,9 +64,9 @@ func get_bullet_count() -> int:
 	return _bullets
 ```
 
-- id 里的斜杠分类，没有斜杠归到 Custom。回调返回非负数
+- id 里的斜杠分类，没有斜杠或多于一个斜杠归到 Custom。回调返回值不支持负数
 - 同一个 id 重复添加报错，场景重载前先 `remove_custom_monitor()`
-- `add_custom_monitor()` 第四个参数 `type` 是 4.6+，用来标注数量、内存、时间、百分比
+- `add_custom_monitor()` 第四个参数 `type` 是 4.6+，取 `Performance.MONITOR_TYPE_QUANTITY` `MONITOR_TYPE_MEMORY` `MONITOR_TYPE_TIME` `MONITOR_TYPE_PERCENTAGE`。MEMORY 传字节，TIME 传秒，PERCENTAGE 传 0 到 1 的小数
 - 游戏内叠加显示用 `Performance.get_monitor(Performance.TIME_FPS)` 与 `Performance.get_custom_monitor("game/bullets")`，放在 `OS.is_debug_build()` 里
 
 更多监视器常量、Profiler 用法、CPU 与 GPU 判断见 [references/profiling.md](references/profiling.md)。
@@ -87,9 +88,9 @@ func _physics_process(delta: float) -> void:
 ```
 
 - 定义了 `_process` 或 `_physics_process` 的节点默认开启回调，`_ready()` 里按需关闭
-- `hide()` 只是不绘制，回调仍在跑。要停整棵子树用 `process_mode = Node.PROCESS_MODE_DISABLED`
-- 区域或关卡整体不用时，`remove_child()` 摘出场景树，比暂停或隐藏省得多，需要时再 `add_child()`。摘出的节点要自己保存引用并在不再需要时 `free()`
-- 大量互不依赖的节点处理可设 `process_thread_group`，组内不能访问组外节点，跨组用 `call_deferred()` 或 `call_deferred_thread_group()`
+- `hide()` 只停绘制，回调仍在跑。要停整棵子树用 `process_mode = Node.PROCESS_MODE_DISABLED`
+- 区域或关卡整体不用时，`remove_child()` 摘出场景树，有时比暂停或隐藏省得多，需要时再 `add_child()`。摘出的节点要自己保存引用并在不再需要时 `free()`
+- 大量互不依赖的节点处理可把根节点的 `process_thread_group` 设为 `PROCESS_THREAD_GROUP_SUB_THREAD`，子线程处理期间不能访问组外节点，跨组用 `call_deferred()` 或 `call_deferred_thread_group()`
 
 ### 屏幕外自动停用
 
@@ -100,7 +101,7 @@ func _physics_process(delta: float) -> void:
 rect = Rect2(-64, -64, 128, 128)
 ```
 
-目标节点默认是父节点，`enable_node_path` 默认 `..`，区域进入屏幕时启用，离开时设为 `PROCESS_MODE_DISABLED`。只要信号不要自动开关时用 `VisibleOnScreenNotifier2D` 的 `screen_entered` 与 `screen_exited`。它们依赖渲染剔除，节点 `visible` 为 `false` 时不工作。3D 同名类用 `aabb`。
+目标节点由 `enable_node_path` 指定，默认 `..` 即父节点。区域进入屏幕时按 `enable_mode` 启用，离开时设为 `PROCESS_MODE_DISABLED`。`enable_mode` 默认 `ENABLE_MODE_INHERIT`，可选 `ENABLE_MODE_ALWAYS` 与 `ENABLE_MODE_WHEN_PAUSED`。只要信号不要自动开关时用 `VisibleOnScreenNotifier2D` 的 `screen_entered` 与 `screen_exited`。它们依赖渲染剔除，Enabler 或 Notifier 自身 `visible` 为 `false` 时不工作。3D 同名类用 `aabb`，不计入遮挡，除非开了遮挡剔除。
 
 ## MultiMesh
 
@@ -129,16 +130,17 @@ func show_count(count: int) -> void:
 - 一次分配最大数量，用 `visible_instance_count` 控制显示数量
 - 不能按实例做视锥剔除，整体全画或全不画。分散的实例按区域拆成多个 MultiMesh，并设置 `custom_aabb` 避免每次重算包围盒
 - 每个实例的动画用 shader 里的 `INSTANCE_ID` 与 `INSTANCE_CUSTOM`，状态用 `set_instance_custom_data()` 传入
-- 一次性写全部实例用 `PackedFloat32Array` 类型的 `buffer`，比逐个 `set_instance_*` 快，C# 或 C++ 里在线程里填好再赋值
+- 一次性写全部实例用 `PackedFloat32Array` 类型的 `buffer`，比逐个 `set_instance_*` 快，数组可在线程里填好再赋值。布局见 [references/hotspots.md](references/hotspots.md)
 - 2D 实例用 `set_instance_transform_2d()`，3D 用 `set_instance_transform()`
 
 ## 直接用 Server
 
 数千个每帧都要处理的对象，场景树的节点开销成为瓶颈时，绕过节点直接调服务器。完整示例与对象池见 [references/hotspots.md](references/hotspots.md)。
 
-- `RenderingServer.canvas_item_create()` 加 `canvas_item_add_texture_rect()` 画 2D 精灵，`canvas_item_set_transform()` 每帧更新位置。碰撞用 `PhysicsServer2D.area_create()` 加 `area_add_shape()` 加 `area_set_space()`，官方示例是 Bullet Shower 演示项目
+- `RenderingServer.canvas_item_create()` 加 `canvas_item_add_texture_rect()` 画 2D 精灵，`canvas_item_set_transform()` 每帧更新位置。碰撞用 `PhysicsServer2D.body_create()` 加 `body_add_shape()` 加 `body_set_space()`，`body_set_state()` 设位置。官方示例是 Bullet Shower 演示项目，用 body 加一个节点的 `_draw()` 画全部子弹
 - 服务器对象用 `RID` 引用，没有引用计数，必须 `free_rid()`，漏掉就是泄漏
-- 服务器 API 线程安全，渲染与物理服务器需要在项目设置里开启线程模型才能在线程里用
+- 开了物理插值时，服务器创建的 canvas item 摆好位置后调 `RenderingServer.canvas_item_reset_physics_interpolation()`，否则出现时有瞬移
+- 服务器可在线程里调用。`PhysicsServer2D` 与 `PhysicsServer3D` 要开 `physics/2d/run_on_separate_thread` 或 `physics/3d/run_on_separate_thread`，开启后 API 只能在物理处理期间访问。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe，Separate 标为实验性
 - 状态存进 `PackedVector2Array` 等紧凑数组，不为每个对象建 `RefCounted`
 - 先试 MultiMesh 与对象池，它们够用就不要上服务器
 - 对象池：节点用完 `remove_child()` 放进数组，复用时重置状态再 `add_child()`，池里的节点是孤儿，退出时手动 `free()`
@@ -153,12 +155,14 @@ common/physics_interpolation=true
 ```
 
 - `physics/common/physics_ticks_per_second` 默认 60，降低能直接减少物理与 `_physics_process` 的 CPU，代价是模拟更粗
-- 开启 `physics/common/physics_interpolation` 后渲染在物理帧之间插值，低 tick 率也平滑。2D 自 4.3，3D 自 4.4
-- 移动和游戏逻辑放 `_physics_process()`，在 `_process()` 里移动会抖，间接移动也算，如移动父节点、Tween、AnimationPlayer
-- 瞬移后先设变换，再 `reset_physics_interpolation()`，顺序反了会拖尾
-- 插值会增加依赖物理 tick 的输入延迟，可以用更高的 tick 率补偿
-- 3D 的相机或自定义插值可读 `Node3D.get_global_transform_interpolated()`，2D 没有对应方法
-- `physics/common/max_physics_steps_per_frame` 默认 8，限制单帧最多模拟步数，防止卡顿越滚越大
+- 开启 `physics/common/physics_interpolation`（默认 `false`）后渲染在物理帧之间插值，低 tick 率也平滑。2D 自 4.3，3D 自 4.4
+- 移动和游戏逻辑放 `_physics_process()`，在 `_process()` 里移动会抖，间接移动也算，如移动父节点、Tween、AnimationPlayer。Tween 用 `set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)`，AnimationPlayer 设 `callback_mode_process` 为 `ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS`，二者默认都跟随 idle。必须在 `_process()` 里动的节点把 `physics_interpolation_mode` 设为 `PHYSICS_INTERPOLATION_MODE_OFF`
+- 摆放或瞬移后先设变换，再 `reset_physics_interpolation()`，顺序反了会拖尾
+- tick 率越低输入延迟越大，需要时调高
+- 3D 的相机或自定义插值可读 `Node3D.get_global_transform_interpolated()`（4.4+），2D 没有对应方法，用 `Engine.get_physics_interpolation_fraction()` 自己算
+- 改 tick 率会改变 `linear_damp` 一类阻尼的手感，要重调
+- `physics/common/max_physics_steps_per_frame` 默认 8，限制单帧最多模拟步数，防止卡顿越滚越大。tick 率调到 60 以上较多时同步调高，否则游戏会变慢
+- 碰撞体用简化形状，区域外的物体移出物理或复用
 - `_physics_process()` 里大量查询复用 `PhysicsRayQueryParameters2D` 对象，不每次新建
 
 ## 线程
@@ -225,6 +229,7 @@ func _process(_delta: float) -> void:
 ```
 
 - `load_threaded_request()` 之后立刻 `load_threaded_get()` 会阻塞到加载完，等于同步加载。用 `load_threaded_get_status()` 轮询，`THREAD_LOAD_LOADED` 后再取
+- `use_sub_threads` 为 `true` 加载更快，但可能拖慢主线程
 - `progress` 数组返回一个元素，值 0 到 1，可驱动进度条
 - 加载在后台，`instantiate()` 大场景仍在主线程，大场景实例化也会卡。拆成小场景分帧添加，或在一个线程里实例化再 `add_child.call_deferred()`，不要多个线程同时碰同一个资源
 - `@export` 的 `Resource` 会随场景一起加载，大关卡场景引用用 `@export_file` 存路径，用时线程加载
@@ -235,11 +240,11 @@ func _process(_delta: float) -> void:
 Forward+ 与 Mobile 渲染器自 4.4 起用 ubershader 与加载时预编译管线，Compatibility 渲染器没有。
 
 - 效果第一次出现卡一下，打开 Monitors 里的 Pipeline 编译类监视器，如 `Performance.PIPELINE_COMPILATIONS_SURFACE`。游戏中数字突增就是在那一刻编译
-- 运行中才实例化的特效，在关卡加载时把它的场景实例化一次，隐藏或放在屏幕外即可，引擎因此预编译管线
-- 用到的渲染特性如反射探针、SDFGI、VoxelGI、TAA、SSAO 尽早出现在场景里，运行中途开关会触发重编译。MSAA 级别运行中改也会卡
+- 运行中才实例化的特效，在关卡加载时把它的场景实例化一次，隐藏或放在屏幕外即可，引擎因此预编译管线。关掉挂在它上面的脚本
+- 用到的渲染特性如反射探针、SDFGI、VoxelGI、TAA、SSAO 尽早出现在场景里，运行中途开关会触发重编译。MSAA 级别运行中改也会卡，不同视口用不同 MSAA 级别同样会卡
 - Compatibility 渲染器：加载关卡时把每种网格和特效在相机前显示一帧，用全屏 `ColorRect` 盖住
 - `rendering/rendering_device/pipeline_cache/enable` 默认 `true`，把管线缓存写盘，二次运行更快。想模拟首次运行体验才关，并清理驱动缓存
-- 导出设置里的 Shader Baker 4.5+ 把着色器中间码打进 PCK，缩短首次启动，不解决运行中的编译卡顿
+- 导出预设里的 Shader Baker 4.5+ 把着色器中间码打进 PCK，缩短首次启动，不解决运行中的编译卡顿。默认关闭，只对 Forward+ 与 Mobile 有效，且 `--headless` 导出不支持
 
 ## 每帧分配与字符串
 

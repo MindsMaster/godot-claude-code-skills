@@ -11,7 +11,6 @@ Debugger 面板的 Profiler 页。运行游戏后切回编辑器点 Start，勾 
 - Measure 下拉可选毫秒或占帧时间的百分比。作用域选 Inclusive 含子调用，选 Self 只算函数体，找耗时的函数用 Self
 - 列表里除脚本函数还有 Physics 2D、Physics、Audio 等引擎项
 - 平均值是函数被调用多次时的平均，一帧里调用 5 次每次 0.05 ms，平均 0.05 ms 总计 0.25 ms，看总计更直观
-- 等待各服务器的时间可能不计入，已知问题
 - Profiler 不支持 C# 脚本
 
 ## Visual Profiler
@@ -35,24 +34,24 @@ Debugger 面板的 Monitors 页，所有监视器一直在记录，没打开页�
 | 时间 | `TIME_PROCESS` | 一帧耗时，秒 |
 | 时间 | `TIME_PHYSICS_PROCESS` | 一个物理帧耗时，秒 |
 | 时间 | `TIME_NAVIGATION_PROCESS` | 一个导航步耗时，秒 |
-| 内存 | `MEMORY_STATIC` `MEMORY_STATIC_MAX` | 静态内存，字节，release 构建不可用 |
+| 内存 | `MEMORY_STATIC` `MEMORY_STATIC_MAX` | 已用与可用静态内存，字节，release 构建不可用 |
 | 内存 | `MEMORY_MESSAGE_BUFFER_MAX` | 消息队列缓冲峰值，延迟调用与通知用 |
 | 对象 | `OBJECT_COUNT` `OBJECT_RESOURCE_COUNT` `OBJECT_NODE_COUNT` | 对象、资源、场景树节点数 |
 | 对象 | `OBJECT_ORPHAN_NODE_COUNT` | 不在场景树里的节点数，只在调试模式可用 |
 | 渲染 | `RENDER_TOTAL_OBJECTS_IN_FRAME` | 上一帧渲染的对象数，不含被剔除的 |
-| 渲染 | `RENDER_TOTAL_PRIMITIVES_IN_FRAME` | 上一帧顶点或索引数 |
+| 渲染 | `RENDER_TOTAL_PRIMITIVES_IN_FRAME` | 上一帧顶点或索引数，含深度预通道与阴影通道，约为场景顶点数的两三倍 |
 | 渲染 | `RENDER_TOTAL_DRAW_CALLS_IN_FRAME` | 上一帧绘制调用数 |
 | 渲染 | `RENDER_VIDEO_MEM_USED` `RENDER_TEXTURE_MEM_USED` `RENDER_BUFFER_MEM_USED` | 显存、纹理、渲染缓冲，字节 |
-| 物理 | `PHYSICS_2D_ACTIVE_OBJECTS` `PHYSICS_2D_COLLISION_PAIRS` `PHYSICS_2D_ISLAND_COUNT` | 2D 活动刚体、碰撞对、岛数 |
-| 物理 | `PHYSICS_3D_ACTIVE_OBJECTS` `PHYSICS_3D_COLLISION_PAIRS` `PHYSICS_3D_ISLAND_COUNT` | 3D 同上 |
+| 物理 | `PHYSICS_2D_ACTIVE_OBJECTS` `PHYSICS_2D_COLLISION_PAIRS` `PHYSICS_2D_ISLAND_COUNT` | 2D 活动 RigidBody2D、碰撞对、岛数 |
+| 物理 | `PHYSICS_3D_ACTIVE_OBJECTS` `PHYSICS_3D_COLLISION_PAIRS` `PHYSICS_3D_ISLAND_COUNT` | 3D 活动 RigidBody3D 与 VehicleBody3D、碰撞对、岛数 |
 | 音频 | `AUDIO_OUTPUT_LATENCY` | 输出延迟，不要每帧读 |
 | 导航 | `NAVIGATION_2D_AGENT_COUNT` `NAVIGATION_3D_AGENT_COUNT` 等 | 地图、区域、链接、多边形、障碍物、避障代理数量，2D 与 3D 分开的版本 4.5+ |
 | 管线 | `PIPELINE_COMPILATIONS_CANVAS` `_MESH` `_SURFACE` `_DRAW` `_SPECIALIZATION` | 4.4+，只增不减 |
 
 管线编译监视器的含义：
 
-- `CANVAS`：绘制 2D 节点时编译，首次绘制会卡
-- `MESH`：加载网格时编译，运行中加载网格会卡，线程加载可缓解
+- `CANVAS`：绘制 2D 节点时编译，引擎没有 2D 预编译，首次绘制会卡
+- `MESH`：加载网格时编译，运行中加载网格会卡，线程加载可缓解。节点上的材质覆盖不在这一步编译
 - `SURFACE`：场景里 3D 对象首次实例化后、绘制前编译，包括不可见节点
 - `DRAW`：绘制时按需编译，预编译没覆盖到。出现在这里是引擎没覆盖的情况，正常不该有
 - `SPECIALIZATION`：后台优化编译，不会造成卡顿，每帧很多时可能降帧率
@@ -108,7 +107,7 @@ func measure(action: Callable, runs: int = 1000) -> float:
 | 选项 | 作用 |
 |---|---|
 | `--print-fps` | 打印帧率到标准输出 |
-| `--disable-vsync` | 强制关闭垂直同步 |
+| `--disable-vsync` | 强制关闭垂直同步，不覆盖驱动层强制的 V-Sync |
 | `--max-fps <fps>` | 限制最大帧率，0 为不限 |
 | `--fixed-fps <fps>` | 固定帧率，禁用实时同步 |
 | `--gpu-profile` | 打印帧渲染里最耗时的 GPU 任务 |
