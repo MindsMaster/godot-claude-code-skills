@@ -1,6 +1,6 @@
 ---
 name: godot-2d
-description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_and_slide 角色移动 碰撞层与 mask 规划 Area2D 触发区 TileMapLayer TileSet 瓦片地图 地形 自定义数据层 Camera2D limit 平滑 drag zoom 震屏 Parallax2D 视差背景 y_sort_enabled z_index 绘制顺序 CanvasLayer HUD 像素风 pixel art stretch viewport integer scale snap_2d_transforms_to_pixel PointLight2D CanvasModulate 2D 光照 VisibleOnScreenNotifier2D VisibleOnScreenEnabler2D 离屏暂停 NavigationAgent2D 寻路 Line2D Polygon2D _draw 自绘 2D HDR glow 泛光。用于写 2D 场景、做 2D 相机或地图、查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
+description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_and_slide 角色移动 碰撞层与 mask 规划 Area2D 触发区 TileMapLayer TileSet 瓦片地图 地形 自定义数据层 Camera2D limit 平滑 drag zoom 震屏 Parallax2D 视差背景 y_sort_enabled z_index 绘制顺序 CanvasLayer HUD 像素风 pixel art stretch viewport integer scale snap_2d_transforms_to_pixel PointLight2D CanvasModulate 2D 光照 VisibleOnScreenNotifier2D VisibleOnScreenEnabler2D 离屏暂停 NavigationAgent2D 寻路 RayCast2D ShapeCast2D 射线检测 intersect_ray intersect_shape intersect_point direct_space_state 物理查询 Line2D Polygon2D _draw 自绘 2D HDR glow 泛光。用于写 2D 场景、做 2D 相机或地图、查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
 ---
 
 # Godot 2D
@@ -13,6 +13,8 @@ description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_
 |---|---|---|
 | 角色、敌人移动与碰撞 | `CharacterBody2D.move_and_slide` | 手写碰撞检测与滑动 |
 | 拾取、伤害区、触发区 | `Area2D` 加信号 | 手写矩形相交 |
+| 脚下、身前持续探测 | `RayCast2D`、`ShapeCast2D` 节点 | 每帧 new 查询参数 |
+| 一次性射线、点选、范围内有谁 | `direct_space_state` 的 `intersect_ray`、`intersect_point`、`intersect_shape` | 遍历全部物体手算相交 |
 | 瓦片地图 | `TileMapLayer` 加 `TileSet` | `TileMap` 已弃用，每格一个节点 |
 | 相机边界 | `Camera2D` 的 `limit_*` | 每帧手写夹取 |
 | 相机平滑与死区 | `position_smoothing_enabled`、`drag_*_enabled` | 手写 SmoothDamp |
@@ -125,6 +127,52 @@ func _on_body_entered(body: Node2D) -> void:
 - `monitoring` 是我检测别人，`monitorable` 是别人能检测我。
 - 撞 TileMapLayer 时 `body_entered` 的参数是 `TileMapLayer`，不是格子。需要格子见 references/tilemaplayer.md。
 
+### 射线与空间查询
+
+| 需求 | 用这个 |
+|---|---|
+| 固定方向持续探测，脚下、身前 | `RayCast2D` 节点，每物理步自动更新 |
+| 有宽度的探测，台阶、宽激光 | `ShapeCast2D` 节点 |
+| 一次性射线，hitscan、视线 | `intersect_ray` |
+| 点下去有谁 | `intersect_point` |
+| 圆形或矩形范围内有谁 | `intersect_shape` |
+
+```ini
+[node name="GroundProbe" type="RayCast2D" parent="."]
+target_position = Vector2(0, 12)
+collision_mask = 1
+```
+
+<!-- check: extends CharacterBody2D -->
+```gdscript
+@onready var _ground: RayCast2D = $GroundProbe
+
+func _physics_process(_delta: float) -> void:
+	if _ground.is_colliding():
+		var point: Vector2 = _ground.get_collision_point()
+		print(point, _ground.get_collider())
+```
+
+<!-- check: extends CharacterBody2D -->
+```gdscript
+const MASK := (1 << 0) | (1 << 2)
+
+func _physics_process(_delta: float) -> void:
+	if not Input.is_action_just_pressed("fire"):
+		return
+	var query := PhysicsRayQueryParameters2D.create(
+			global_position, get_global_mouse_position(), MASK, [get_rid()])
+	var hit: Dictionary = get_world_2d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		var point: Vector2 = hit.position
+		print(point, hit.collider)
+```
+
+- 节点 `RayCast2D.target_position` 相对自己，`exclude_parent` 默认 true 排除父级碰撞体。同一物理步里改了 `target_position` 或位置就要读结果，先 `force_raycast_update`。`enabled` 为 false 时 `force_raycast_update` 仍然有效。`ShapeCast2D` 对应 `force_shapecast_update`，要先给 `shape`。
+- `intersect_ray` 结果是字典，没命中为空，命中有 `position` `normal` `collider` `collider_id` `rid` `shape`。`intersect_point` 与 `intersect_shape` 返回字典数组，没有 `position`，第二个参数 `max_results` 默认 32。
+- 查询参数的 mask 默认全部层，节点的 `collision_mask` 默认只有第 1 层。
+- `ShapeCast2D`、`intersect_shape`、`intersect_point` 的完整写法、C#、结果字段：references/physics-queries.md。
+
 ### TileMapLayer
 
 - 新代码一律 `TileMapLayer`，一层一个节点，多层靠多个节点。旧 `TileMap` 在编辑器里一键转换。
@@ -207,6 +255,9 @@ textures/canvas_textures/default_texture_filter=0
 - `TileMap`、`ParallaxBackground`、`ParallaxLayer` 已弃用，旧教程里常见，别照抄。
 - 俯视角忘了 `MOTION_MODE_FLOATING`：默认 grounded 模式按 `up_direction` 区分地面与墙并对斜坡加减速，floating 模式所有碰撞按墙处理，滑动速度恒定。
 - 碰撞形状的 `disabled` 官方要求用 `set_deferred` 改，信号回调里直接改容易出错。
+- `direct_space_state` 在 `_process` 或 `_input` 里取：默认设置下不报错但只反映上一个物理步，开了 `physics/2d/run_on_separate_thread` 就报 `Space state is inaccessible` 并返回 null。查询放进 `_physics_process`，输入事件里只记标志。
+- `PhysicsRayQueryParameters2D` 不会自动排除发射者，射线从体内出发加 `hit_from_inside` 或穿过自己的形状都会命中自己，`exclude` 填 `[get_rid()]`。节点 `RayCast2D` 才有 `exclude_parent`。
+- `collide_with_areas` 在 `RayCast2D`、`ShapeCast2D` 和三种 query 参数里默认都是 false，射线与点查询打不到 `Area2D`，受击框用 Area2D 时要手动开。
 - `Area2D` 要检测 TileMapLayer 或 StaticBody2D，对方的 layer 要出现在它的 mask 里，并且 TileSet 里配了碰撞形状。
 - `Camera2D.zoom` 不计入位图字体与光栅化字体的过采样，缩放后文字会糊。清晰文字放进 CanvasLayer，或开 MSDF。
 - `viewport` 拉伸模式下场景整体低分辨率渲染，精灵没有亚像素位置和旋转。需要时走 `canvas_items` 加取整。
@@ -217,11 +268,13 @@ textures/canvas_textures/default_texture_filter=0
 ## 参考
 
 - references/camera-parallax.md 相机边界、平滑死区、完整震屏、Parallax2D 尺寸与摆法
+- references/physics-queries.md ShapeCast2D、intersect_shape、intersect_point、C# 写法、结果字段
 - references/tilemaplayer.md TileSet 配置表、格子读写、地形、碰撞回查、运行时改瓦片、Y 排序
 - references/pixel-art.md 两条像素风路线、抖动排查、导入与字体、光影分辨率
 - references/lighting-glow.md 2D 光照与阴影、HDR 2D 与 glow
 - references/navigation-culling.md VisibleOnScreen 系列、NavigationAgent2D 最短用法
 - references/drawing.md Line2D、Polygon2D、_draw 的选择与写法
+- https://docs.godotengine.org/en/stable/tutorials/physics/ray-casting.html
 - https://docs.godotengine.org/en/stable/tutorials/2d/using_tilemaps.html
 - https://docs.godotengine.org/en/stable/tutorials/2d/2d_parallax.html
 - https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html
