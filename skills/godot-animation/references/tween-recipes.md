@@ -89,13 +89,14 @@ func change_to(path: String) -> void:
 	tween.tween_property(_fade, "modulate:a", 1.0, 0.3)
 	await tween.finished
 	get_tree().change_scene_to_file(path)
+	await get_tree().scene_changed
 	var back := create_tween()
 	back.tween_property(_fade, "modulate:a", 0.0, 0.3)
 	await back.finished
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 ```
 
-转场层挂成 Autoload 或常驻 CanvasLayer，Tween 绑定在它上面，场景切换不会中断。淡入淡出期间用 `MOUSE_FILTER_STOP` 挡点击，平时 IGNORE。
+转场层挂成 Autoload 或常驻 CanvasLayer，Tween 绑定在它上面，场景切换不会中断。淡入淡出期间用 `MOUSE_FILTER_STOP` 挡点击，平时 IGNORE。`scene_changed` 4.5+，等它再淡入才能保证新场景已就绪。
 
 ## 循环往返
 
@@ -181,4 +182,4 @@ func tick(delta: float) -> void:
 	_tween.custom_step(delta)
 ```
 
-`custom_step()` 只能前进，返回 false 表示所有步骤已结束。要回到更早的时刻，新建 Tween 再用累计时间一次 `custom_step()`。
+`custom_step()` 只能前进，走完的那次调用仍返回 true，下一次才返回 false，判断结束用 `finished` 信号。要回到更早的时刻，新建 Tween 再用累计时间一次 `custom_step()`。

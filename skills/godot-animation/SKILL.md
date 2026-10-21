@@ -40,9 +40,9 @@ description: Godot 4 动画选型与做法，AnimationPlayer AnimationLibrary RE
 ## AnimationPlayer
 
 - 动画存在 AnimationLibrary 里，一个播放器可以挂多个库。默认库名是空字符串，播放时直接写动画名；命名库用 `库名/动画名`，如 `play(&"enemy/attack")`
-- 轨道类型：属性（`Animation.TYPE_VALUE`），方法调用（`TYPE_METHOD`），音频（`TYPE_AUDIO`），贝塞尔（`TYPE_BEZIER`），子动画（`TYPE_ANIMATION`），3D 位置旋转缩放，混合形状
+- 轨道类型：属性（`Animation.TYPE_VALUE`），方法调用（`TYPE_METHOD`），音频（`TYPE_AUDIO`），贝塞尔（`TYPE_BEZIER`），动画播放（`TYPE_ANIMATION`，播放其他 AnimationPlayer 的动画），3D 位置旋转缩放，混合形状
 - 方法调用轨道在关键帧上调用目标节点的方法。给判定帧开关命中盒，触发脚步声，生成特效，都放在这里，时间由动画决定
-- 音频轨道直接播 AudioStream，复音上限由 `audio_max_polyphony` 控制，不用另写音效触发
+- 音频轨道驱动场景里的 AudioStreamPlayer 节点播放 AudioStream，复音上限由 `audio_max_polyphony` 控制，不用另写音效触发
 - 命中盒用属性轨道动画 `CollisionShape2D:disabled` 或 `Area2D:monitoring`，开关时间在动画里直观可见
 
 ```gdscript
@@ -64,7 +64,7 @@ func _on_animation_finished(anim_name: StringName) -> void:
 动画库里名为 `RESET`（区分大小写）的动画保存默认姿态，每条轨道只有 0 秒一个关键帧。它有两个作用：
 
 - `reset_on_save` 为 true 时，场景保存时以 RESET 的姿态存盘，避免编辑动画后把节点留在动画中间状态存进 `.tscn`
-- 混合时缺轨道的动画以 RESET 的值作初始值，否则按 0 处理。一个动画改了位置另一个没有，没有 RESET 就会在混合时跳向 `Vector2(0, 0)`
+- `deterministic` 为 true 时，混合中缺轨道的动画以 RESET 的值作初始值，没有 RESET 按 0 处理。一个动画改了位置另一个没有，没有 RESET 就会在混合时拉向 `Vector2(0, 0)`。`deterministic` 默认 false，缺轨道的动画不参与该属性的混合
 
 RESET 不用来播放。给属性点关键帧图标时编辑器会提示自动创建。
 
@@ -88,7 +88,7 @@ RESET 不用来播放。给属性点关键帧图标时编辑器会提示自动�
 - `play()` 的效果在下一次处理时才生效，同帧要立即看到用 `advance(0)`
 - `animation_finished` 对循环动画不发。循环由 Animation 资源的 `loop_mode` 决定，在编辑器里设，不在运行时改，Animation 是共享资源
 - 淡入淡出用 `playback_default_blend_time` 或 `set_blend_time()`，不写手动插值
-- 一次播动画的一段用 `play_section()`，配合 `set_section()` 和标记 4.4+
+- 4.4+ 一次播动画的一段用 `play_section()` 或按标记的 `play_section_with_markers()`，播放中改区间用 `set_section()`
 - 运行时建 Animation 只用于程序生成的情况，常规动画在编辑器里做
 
 ## AnimationTree
@@ -123,7 +123,7 @@ func _physics_process(_delta: float) -> void:
 - `travel()` 沿转场图寻路，没有路径就直接跳。状态机必须已经运行，连了 Start 或调 `start()`
 - 转场的 Priority 与 `travel()` 配合，数值小的优先
 - 动画节点是共享资源，同一个 `.tres` 的多个实例共享节点，参数却按 AnimationTree 实例分开。运行时不要改节点资源本身，改参数
-- 混合行为要确定时开 `deterministic`，缺轨道的动画以 RESET 或 0 作初始值
+- 混合行为要确定时开 `deterministic`，缺轨道的动画以 RESET 或 0 作初始值，默认 false
 - 详细节点用法与状态机代码见 `references/animation-tree.md`
 
 ## Tween
@@ -187,7 +187,7 @@ shader_type canvas_item;
 instance uniform float flash : hint_range(0.0, 1.0) = 0.0;
 
 void fragment() {
-	COLOR.rgb = mix(COLOR.rgb, vec3(1.0), flash * COLOR.a);
+	COLOR.rgb = mix(COLOR.rgb, vec3(1.0), flash);
 }
 ```
 
@@ -208,8 +208,8 @@ func _set_flash(value: float) -> void:
 
 锁步联机、回放这类要逐帧复现表现的场景：
 
-- AnimationPlayer 把 `callback_mode_process` 设成 `ANIMATION_CALLBACK_MODE_PROCESS_MANUAL`，每个模拟 tick 调 `advance(delta)`。任意时刻跳转用 `seek(秒, true)`，`update` 为 true 才立即应用。`seek` 跳过中间的方法调用与音频，到末尾也不发 `animation_finished`，要触发这些用 `advance`
-- Tween 没有 seek，只能前进。`pause()` 之后用 `custom_step(delta)` 手动推进，返回值表示是否还有未完成的步骤。回到更早的时刻要重建 Tween 再从零 `custom_step`
+- AnimationPlayer 把 `callback_mode_process` 设成 `ANIMATION_CALLBACK_MODE_PROCESS_MANUAL`，每个模拟 tick 调 `advance(delta)`。任意时刻跳转用 `seek(秒, true)`，`update` 为 true 才立即应用。`seek` 不逐个触发中间的方法调用，只调用目标时刻之前最近的一个方法键，`update_only` 为 true 时方法与音频轨道都不处理，到末尾也不发 `animation_finished`，要逐个触发用 `advance`
+- Tween 没有 seek，只能前进。`pause()` 之后用 `custom_step(delta)` 手动推进，走完的那次调用仍返回 true，下一次才返回 false，判断结束用 `finished` 信号。回到更早的时刻要重建 Tween 再从零 `custom_step`
 - 动画只影响表现。模拟状态不要读 AnimationPlayer 的位置或 Tween 的值，模拟用自己的定点数计时
 
 ## 曲线
@@ -224,14 +224,15 @@ func _set_flash(value: float) -> void:
 
 - 3D 角色动画：导出 glTF，导入后得到带 AnimationPlayer 的场景，在高级导入设置里拆分剪辑与设循环；骨架不同时看 Retargeting
 - 2D 骨骼：引擎内置 Skeleton2D 加 Bone2D 加 Polygon2D，动画仍然是 AnimationPlayer
-- Aseprite 与 Spine 引擎没有内置支持，走社区导入插件或厂商的 Godot 运行时。这两条路线不在引擎文档里，用之前核对插件支持的 Godot 版本
+- Aseprite 引擎没有内置导入，先导出 sprite sheet，在 SpriteFrames 面板用 Add frames from a Sprite Sheet 切图，或用社区导入插件
+- Spine 引擎没有内置支持，走厂商的 Godot 运行时。引擎文档只在 2D 骨骼一节提到 Spine 是第三方工具，没有导入说明，用之前核对运行时支持的 Godot 版本
 
 ## 陷阱
 
 - 手写 Unity 风格的曲线播放器，属于重写 Animation 加 AnimationPlayer，两者能做的更多且有编辑器
 - `modulate` 取大于 1 的值做闪白：modulate 是乘法，暗部乘大数仍然偏暗，到不了纯白。换 shader 的 `mix`
 - 在 Container 的子节点上 Tween `position`，会被容器重新排版覆盖
-- 不绑定节点的 Tween 在目标释放后留在 SceneTree 里，用 `create_tween()` 绑定，或销毁时 `kill()`
+- 不绑定节点的 Tween，带 `tween_callback()` 的循环在目标释放后仍留在 SceneTree 里，用 `create_tween()` 绑定，或销毁时 `kill()`
 - 同一属性上 AnimationPlayer 与 Tween 同时写，后写的赢，造成抖动
 - AnimationTree 激活后又在代码里调 AnimationPlayer 的 `play()`，两边抢轨道
 - 方法调用轨道用默认 DEFERRED，调用延到本次处理结束后执行，读到的可能是处理之后的状态
