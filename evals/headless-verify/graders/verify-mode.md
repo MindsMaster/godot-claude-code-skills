@@ -2,5 +2,5 @@
 type: regex
 pattern: '--import'
 match: contains
-target: trace
+target: last_message
 ---

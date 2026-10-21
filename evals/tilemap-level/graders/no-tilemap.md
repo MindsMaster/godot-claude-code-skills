@@ -2,5 +2,5 @@
 type: regex
 pattern: 'type="TileMap"'
 match: not_contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

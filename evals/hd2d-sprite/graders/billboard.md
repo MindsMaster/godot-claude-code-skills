@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'billboard'
+pattern: 'billboard = 2'
 match: contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'SetShaderParameter|TweenMethod|TweenProperty'
+pattern: 'SetInstanceShaderParameter|instance_shader_parameters'
 match: contains
-target: trace
+target: { source: file, path: Enemy.cs }
 ---

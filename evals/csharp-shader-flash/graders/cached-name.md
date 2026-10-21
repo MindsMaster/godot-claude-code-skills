@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'static readonly StringName|CreateTween'
+pattern: 'static readonly (StringName|NodePath)'
 match: contains
-target: trace
+target: { source: file, path: Enemy.cs }
 ---

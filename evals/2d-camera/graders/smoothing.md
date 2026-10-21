@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: "position_smoothing"
+pattern: 'position_smoothing_enabled = true'
 match: contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

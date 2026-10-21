@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'TileMapLayer'
+pattern: 'type="TileMapLayer"'
 match: contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

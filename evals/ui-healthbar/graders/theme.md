@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'gui/theme/custom|theme\s*=|type="Theme"|Theme'
+pattern: 'Theme'
 match: contains
-target: trace
+target: last_message
 ---

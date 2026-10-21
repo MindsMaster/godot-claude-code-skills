@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'texture_filter|TEXTURE_FILTER_NEAREST'
+pattern: 'texture_filter = 0'
 match: contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

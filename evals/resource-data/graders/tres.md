@@ -2,5 +2,5 @@
 type: regex
 pattern: '\.tres'
 match: contains
-target: trace
+target: files
 ---

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: "limit_(left|right|top|bottom)"
+pattern: 'limit_(left|right|top|bottom)'
 match: contains
-target: trace
+target: { source: file, path: main.tscn }
 ---

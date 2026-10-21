@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'default_bus_layout|add_bus|AddBus|set_bus_volume_db|SetBusVolumeDb'
+pattern: 'default_bus_layout\.tres'
 match: contains
-target: trace
+target: files
 ---
