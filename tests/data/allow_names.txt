@@ -28,3 +28,6 @@ HurtBox
 MethodName
 PropertyName
 SignalName
+ItemData
+ItemDb
+Mathf
