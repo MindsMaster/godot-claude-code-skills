@@ -31,3 +31,7 @@ SignalName
 ItemData
 ItemDb
 Mathf
+Action
+EditorIcons
+Reload
+SkillDef
