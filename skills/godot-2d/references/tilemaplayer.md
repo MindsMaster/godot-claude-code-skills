@@ -73,6 +73,86 @@ func paint_ground(cells: Array[Vector2i]) -> void:
 - TileSet 没配全所有组合的 peering bits 时结果不对，先查 TileSet。
 - 自己按邻格位掩码选瓦片的代码可以删掉。
 
+挖掉或擦掉地形格子时把 terrain 设为 -1，邻格的边缘会跟着重选。
+
+```gdscript
+extends TileMapLayer
+
+const TERRAIN_SET := 0
+
+func dig(cell: Vector2i) -> void:
+	set_cells_terrain_connect([cell], TERRAIN_SET, -1)
+```
+
+- `erase_cell` 只清这一格，邻格仍是旧瓦片。4.7.2 实测，3 格厚 7 格宽的地面挖掉顶行中间一格：`erase_cell` 后两侧的顶边瓦片不变，terrain 设 -1 后两侧换成右上角和左上角，下方一格换成顶边。
+- 引擎文档没写 -1，行为以上述实测为准。
+- 没有任何瓦片能拼出当前邻接组合时，该格留空。3x3 图集只有 9 宫格，只能铺宽高都不小于 2 格的矩形，一格厚的浮台在 `set_cells_terrain_connect` 之后整条是空的。要一格厚的浮台，图集里得有左端、中段、右端三块单独的瓦片。
+
+## 手写 TileSet 的 terrain
+
+手写 `.tscn` 或 `.tres` 里的 terrain，格式取自 4.7.2 用 `ResourceSaver.save` 存出的 TileSet。
+
+```ini
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1"]
+texture = ExtResource("2")
+0:0/0 = 0
+0:0/0/terrain_set = 0
+0:0/0/terrain = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+0:0/0/terrains_peering_bit/right_side = 0
+0:0/0/terrains_peering_bit/bottom_right_corner = 0
+0:0/0/terrains_peering_bit/bottom_side = 0
+
+[sub_resource type="TileSet" id="TileSet_1"]
+physics_layer_0/collision_layer = 1
+terrain_set_0/mode = 0
+terrain_set_0/terrain_0/name = "Ground"
+terrain_set_0/terrain_0/color = Color(0.3, 0.6, 0.2, 1)
+sources/0 = SubResource("TileSetAtlasSource_1")
+```
+
+| 位置 | 属性 | 含义 |
+|---|---|---|
+| TileSet | `terrain_set_N/mode` | `TileSet.TerrainMode`，0 角加边，1 只角，2 只边 |
+| TileSet | `terrain_set_N/terrain_M/name`、`color` | 第 M 个 terrain，写 name 或 color 之一才存在 |
+| 瓦片 | `X:Y/0/terrain_set` | 所属 terrain set，默认 -1 |
+| 瓦片 | `X:Y/0/terrain` | 瓦片自己的 terrain，默认 -1 |
+| 瓦片 | `X:Y/0/terrains_peering_bit/名字` | 该方向的邻居必须是哪个 terrain，值是 terrain 序号 |
+
+- 不写的 peering bit 是 -1，表示这个方向没有地形。
+- 方形瓦片的 peering bit 名字、`TileSet.CellNeighbor` 常量与可用的 mode：
+
+| 名字 | 常量 | mode 0 | mode 1 | mode 2 |
+|---|---|---|---|---|
+| `right_side` | `TileSet.CELL_NEIGHBOR_RIGHT_SIDE` 0 | 有 | 无 | 有 |
+| `bottom_right_corner` | `TileSet.CELL_NEIGHBOR_BOTTOM_RIGHT_CORNER` 3 | 有 | 有 | 无 |
+| `bottom_side` | `TileSet.CELL_NEIGHBOR_BOTTOM_SIDE` 4 | 有 | 无 | 有 |
+| `bottom_left_corner` | `TileSet.CELL_NEIGHBOR_BOTTOM_LEFT_CORNER` 7 | 有 | 有 | 无 |
+| `left_side` | `TileSet.CELL_NEIGHBOR_LEFT_SIDE` 8 | 有 | 无 | 有 |
+| `top_left_corner` | `TileSet.CELL_NEIGHBOR_TOP_LEFT_CORNER` 11 | 有 | 有 | 无 |
+| `top_side` | `TileSet.CELL_NEIGHBOR_TOP_SIDE` 12 | 有 | 无 | 有 |
+| `top_right_corner` | `TileSet.CELL_NEIGHBOR_TOP_RIGHT_CORNER` 15 | 有 | 有 | 无 |
+
+- 只给瓦片实体连着地面的方向写 bit，朝外的方向不写。每块都写满 8 个 bit，`set_cells_terrain_connect` 只能选出个别瓦片，结果是散乱的空洞。
+- mode 为 2 时文件里多写 corner bit，加载不报错，结果与只写 side 相同。mode 为 0 却只写 side，矩形地面也能连对，但转角处没有 corner 约束。
+- 3x3 的 9 宫格图集（左上、顶、右上、左、中、右、左下、底、右下），mode 0 下每块要写的 bit：
+
+| 瓦片 | side | corner |
+|---|---|---|
+| 左上 0:0 | right bottom | bottom_right |
+| 顶 1:0 | left right bottom | bottom_left bottom_right |
+| 右上 2:0 | left bottom | bottom_left |
+| 左 0:1 | top right bottom | top_right bottom_right |
+| 中 1:1 | top right bottom left | 四个 corner 全写 |
+| 右 2:1 | top left bottom | top_left bottom_left |
+| 左下 0:2 | top right | top_right |
+| 底 1:2 | top left right | top_left top_right |
+| 右下 2:2 | top left | top_left |
+
+mode 2 只取 side 列，mode 1 只取 corner 列。
+
+- 预置格子仍然按 `tile_map_data` 手编或无头脚本生成，位置对应的瓦片按上表选：顶行用顶行瓦片，最左列用左列，内部用中间块。无头脚本里直接 `set_cells_terrain_connect` 最省事。
+
 ## 碰撞
 
 - 碰撞形状按 `physics_quadrant_size` 分块合并，默认 16x16 格一块。

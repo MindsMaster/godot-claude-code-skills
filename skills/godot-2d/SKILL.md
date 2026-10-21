@@ -178,7 +178,7 @@ func _physics_process(_delta: float) -> void:
 - 新代码一律 `TileMapLayer`，一层一个节点，多层靠多个节点。旧 `TileMap` 在编辑器里一键转换。
 - 读写：`set_cell(coords, source_id, atlas_coords)`、`erase_cell`、`get_cell_tile_data(coords).get_custom_data("name")`、`local_to_map`、`map_to_local`。
 - 碰撞、导航、遮挡、自定义数据、地形都在 TileSet 里先建对应层再给每块瓦片填。
-- 自动连接用 `set_cells_terrain_connect`，不要自己写邻格位掩码。
+- 自动连接用 `set_cells_terrain_connect`，不要自己写邻格位掩码。运行时挖掉地形格子也用它，terrain 传 -1，`erase_cell` 不刷新邻格。手写 `.tscn` 的 terrain 属性与 peering bit 取值表：references/tilemaplayer.md。
 - 带逻辑的物件如宝箱、火把用 TileSet 的 Scenes Collection 源，或直接放场景，不要在 `_draw` 里模拟。
 - 手写 `.tscn` 预置格子用无头脚本 `set_cell` 加 `ResourceSaver.save` 生成，手编 `tile_map_data` 头 2 字节必须是 0，否则整层读成 0 格：references/tilemaplayer.md。
 - 完整表格、运行时改瓦片、碰撞回查格子、Y 排序：references/tilemaplayer.md。
