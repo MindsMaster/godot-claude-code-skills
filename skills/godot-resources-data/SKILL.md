@@ -115,7 +115,7 @@ public partial class ItemData : Resource
 | `duplicate()` | 浅拷贝，嵌套的 `Array` `Dictionary` `Resource` 与原件共享 |
 | `duplicate(true)` | 数组和字典也复制，只复制内嵌的子资源，带路径的外部资源仍共享 |
 | `duplicate_deep(mode)`（4.5+） | 同上并可选：`DEEP_DUPLICATE_NONE` 不复制子资源，`DEEP_DUPLICATE_INTERNAL` 只复制内嵌的（默认），`DEEP_DUPLICATE_ALL` 连外部资源也复制 |
-| `resource_local_to_scene = true` | 场景每次实例化，这个资源各得一份，外部 `.tres` 也适用 |
+| `resource_local_to_scene = true` | 场景每次实例化，这个资源各得一份，外部 `.tres` 也适用。数组会复制，数组里的子资源仍共享，子资源自己也勾上才各得一份 |
 | `ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)` | 绕过缓存读一份新的 |
 
 ```gdscript
@@ -138,6 +138,7 @@ func _ready() -> void:
 ```
 
 - 每个敌人要自己的血量，就在 `_ready` 里 `duplicate()`，或者把资源勾上 `resource_local_to_scene`
+- 数据里有子资源数组，运行时还要改其中某一项，用 `duplicate(true)` 或 `duplicate_deep()`（4.5+）。4.7.2 实测 `Array[Resist]` 里改 `ratio`：`duplicate()` 后原件跟着变，只勾外层的 `resource_local_to_scene` 时同场景的另一个实例也跟着变
 - 数据表里的 `ItemData` 当只读用，不要 `item.price = 5` 这样改，改了所有引用方都变，而且改动会留到缓存释放为止
 - 要在 local_to_scene 复制时做初始化，重写 `Resource._setup_local_to_scene`
 - C# 里 `(StatBlock)BaseStats.Duplicate()`，深拷贝 `DuplicateDeep(Resource.DeepDuplicateMode.Internal)`（4.5+）
