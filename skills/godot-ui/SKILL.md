@@ -281,7 +281,7 @@ UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_inpu
 - 代码里 `new Label()` 加 `new ColorRect()` 按像素写死位置，`expand` 与不同比例屏幕下错位。改成场景加 Container
 - 在 Container 的子节点上设 `size` 或 `position` 无效，下次排序就被重置，改 `custom_minimum_size` 与 `size_flags`
 - `custom_minimum_size` 只能放大最小尺寸，文字内容也会撑大它
-- 全屏 Control 默认 STOP，游戏世界收不到点击。HUD 根设 IGNORE
+- 手写 `.tscn` 实例化 HUD 并给 `@export var player: Player` 赋 `NodePath`，节点头漏写 `node_paths=PackedStringArray("player")` 则运行期为 `null`，信号连不上。写法见 godot-scene-architecture 的 references/lifecycle.md
 - 血条用 ColorRect 改 `size.x`：没有背景，没有圆角，改 Theme 又得改代码。用 ProgressBar
 - 每关 `new Theme()` 或到处 `add_theme_*_override`：改一个字号要翻遍代码。用项目级 Theme 与 type variation
 - 改 `get_theme_stylebox()` 的返回值前不 `duplicate()`，会改到共享样式
