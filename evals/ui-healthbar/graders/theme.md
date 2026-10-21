@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'Theme'
+pattern: 'gui/theme/custom'
 match: contains
-target: last_message
+target: { source: file, path: project.godot }
 ---
