@@ -1,0 +1,16 @@
+{
+  "name": "godot-skills",
+  "version": "0.1.0",
+  "description": "Godot 4 最佳实践 skills：优先用引擎内置节点与资源，覆盖 2D、3D、3D 中的 2D 角色、UI、动画、数据、C# 与 GDScript、无头测试",
+  "author": {
+    "name": "An5w1r",
+    "email": "an5w1r@163.com"
+  },
+  "repository": "https://github.com/MindsMaster/godot-claude-code-skills",
+  "keywords": [
+    "godot",
+    "gdscript",
+    "csharp",
+    "gamedev"
+  ]
+}

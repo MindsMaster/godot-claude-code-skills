@@ -1,0 +1,14 @@
+{
+  "name": "godot-claude-code-skills",
+  "owner": {
+    "name": "An5w1r",
+    "email": "an5w1r@163.com"
+  },
+  "plugins": [
+    {
+      "name": "godot-skills",
+      "source": "./",
+      "description": "Godot 4 最佳实践 skills"
+    }
+  ]
+}
