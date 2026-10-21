@@ -79,7 +79,7 @@ func _exit_tree() -> void:
 - `_update_property` 在值被别处改动时调用，更新控件时加一个标志位，避免回写触发 `emit_changed`
 - 处理对象的类判断用 `object is ItemData`，被判断的脚本要加 `@tool`
 - `_parse_begin(object)` 在属性列表最前面、`_parse_end(object)` 在最后，用 `add_custom_control` 放按钮或预览
-- `_parse_category` 和 `_parse_group` 在遇到分类和分组标题时调用，用来跳过或替换整组
+- `_parse_category` 和 `_parse_group` 在分类和分组开头调用，用来在该处插入控件
 - `add_property_editor_for_multiple_properties` 让一个控件同时编辑几个相关属性，如 min 和 max
 
 ## 路径要点

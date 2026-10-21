@@ -24,9 +24,9 @@ description: Godot 4 编辑器扩展与工具脚本，用于项目内数据编�
 | 一次性批处理 | `EditorScript`，或 tool 按钮 | 临时场景加 `_ready` 里跑完再删 |
 | 撤销重做 | `EditorUndoRedoManager` | 直接改属性，用户 Ctrl+Z 无效 |
 | 文件变化通知 | `EditorFileSystem` 信号 | `_process` 里轮询 mtime |
-| 编辑器颜色 图标 缩放 | `EditorInterface.get_editor_theme()` | 硬编码 `Color` 和像素 |
+| 编辑器颜色 图标 缩放 | 控件的 `get_theme_color(名, "Editor")`，脱离控件用 `EditorInterface.get_editor_theme()` | 硬编码 `Color` 和像素 |
 | 快捷键 | `Shortcut` 资源 | `_input` 里手写 `keycode` 判断 |
-| 停靠面板 | `EditorDock`（4.6+），4.5 及以下 `add_control_to_dock` | 独立 `Window` |
+| 停靠面板 | `EditorDock`（4.6+），4.5 及以下 `add_control_to_dock`，4.6+ 已弃用 | 独立 `Window` |
 | 右键菜单 命令面板 | `EditorContextMenuPlugin`（4.4+），`EditorCommandPalette.add_command` | 监听鼠标自己弹菜单 |
 | 项目里自定义设置 | `ProjectSettings.add_property_info` | 另存一份配置文件 |
 
@@ -56,10 +56,10 @@ func _validate_property(property: Dictionary) -> void:
 ```
 
 - 资源加 `@tool`，`_validate_property` 才在编辑器里运行
-- `PROPERTY_USAGE_NO_EDITOR` 只隐藏，值照常存盘。只读用 `PROPERTY_USAGE_READ_ONLY`，存盘但不显示用 `PROPERTY_USAGE_STORAGE`
+- `PROPERTY_USAGE_NO_EDITOR` 只隐藏，值照常存盘，数值上等于 `PROPERTY_USAGE_STORAGE`。只读用 `property.usage |= PROPERTY_USAGE_READ_ONLY`
 - 整张表用一个数据库资源持有 `Array[SpawnRule]`，Inspector 里直接增删排序，不用写列表控件
 - 需要字段重置箭头时重写 `_property_can_revert` 与 `_property_get_revert`
-- 想要自己的编辑界面，先问数据是不是图形（对话树 技能树）或空间（地图 关卡）。是才考虑主屏幕插件或 `GraphEdit`，数据仍然存成 `Resource`，界面只是另一种编辑方式
+- 想要自己的编辑界面，先问数据是不是图形（对话树 技能树）或空间（地图 关卡）。是才考虑主屏幕插件或 `GraphEdit`，数据仍然存成 `Resource`，界面是另一个编辑入口
 
 ## @tool 脚本
 
@@ -92,7 +92,7 @@ func _process(delta: float) -> void:
 - `@tool` 脚本用到的其他脚本也要加 `@tool`，否则编辑器里拿到的是占位实例，方法不可用。静态方法 常量 枚举不受限，静态变量读出来是 `null`
 - 子类脚本不继承父类的 `@tool`，要再写一遍
 - 在 `_init` 里读 `@export` 值拿到的是默认值，Inspector 里设的值在 `_init` 之后才赋入
-- 脚本代码在编辑器里造成的改动（改节点属性 增删节点）会直接存进场景，没有撤销。批量改动走 `EditorUndoRedoManager`
+- 脚本代码在编辑器里造成的改动（改节点属性 增删节点）没有撤销，也不会自动把场景标为未保存。批量改动走 `EditorUndoRedoManager`，否则调 `EditorInterface.mark_scene_as_unsaved()`
 
 ## 动态属性
 
@@ -137,6 +137,8 @@ func _set(property: StringName, value: Variant) -> bool:
 - 把 JSON 的键值用 `_get_property_list` 伪装成属性，又得自己做撤销和存盘。数据本来就该是 `Resource`
 - `_get_property_list` 返回的属性要带 `PROPERTY_USAGE_STORAGE` 才会存盘，`PROPERTY_USAGE_DEFAULT` 已包含
 - 结构变了必须调 `notify_property_list_changed()`，Inspector 才会重建
+- `_validate_property` 不处理 `_get_property_list` 加的属性，这类属性的 `usage` 在返回字典里直接写
+- `_get_property_list` 须线程安全，保存资源时可能在别的线程被调用，里面不碰场景树
 
 ## Inspector 按钮与校验
 
@@ -166,7 +168,7 @@ func snap_to_target() -> void:
 
 - `@export_tool_button` 的第二个参数是编辑器内置图标名，不能用工程里的图标
 - 按钮回调里的改动走 `EditorUndoRedoManager`，`EditorInterface.get_editor_undo_redo()` 是 4.4+，插件里 `get_undo_redo()` 返回同一个对象
-- `_get_configuration_warnings` 是节点的校验入口，场景面板显示黄色三角。条件变了调 `update_configuration_warnings()`
+- `_get_configuration_warnings` 是节点的校验入口，脚本须 `@tool`，场景面板显示黄色三角。条件变了调 `update_configuration_warnings()`
 - `Resource` 没有警告三角，校验用 tool 按钮加 `push_warning`，或做成导入期检查
 - 引用了 `EditorInterface` 的脚本如果也在游戏里运行，导出后解析失败，因为导出模板里没有编辑器类。把编辑器部分拆到只在编辑器加载的脚本里
 
@@ -178,9 +180,9 @@ func snap_to_target() -> void:
 
 - `_enter_tree` 里注册，`_exit_tree` 里反注册并 `queue_free` 自己建的控件
 - 不要在 `_process` 里轮询。用 `EditorInterface.get_resource_filesystem()` 的 `filesystem_changed` 和 `resources_reimported` 信号
-- 颜色用 `EditorInterface.get_editor_theme()` 或控件的 `get_theme_color(名, "Editor")`，尺寸乘 `EditorInterface.get_editor_scale()`
+- 颜色优先用控件的 `get_theme_color(名, "Editor")`，脱离控件树时用 `EditorInterface.get_editor_theme()`，尺寸乘 `EditorInterface.get_editor_scale()`
 - 快捷键用 `Shortcut` 资源
-- `add_custom_type` 不再需要，脚本写 `class_name` 加 `@icon`
+- 多数场合不需要 `add_custom_type`，脚本写 `class_name` 加 `@icon`
 - 图标和面板场景用 `res://addons/<名>/...` 完整路径
 
 自定义属性控件和 `EditorInspectorPlugin`：[references/inspector-plugin.md](references/inspector-plugin.md)。
@@ -189,24 +191,24 @@ func snap_to_target() -> void:
 
 JSON 表格导出文件放进工程自动变成 `Resource`：`EditorImportPlugin`。自定义后缀，`_import` 里解析并 `ResourceSaver.save`，游戏里 `load` 源文件路径直接得到资源。完整可运行的导入器、选项、平台变体、`EditorScenePostImport` 见 [references/import-plugin.md](references/import-plugin.md)。
 
-数据很少改时不必写导入器，一个 `EditorScript` 一次转换，见 godot-resources-data 的烘焙一节。
+数据很少改时不必写导入器，一个 `EditorScript` 一次转换，见 godot-resources-data 的 `references/baking-data.md`。
 
 ## C# 的 [Tool] 与热重载
 
 - 改了 C# 代码要点 Build，`[Tool]` 脚本才用上新代码；新增的导出成员和信号也要先 Build 才出现
-- 重载程序集时只有 `[Export]` 成员的值被保留，其他字段重置
-- 持有 `Callable` 或委托的字段、静态字段会拖住程序集卸载，重载失败或指向旧程序集。`[ExportToolButton]` 必须是表达式体属性（诊断 GD0111）
-- 静态字段里放 `GodotObject` 或缓存，重载后可能指向已释放对象。工具类别用静态缓存，非用不可就在重载前清掉
+- 热重载时只有 `[Export]` 变量的值被保留，其他状态不保证
+- 存着 `Callable` 的字段或带后备字段的属性可能挡住程序集卸载。`[ExportToolButton]` 必须是表达式体属性，否则报 GD0111
+- 官方文档没有说明静态字段在重载后的行为，`[Tool]` 类里少放静态缓存
 - 订阅了信号或事件的 `[Tool]` 类，在 `_ExitTree` 里取消订阅
 - 编辑器单例在 C# 里经 Singleton 属性访问，如 `EditorInterface.Singleton.GetEditedSceneRoot()`
-- 编辑器插件和 `EditorScript` 的 C# 版本在命令面板里出现需要 `[GlobalClass]`
+- C# 的 `EditorScript` 要出现在命令面板须同时写 `[GlobalClass]` 和 `[Tool]`
 - C# 的 `EditorScript` 不能从脚本编辑器运行，用文件系统右键 Run 或命令面板
 
 ## 陷阱
 
 - `@tool` 脚本里写了会改节点的游戏逻辑，打开场景就修改并存盘。先 `Engine.is_editor_hint()` 挡住
 - 编辑器里 `add_child` 的节点不设 `owner` 既不显示也不存盘。`owner` 设成当前编辑场景根，用 `EditorInterface.get_edited_scene_root()`
-- 不要改场景实例的子节点。重载场景时改动丢失，判断 `node.owner == get_scene()` 或 `node.owner == EditorInterface.get_edited_scene_root()` 再改
+- 不要改场景实例的子节点。重载场景时改动丢失，判断 `node == EditorInterface.get_edited_scene_root()` 或 `node.owner == EditorInterface.get_edited_scene_root()` 再改
 - 导入器和 Inspector 插件用到的 `class_name` 脚本漏了 `@tool`
 - 导入器用 `json` `txt` 这类常见后缀，和内置导入器抢文件。自定义后缀
 - 插件 `_exit_tree` 没有反注册，关闭再启用后出现重复的面板和菜单
