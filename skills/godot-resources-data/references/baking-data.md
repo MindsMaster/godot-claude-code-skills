@@ -36,7 +36,7 @@ func _run() -> void:
 ```
 
 - 脚本编辑器里打开它，`File > Run`（Ctrl+Shift+X）执行
-- 已存在的 `.tres` 先 `load` 再原地改，uid 不变，别处对它的引用不断，Inspector 里手填的其他字段也保留
+- 已存在的 `.tres` 先 `load` 再原地改，Inspector 里手填的其他字段保留。同路径重存 uid 保留，别处引用不断，前提是在编辑器里执行，运行游戏时 `ResourceSaver` 不写 uid
 - 转换结果提交进版本库，源 JSON 一起留着
 - 解析 JSON 是系统边界：行缺字段、类型不对时报错并跳过，不要写出半成品资源
 

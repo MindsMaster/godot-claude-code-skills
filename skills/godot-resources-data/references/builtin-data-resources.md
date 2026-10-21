@@ -72,7 +72,8 @@ void fragment() {
 }
 ```
 
-- `GradientTexture1D` 的 `width` 决定精度，256 够用
+- `GradientTexture1D` 的 `width` 默认 256，决定精度
+- shader 写法见 godot-shaders-vfx
 - `CurveTexture` 只有红通道，`CurveXYZTexture` 三个通道各一条曲线
 - 粒子的 `ParticleProcessMaterial` 的 `scale_curve` `color_ramp` `alpha_curve` 直接吃这些纹理，不用自己写随生命周期变化的逻辑
 
@@ -85,11 +86,11 @@ func point_at(ratio: float) -> Vector2:
 	return curve.sample_baked(ratio * curve.get_baked_length())
 ```
 
-- 巡逻和轨道移动：`PathFollow2D` 作为 `Path2D` 的子节点，每帧 `progress += speed * delta`，`loop` 勾上可以首尾相接
+- 巡逻和轨道移动：`PathFollow2D` 作为 `Path2D` 的子节点，每帧 `progress += speed * delta`，`loop` 默认 `true`，超出长度回绕，到头停住设 `false`
 - 3D 同理：`Path3D` + `PathFollow3D`，`Curve3D.sample_baked_with_rotation` 取带朝向的变换
 
 ## Animation
 
-- 在编辑器里的 `AnimationPlayer` 里做，存成 `AnimationLibrary`，多个角色共用同一个库
+- 在编辑器里的 `AnimationPlayer` 里做，存成 `AnimationLibrary`，多个角色共用同一个库，做法见 godot-animation
 - 代码里只做简单一次性动画用 `create_tween()`，需要按帧 seek 或暂停回放的才用 `Animation`
 - 运行时程序化生成 `Animation` 很少需要，`Animation.add_track` 与 `track_insert_key` 存在，但先确认 `Tween.tween_method` 做不到

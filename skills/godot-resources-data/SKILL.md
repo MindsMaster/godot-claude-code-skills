@@ -113,7 +113,7 @@ public partial class ItemData : Resource
 | `duplicate()` | 浅拷贝，嵌套的 `Array` `Dictionary` `Resource` 与原件共享 |
 | `duplicate(true)` | 数组和字典也复制，只复制内嵌的子资源，带路径的外部资源仍共享 |
 | `duplicate_deep(mode)`（4.5+） | 同上并可选：`DEEP_DUPLICATE_NONE` 不复制子资源，`DEEP_DUPLICATE_INTERNAL` 只复制内嵌的（默认），`DEEP_DUPLICATE_ALL` 连外部资源也复制 |
-| `resource_local_to_scene = true` | 场景每次实例化，这个子资源各得一份 |
+| `resource_local_to_scene = true` | 场景每次实例化，这个资源各得一份，外部 `.tres` 也适用 |
 | `ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)` | 绕过缓存读一份新的 |
 
 ```gdscript
@@ -197,23 +197,23 @@ func _process(_delta: float) -> void:
 - 状态在不同帧里查，不要在一个 `while` 里空转
 - `load_threaded_get` 在没加载完时会阻塞，只在状态为 `THREAD_LOAD_LOADED` 后调用
 - 进度按已加载的依赖估算，单个大文件可能直接从 0 跳到 1
-- `use_sub_threads = true` 更快，但会占用主线程资源，加载界面上可以开
+- `use_sub_threads = true` 更快，但可能拖慢主线程，加载界面上可以开
 - 加载完的场景直接交给 `SceneTree.change_scene_to_packed`
 
 ## 枚举资源与 res:// 路径
 
-导出后 `res://` 里的图片等源文件被转换成内部格式放进 `.godot/imported`，原文件名只剩 `.import` 或 `.remap` 重定向。`DirAccess` 看到的目录和编辑器里不一样，直接扫目录会漏项或多出这些后缀。
+导出后图片音频等导入资源的原文件不在包里，只剩 `.import`，转换结果放在 `.godot/imported`。`.tres` `.tscn` 默认转成二进制（`editor/export/convert_text_resources_to_binary`），原路径只剩 `.remap`。`DirAccess` 看到的目录和编辑器里不一样，直接扫目录会漏项或多出这些后缀。
 
 - 清单是首选：一个数据库资源里 `@export var items: Array[ItemData]`，增删在 Inspector 里做
 - 必须枚举目录时用 `ResourceLoader.list_directory("res://data/items")`（4.4+），返回编辑器里看到的原文件名，子目录带 `/` 后缀，顺序不固定，需要稳定顺序时自己排序
-- 编辑器里 `list_directory` 会带 `.godot/` 之类的目录，过滤掉
+- 导出前 `list_directory("res://")` 会列出 `.godot/`，过滤掉
 - 加载时用 `ResourceLoader.load`，不要 `FileAccess.open("res://...")` 读导出后的资源
 - `user://` 是可写目录，位置因平台而异，`OS.get_user_data_dir()` 取绝对路径用于展示，代码里一律写 `user://`
 
 ## uid 引用
 
 - 编辑器给每个资源分配 `uid://...`，场景和 `.tres` 里同时存 uid 和路径，在编辑器内移动重命名文件时引用自动跟着走
-- 代码里写 `preload("uid://...")` 或 `load("uid://...")` 可以，路径移动后仍有效。uid 与路径互转：`ResourceLoader.get_resource_uid`（取资源 uid），`ResourceUID.path_to_uid` 与 `ResourceUID.uid_to_path`（4.5+）
+- 代码里写 `preload("uid://...")` 或 `load("uid://...")` 可以，路径移动后仍有效。uid 与路径互转：`ResourceLoader.get_resource_uid` 返回 `int`，没有 uid 时为 -1，`ResourceUID.id_to_text` 转成 `uid://` 字符串。4.5+ 可直接用 `ResourceUID.path_to_uid` 与 `ResourceUID.uid_to_path`
 - `@export_file` 存的是 uid，文件移动后仍有效。`@export_file_path`（4.5+）存裸路径，移动后失效
 - 脚本的 `.gd.uid` 文件（4.4+）要一起提交版本库，丢了 uid 会变，引用方只能走路径回退
 - 在编辑器之外移动文件后，让编辑器重新扫描并保存引用方，场景里记的回退路径才会更新
@@ -226,7 +226,7 @@ func _process(_delta: float) -> void:
 |---|---|---|
 | JSON（`JSON.stringify` `JSON.parse_string`） | 存档 跨版本 可读 | 数字读回是 `float`；`Vector2` `Color` 要转换或用 `JSON.from_native` `JSON.to_native`（4.4+） |
 | `ConfigFile` | 设置 简单键值 | 文本里的 `Object(...)` 会被实例化，只读自己写的文件 |
-| `FileAccess.store_var` `get_var` | 紧凑二进制 | `full_objects` 和 `allow_objects` 保持默认 `false` |
+| `FileAccess.store_var` `get_var` | 紧凑二进制 | `get_var(true)` 会解码对象并可能执行脚本，`allow_objects` 保持默认 `false` |
 | `ResourceSaver.save` | 编辑器工具 开发期烘焙 | 不用于玩家存档 |
 
 不要 `load()` 玩家可写位置的 `.tres` `.res` `.tscn`。这些文件可以内嵌脚本，加载就会执行。实测一个内嵌 `GDScript` 子资源的 `.tres`，`load` 时 `_init` 里的代码直接运行。
@@ -238,7 +238,7 @@ func _process(_delta: float) -> void:
 - 改共享资源的属性会污染缓存，后面所有 `load` 都拿到改后的值。典型的是 `stream.loop = true` 直接改 `AudioStream`。循环属性应在导入设置里改，或者 `duplicate()` 之后再改
 - 场景里一个 sub_resource 被多个实例共享，其中一个实例改了 `material.albedo_color`，所有实例都变。需要独立就勾 `resource_local_to_scene`，或在 `_ready` 里 `duplicate()`
 - `duplicate()` 是浅拷贝，`Array[Resource]` 里的元素仍与原件共享
-- 自己用字典缓存 `Texture2D` `Material`：退出时释放顺序出问题，热重载后字典里是失效引用。`load` 已经缓存了
+- 自己用字典缓存 `Texture2D` `Material`：字典持有强引用，资源不再随引用归零释放，而且 `load` 已经缓存了
 - `load_threaded_request` 后立刻 `load_threaded_get`，等于同步 `load`，卡住主线程
 - 自定义 `Resource` 改了类名或移动了脚本，旧 `.tres` 里的 `script_class` 和脚本路径失效。在编辑器里改名，并保留 `.uid`
 - `@export` 的 `Array[ItemData]` 里元素为 `null` 时 Inspector 不报错，运行时才崩。用到时判空

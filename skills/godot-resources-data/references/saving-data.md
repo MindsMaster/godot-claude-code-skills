@@ -29,7 +29,7 @@ config/custom_user_dir_name="MyGame"
 
 - `.tres` 里可以内嵌 `GDScript` 子资源，`load` 它就会执行 `_init`。玩家能写的位置不要 `load` 资源文件
 - `ConfigFile.parse` 和 `str_to_var` 会按文本创建 `Object(...)`。不可信文本用 JSON
-- `FileAccess.get_var(true)` 和 `store_var(value, true)` 允许对象，保持默认 `false`
+- `FileAccess.get_var(true)` 会解码对象并可能执行脚本，`allow_objects` 保持默认 `false`，`store_var` 的 `full_objects` 同理
 
 ## JSON 存档
 
@@ -69,7 +69,7 @@ static func _migrate(payload: Dictionary) -> Dictionary:
 ```
 
 - 先写 `.tmp` 再改名，写到一半断电或崩溃不会毁掉旧存档
-- `JSON.parse_string` 读回的数字都是 `float`，`3` 变成 `3.0`。用 `JSON.from_native` 写、`JSON.to_native` 读（4.4+）可以保留 `int`、`Vector2`、`Color` 等类型，代价是文件里多一层 `{"type":...,"args":...}`，手改不方便
+- `JSON.parse_string` 读回的数字都是 `float`，`3` 变成 `3.0`。用 `JSON.from_native` 写、`JSON.to_native` 读（4.4+）可以保留 `int`、`Vector2`、`Color` 等类型，代价是 `Dictionary` 变成 `{"type":"Dictionary","args":[...]}`，键和 `int` 带 `s:` `i:` 前缀，手改不方便
 - 存档带 `version`，读到旧版本在 `_migrate` 里逐级升。不要靠字段是否存在猜版本
 - 读取是系统边界：解析失败、字段缺失、类型不对都要处理，回到默认值或提示玩家，不要让游戏崩
 - 运行时对象不直接序列化。给对象写 `to_dict()` 和 `from_dict()`，存档只含标识（物品 id、关卡名），读回来再去数据表查 `Resource`
