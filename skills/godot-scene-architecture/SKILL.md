@@ -92,8 +92,7 @@ func _process(_delta: float) -> void:
 
 - 直接子节点用 `$Name`，更深的节点在场景面板右键 `Access as Unique Name` 后用 `%Name`
 - 一律 `@onready` 缓存成带类型的成员变量，不在 `_process` 里取
-- `@export var x: Node2D` 在 `instantiate()` 返回时已解析为节点，`_enter_tree` 和 `_ready` 里可用，`_init` 里是 `null`
-- 代码里 `instantiate()` 出来的场景，`@export` 节点引用要自己赋值
+- `@export var x: Node2D` 在 `instantiate()` 返回时已解析为节点，`_enter_tree` 和 `_ready` 里可用，`_init` 里是 `null`。代码里 `instantiate()` 出来的场景要自己赋值
 - 找不到可能是正常情况时用 `get_node_or_null`
 
 C# 在 `_Ready` 里把 `GetNode<Label>("%ScoreLabel")` 存进私有字段，节点引用属性写 `[Export] public Node2D Target { get; set; }`。
@@ -285,6 +284,7 @@ func _unhandled_input(event: InputEvent) -> void:
 - 子节点的 `_ready` 先于父节点。父的 `_ready` 里可以放心用子，子的 `_ready` 里不要假设父已就绪
 - `queue_free()` 后对象到帧末才释放，`is_instance_valid` 在这之前仍返回 `true`。判断是否已在销毁用 `is_queued_for_deletion()`
 - 物理回调（`body_entered` `area_entered`）里增删碰撞体、改 `monitoring`、改 `CollisionShape2D.disabled` 会报 `Can't change this state while flushing queries`。用 `set_deferred("disabled", true)` 或 `call_deferred`
+- 手写 `.tscn` 给 `@export` 的 Node 类型属性赋值，节点头漏写 `node_paths=PackedStringArray(...)` 则运行期为 `null`，见 [references/lifecycle.md](references/lifecycle.md)
 - `%Name` 只在同一个场景的 owner 内有效，跨实例化子场景取不到；代码里 `add_child` 的节点 `owner` 为 `null` 时 `%Name` 查不到，设了 `owner` 才生效
 - 节点在树外时 `get_tree()` 返回 `null`，`await get_tree().process_frame` 报错。先 `add_child`
 - `change_scene_to_*` 调用后到帧末，`get_tree().current_scene` 是 `null`。切换 API 的细节见 [references/scene-switching.md](references/scene-switching.md)
@@ -294,7 +294,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## 参考
 
-- [references/lifecycle.md](references/lifecycle.md)：`_enter_tree` `_ready` `_exit_tree` 的选择，`owner` 规则，`call_deferred` 必须用的场合，释放与失效引用
+- [references/lifecycle.md](references/lifecycle.md)：`_enter_tree` `_ready` `_exit_tree` 的选择，`owner` 规则，手写 `.tscn` 的 `node_paths`，`call_deferred` 必须用的场合，释放与失效引用
 - [references/scene-switching.md](references/scene-switching.md)：`change_scene_to_*` 的行为，自己做切换的场合，带加载界面的切换
 - [references/state-machine.md](references/state-machine.md)：状态子节点模板，`AnimationTree` 状态机用法
 - 官方文档：https://docs.godotengine.org/en/stable/tutorials/best_practices/index.html

@@ -1,6 +1,6 @@
 # 生命周期 owner 与延迟调用
 
-SKILL.md 的陷阱一节指到这里时读。
+SKILL.md 的陷阱一节指到这里时读，手写 `.tscn` 里的节点引用也在这里。
 
 ## 回调选择
 
@@ -59,6 +59,25 @@ func build() -> PackedScene:
 ```
 
 更深的后代也要逐个设 `owner`，设一个根节点的直接子节点不够。
+
+## 手写 .tscn 的节点引用
+
+脚本里 `@export` 的类型是 `Node` 或其子类时，节点头必须写 `node_paths`，列出这些属性名，属性行写 `NodePath`。漏写时场景加载不报错，属性运行期为 `null`，用到时才报错。
+
+```ini
+[node name="Hud" type="Node" parent="." node_paths=PackedStringArray("player", "targets")]
+script = ExtResource("1")
+player = NodePath("../Player")
+targets = [NodePath("../Player"), NodePath("../Enemy")]
+```
+
+- 路径相对这个节点自己，不相对场景根
+- 实例化的子场景在宿主场景里覆盖节点引用，节点头同样要写：`[node name="Hud" parent="." node_paths=PackedStringArray("player") instance=ExtResource("1")]`
+- 漏写 `player`：4.7.2 实测属性为 `null`，访问 `player.name` 报 `Invalid access to property or key 'name' on a base object of type 'Nil'.`
+- `Array[Node]` 同理。漏写时数组为空，加载时报 `Unable to convert array index 0 from "NodePath" to "Object".`
+- `node_paths` 少列一个，这一个就是 `null`，其余正常
+- `@export var p: NodePath` 和 `@export_node_path` 的属性存的就是路径，不进 `node_paths`
+- 拿不准格式时，用无头脚本 `pack` 再 `ResourceSaver.save` 存一份，照引擎写出的抄
 
 ## 必须 call_deferred 的场合
 
