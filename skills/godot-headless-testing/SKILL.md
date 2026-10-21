@@ -1,6 +1,6 @@
 ---
 name: godot-headless-testing
-description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑通。无头运行 headless、命令行参数 command line、--headless --import --check-only --quit-after --script、SceneTree 脚本、冒烟测试 smoke test、退出码 exit code、从输出判失败 SCRIPT ERROR Parse Error、模拟输入 Input.parse_input_event action_press、截图 screenshot xvfb、--write-movie 录帧、GUT gdUnit4、CI 下载 Godot 二进制、导出 --export-pack、查 API ClassDB doctool、C# dotnet build 后再跑。改完 GDScript、场景、C# 后想自己验证、写自动化测试、配 CI 时用
+description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑通。无头运行 headless、命令行参数 command line、--headless --import --check-only --quit-after --script、SceneTree 脚本、冒烟测试 smoke test、退出码 exit code、从输出判失败 SCRIPT ERROR Parse Error、模拟输入 Input.parse_input_event action_press、截图 screenshot xvfb、--write-movie 录帧、GUT gdUnit4、CI 下载 Godot 二进制、导出 --export-pack、查 API ClassDB doctool、C# dotnet build 后再跑。修完脚本报错要确认整个项目没有脚本错误、改完 GDScript、场景、C# 后想自己验证、写自动化测试、配 CI 时用
 ---
 
 # Godot 无头测试与命令行验证
@@ -168,7 +168,7 @@ func _initialize() -> void:
 - `-d` 在脚本报错时停在 `debug>` 提示符。stdin 是 `/dev/null` 时读到 EOF：运行时错误直接退出，退出码 0，解析错误崩溃（134）。命令行不要带 `-d`，输入重定向到 `/dev/null`，`gdrun` 靠 `Debugger Break` 兜底
 - `load()` 一个缺 `ext_resource` 的 `.tscn` 仍返回非 null 的 PackedScene，只在输出里报 ERROR。别只检查 null
 - `--import` 打开工程后退出码恒为 0，导入错误和脚本语法错误都一样。路径无效或没有 `project.godot` 时才是 1。导入错误只在第一次打印，之后 `.import` 里记 `valid=false` 不再报
-- class_name 要先 `--import` 才进全局缓存。`--quit` 不导入也不建 `.godot`。没 import 就跑会报 `Identifier "X" not declared in the current scope`
+- class_name 要先 `--import` 才进全局缓存。`--quit` 不导入也不建 `.godot`。没 import 就跑会报 `Identifier "X" not declared in the current scope`，类型标注处报 `Could not find type "X" in the current scope`。这是缓存缺失，不要删类型标注或改 preload
 - `--check-only` 不认自动加载：引用 autoload 名的脚本会报 `Identifier not found`，是误报。SceneTree 脚本本身也不能用 autoload 名，要 `root.get_node("名字")`
 - `--quit-after` 数的是 process 帧，不是物理帧。要两者对齐加 `--fixed-fps 60`
 - `parse_input_event` 的按键过一帧才生效，`Input.action_press` 立即生效
