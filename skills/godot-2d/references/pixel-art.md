@@ -69,7 +69,7 @@ textures/canvas_textures/default_texture_filter=0
 
 ## 精灵与 Control
 
-- `Sprite2D.centered` 默认 true，奇数尺寸贴图的中心落在半像素上会变形。像素风设为 false，或开顶点取整。`AnimatedSprite2D.centered` 同理。
+- `Sprite2D.centered` 默认 true，奇数尺寸贴图的中心落在半像素上会变形。像素风设为 false，或开取整设置。`AnimatedSprite2D.centered` 同理。
 - 位图字体和光栅化动态字体不吃 Camera2D 缩放，zoom 之后会糊。要清晰用 MSDF，或把文字放进不跟随相机的 CanvasLayer。
 - 项目默认字体的相关设置在 `gui/theme/default_font_antialiasing`、`gui/theme/default_font_hinting`、`gui/theme/default_font_subpixel_positioning`。像素字体用位图字体，或把 `FontFile.antialiasing` 设为无抗锯齿。
 

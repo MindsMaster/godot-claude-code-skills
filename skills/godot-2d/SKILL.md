@@ -131,7 +131,7 @@ func _on_body_entered(body: Node2D) -> void:
 - 读写：`set_cell(coords, source_id, atlas_coords)`、`erase_cell`、`get_cell_tile_data(coords).get_custom_data("name")`、`local_to_map`、`map_to_local`。
 - 碰撞、导航、遮挡、自定义数据、地形都在 TileSet 里先建对应层再给每块瓦片填。
 - 自动连接用 `set_cells_terrain_connect`，不要自己写邻格位掩码。
-- 带逻辑的物件（宝箱、火把）用 TileSet 的 Scenes Collection 源，或直接放场景，不要在 `_draw` 里模拟。
+- 带逻辑的物件如宝箱、火把用 TileSet 的 Scenes Collection 源，或直接放场景，不要在 `_draw` 里模拟。
 - 完整表格、运行时改瓦片、碰撞回查格子、Y 排序：references/tilemaplayer.md。
 
 ### Camera2D 与 Parallax2D
@@ -207,7 +207,7 @@ textures/canvas_textures/default_texture_filter=0
 - `TileMap`、`ParallaxBackground`、`ParallaxLayer` 已弃用，旧教程里常见，别照抄。
 - 俯视角忘了 `MOTION_MODE_FLOATING`：默认 grounded 模式按 `up_direction` 区分地面与墙并对斜坡加减速，floating 模式所有碰撞按墙处理，滑动速度恒定。
 - 碰撞形状的 `disabled` 官方要求用 `set_deferred` 改，信号回调里直接改容易出错。
-- `Area2D` 要检测 TileMapLayer 或 StaticBody2D，对方要在它的 mask 里，并且 TileSet 里配了碰撞形状。
+- `Area2D` 要检测 TileMapLayer 或 StaticBody2D，对方的 layer 要出现在它的 mask 里，并且 TileSet 里配了碰撞形状。
 - `Camera2D.zoom` 不计入位图字体与光栅化字体的过采样，缩放后文字会糊。清晰文字放进 CanvasLayer，或开 MSDF。
 - `viewport` 拉伸模式下场景整体低分辨率渲染，精灵没有亚像素位置和旋转。需要时走 `canvas_items` 加取整。
 - 把 2D 节点每帧手算透视缩放伪 3D：位置、缩放、排序、光照都要自己维护。需要真透视、旋转镜头、光照阴影时改真 3D 加 `Sprite3D`，取舍见 godot-2d-in-3d。

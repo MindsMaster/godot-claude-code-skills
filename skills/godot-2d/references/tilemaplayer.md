@@ -79,7 +79,7 @@ func paint_ground(cells: Array[Vector2i]) -> void:
 - `TileMapLayer` 作为碰撞体出现在 Area2D 的 `body_entered` 里，参数是 `TileMapLayer`，不是单个格子。
 - `KinematicCollision2D.get_collider_rid` 配 `TileMapLayer.get_coords_for_body_rid` 取被撞的格子。默认返回的是块坐标，要精确格子坐标须把 `physics_quadrant_size` 设成 1，代价是关掉形状合并。
 - 会动的 TileMapLayer，如移动平台，开 `use_kinematic_bodies`。
-- 一块瓦片的碰撞多边形可勾单向，方向和 margin 在多边形属性里。
+- 一块瓦片的碰撞多边形可勾单向，margin 在多边形属性里。
 - 关碰撞用 `TileMapLayer.collision_enabled`，不删 TileSet 的 Physics Layer。
 
 ## 运行时改瓦片属性
@@ -94,7 +94,7 @@ func _use_tile_data_runtime_update(coords: Vector2i) -> bool:
 
 
 func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
-	tile_data.modulate = Color(2.0, 2.0, 2.0)
+	tile_data.modulate = Color(1.0, 0.5, 0.5)
 
 
 func flash(coords: Vector2i) -> void:

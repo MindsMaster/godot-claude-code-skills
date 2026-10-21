@@ -66,5 +66,5 @@ func _physics_process(_delta: float) -> void:
 ## Polygon2D
 
 - `polygon` 顶点，`uv` 贴图坐标，`vertex_colors` 逐顶点着色，`polygons` 指定凹多边形的三角划分。
-- `skeleton` 与 `add_bone` 做 2D 骨骼蒙皮，动画部分见动画相关 skill。
+- `skeleton` 与 `add_bone` 做 2D 骨骼蒙皮，动画部分见 godot-animation。
 - 多边形随地形生成时，复杂凹形先用 `Geometry2D` 做布尔运算和三角化，不手写。
