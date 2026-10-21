@@ -11,7 +11,7 @@
 
 | 目的 | 写法 |
 |---|---|
-| 粗体 斜体 | `[b]x[/b]` `[i]x[/i]`，需要主题里配粗体斜体字体 |
+| 粗体 斜体 | `[b]x[/b]` `[i]x[/i]`，默认由基础字体合成，要真字形在主题的 RichTextLabel 类型下配 `bold_font` `italics_font` `bold_italics_font` |
 | 颜色 | `[color=red]x[/color]` `[color=#ff8800]x[/color]` |
 | 字号 | `[font_size=32]x[/font_size]` |
 | 描边 | `[outline_size=4][outline_color=black]x[/outline_color][/outline_size]` |
@@ -29,7 +29,7 @@
 
 ## 链接点击
 
-`[url]` 默认点击无反应，要连接 `meta_clicked`。参数永远是 String，需要结构化数据就编码成 JSON 或键值字符串再解析：
+`[url]` 默认点击无反应，要连接 `meta_clicked`。BBCode 里写的参数永远是 String，需要结构化数据就编码成 JSON 或键值字符串再解析，或者用 `push_meta()` 传非 String：
 
 ```gdscript
 extends RichTextLabel
@@ -64,7 +64,7 @@ func say(line: String, chars_per_second: float = 40.0) -> void:
 	_tween.tween_property(self, "visible_ratio", 1.0, duration)
 ```
 
-- `get_total_character_count()` 不计 BBCode 标签，按它算时长，`bbcode_enabled` 要在设 `text` 之前开
+- `get_total_character_count()` 不计 BBCode 标签，按它算时长，不要用 `line.length()`
 - 点击跳过：`_tween.kill()` 后 `visible_ratio = 1.0`
 - 打字机每个字弹一声音效，用 `visible_characters` 变化驱动，节流到每 2 到 3 个字一次，不要每字播放
 

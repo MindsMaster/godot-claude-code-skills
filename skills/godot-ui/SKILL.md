@@ -77,7 +77,7 @@ func _ready() -> void:
 ### 容器的限制
 
 - Container 在子节点变化与 `queue_sort()` 时重排。直接 Tween 子节点的 `position` 或 `size` 会被下一次排序覆盖。要动画就 Tween `scale` `modulate` `rotation`，或把动画节点包一层普通 Control
-- `scale` 的中心是 `pivot_offset`，默认左上角。缩放按钮先设 `pivot_offset = size / 2.0`，且要在 `resized` 信号里更新
+- `scale` 的中心是 `pivot_offset`，默认左上角。缩放按钮设 `pivot_offset_ratio = Vector2(0.5, 0.5)` 4.6+，4.5 及以前在 `resized` 信号里设 `pivot_offset = size / 2.0`
 - Label 开 `autowrap_mode` 后宽度要来自 `custom_minimum_size.x` 或 `SIZE_EXPAND_FILL`
 - ScrollContainer 的内容子节点设 `SIZE_EXPAND` 才会随滚动区变宽
 - FoldableContainer 4.5+ 配 FoldableGroup 做手风琴，标题栏按钮用 `add_title_bar_control`
@@ -94,7 +94,7 @@ theme/custom_font="res://ui/fonts/main.ttf"
 ```
 
 - 对应 `gui/theme/custom` 和 `gui/theme/custom_font`。场景里任何 Control 无需设 `theme` 就继承它
-- 局部换主题：给某个 Control 设 `theme`，它的所有 Control 后代都继承，直到链条被非 Control 节点打断
+- 局部换主题：给某个 Control 设 `theme`，它的 Control 和 Window 后代都继承，遇到其他类型的节点就断开
 - 同一类控件的多种样式用 theme type variation：在 Theme 里新建类型如 `DangerButton`，Base Type 选 `Button`，节点上设 `theme_type_variation`。项目级 Theme 里的变体才会出现在 Inspector 下拉里
 - 颜色字号间距都在 Theme 编辑器里改，脚本只读：`get_theme_color(&"font_color", &"Label")`
 - 代码生成的 UI 同样继承 Theme，不用逐个 `add_theme_*_override`
@@ -158,14 +158,14 @@ func set_health(value: float) -> void:
 	_tween.tween_property(_chip, "value", value, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 ```
 
-前景条与残影条是同位置叠放的两个 ProgressBar，残影条在下，填充色用浅色。数字跳动用 `tween_method`，见 `godot-animation`。
+前景条与残影条是同位置叠放的两个 ProgressBar，残影条在下，填充色用浅色，前景条的 `background` 设 StyleBoxEmpty 否则盖住残影条。数字跳动用 `tween_method`，见 `godot-animation`。
 
 ## RichTextLabel
 
 - `bbcode_enabled = true` 后写 `[b]` `[color=red]` `[url]` `[img]` 等标签。常用标签清单在 `references/richtext.md`
 - `visible_ratio` 或 `visible_characters` 做打字机效果，用 Tween 驱动 `visible_ratio` 从 0 到 1
 - `fit_content = true` 让高度随内容变，放在 VBox 里时常用
-- `meta_clicked` 信号接 `[url]` 和 `[meta]` 标签，做词条链接与提示
+- `[url]` 默认点击无反应，连 `meta_clicked` 信号做词条链接与提示
 - 自定义效果继承 RichTextEffect，`bbcode` 成员定义标签名，`_process_custom_fx` 改 `CharFXTransform`，示例见 `references/richtext.md`
 - 带自定义效果的 RichTextLabel 持续每帧处理，不用时隐藏
 
@@ -175,7 +175,7 @@ func set_health(value: float) -> void:
 
 | 值 | 效果 | 适用 |
 |---|---|---|
-| `disabled` | 不缩放，1 单位 1 像素 | 工具类应用 |
+| `disabled` | 不缩放，1 单位 1 像素，aspect 无效 | 工具类应用 |
 | `canvas_items` | 2D 与 UI 以目标分辨率直接渲染，文字清晰 | 大多数游戏，4.7 起新建项目默认 |
 | `viewport` | 先渲染到基准尺寸再整体缩放 | 像素风 |
 
@@ -184,15 +184,15 @@ func set_health(value: float) -> void:
 | 值 | 效果 |
 |---|---|
 | `keep` | 保持比例，两侧或上下黑边。UI 不用考虑比例，代价是黑边 |
-| `keep_width` | 宽固定，更高的屏幕多露出上下内容 |
-| `keep_height` | 高固定，更宽的屏幕多露出左右内容 |
+| `keep_width` | 宽固定，更高的屏幕多露出下方内容。HUD 常用 |
+| `keep_height` | 高固定，更宽的屏幕多露出右侧内容。横版卷轴常用 |
 | `expand` | 宽高都可能变大，4.7 起新建项目默认。UI 必须用 anchors 贴边 |
 | `ignore` | 拉伸变形，一般不用 |
 
-- 基准尺寸设在 `display/window/size/viewport_width` 与 `display/window/size/viewport_height`
-- 像素风再加 `display/window/stretch/scale_mode = "integer"`，窗口小于基准尺寸会裁切，配合 `Window.min_size`
+- 基准尺寸设在 `display/window/size/viewport_width` 与 `display/window/size/viewport_height`。未设置时 mode 是 `disabled`，aspect 是 `keep`
+- 像素风用 `viewport` 配 `keep` 或 `expand`，再加 `display/window/stretch/scale_mode = "integer"`，窗口小于基准尺寸会裁切，配合 `Window.min_size`
 - `display/window/stretch/scale` 是全局倍率。给玩家的界面缩放选项在运行时设 `get_window().content_scale_factor`
-- `expand` 与 `keep_width` 下 HUD 的位置要靠 anchors 和 Container 跟随屏幕边缘，写死坐标必然错位
+- 除 `keep` 外 HUD 的位置要靠 anchors 和 Container 跟随屏幕边缘，写死坐标必然错位
 - 手机刘海与圆角用 `DisplayServer.get_display_safe_area()` 取安全区，再设根 MarginContainer 的边距
 
 ## 本地化
@@ -205,8 +205,8 @@ func set_health(value: float) -> void:
 - 同一英文词不同含义用第二个参数 context：`tr("Close", "Distance")`
 - 不该翻译的文本，如玩家名，把节点的 `auto_translate_mode` 设成 `Node.AUTO_TRANSLATE_MODE_DISABLED`
 - 切换语言：`TranslationServer.set_locale("zh_CN")`，选择存进设置文件，启动时读出来再调
-- 脚本里设置的文本在语言切换后不会自动更新，要在 `_notification` 里响应 `NOTIFICATION_TRANSLATION_CHANGED` 重设
-- 开发期开 `internationalization/pseudolocalization/use_pseudolocalization` 检查漏翻与文本溢出
+- `tr()` 返回的文本在语言切换后不会自动更新，要在 `_notification` 里响应 `NOTIFICATION_TRANSLATION_CHANGED` 重设
+- 开发期开 `internationalization/pseudolocalization/use_pseudolocalization` 检查漏翻与文本溢出，运行时用 `TranslationServer.pseudolocalization_enabled` 切换
 
 ```gdscript
 extends Label
@@ -230,8 +230,8 @@ extends Label
 func _ready() -> void:
 	text = tr("PROMPT_INTERACT").format({key = _key_text(action)})
 
-func _key_text(name: StringName) -> String:
-	for event: InputEvent in InputMap.action_get_events(name):
+func _key_text(action_name: StringName) -> String:
+	for event: InputEvent in InputMap.action_get_events(action_name):
 		if event is InputEventKey:
 			return (event as InputEventKey).as_text_physical_keycode()
 	return ""
@@ -248,6 +248,7 @@ func _key_text(name: StringName) -> String:
 - 内置动作 `ui_up` `ui_down` `ui_left` `ui_right` `ui_accept` `ui_cancel` `ui_focus_next` 驱动焦点移动，不要在游戏逻辑里复用这些动作
 - 默认的邻居是引擎猜的，复杂界面在 Inspector 的 Focus 分类里显式设 `focus_neighbor_left` `focus_neighbor_right` `focus_neighbor_top` `focus_neighbor_bottom` `focus_next` `focus_previous`
 - `focus_mode`：`FOCUS_ALL` 可点击也可导航，`FOCUS_CLICK` 只能点击，`FOCUS_NONE` 不可聚焦。Label 默认 NONE，Button 默认 ALL
+- 整棵子树禁止聚焦：`focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED` 4.5+
 - 鼠标悬停高亮也要聚焦时：`mouse_entered.connect(grab_focus)`
 - 弹窗关闭后焦点还给触发它的按钮，打开前存 `get_viewport().gui_get_focus_owner()`
 - ScrollContainer 的 `follow_focus = true` 让聚焦项自动滚入视野
@@ -263,10 +264,10 @@ UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_inpu
 
 ### mouse_filter
 
-默认值：Control Panel PanelContainer ColorRect Button RichTextLabel 是 `MOUSE_FILTER_STOP`，各种 Container 和 TextureRect 是 `MOUSE_FILTER_PASS`，Label 是 `MOUSE_FILTER_IGNORE`。
+默认值：Control Panel PanelContainer ColorRect Button ProgressBar RichTextLabel 是 `MOUSE_FILTER_STOP`，各种 Container TextureRect TextureProgressBar 是 `MOUSE_FILTER_PASS`，Label NinePatchRect 是 `MOUSE_FILTER_IGNORE`。
 
-- STOP 吃掉事件，下面的节点和 `_unhandled_input` 都收不到
-- PASS 自己处理后继续冒泡给父 Control，没人处理才到 `_unhandled_input`
+- STOP 吃掉事件，下面的节点和 `_unhandled_input` 都收不到。滚轮事件例外，`mouse_force_pass_scroll_events` 默认 true 会放行
+- PASS 收到后没调 `accept_event()` 就冒泡给父 Control，冒到 STOP 为止，没人处理才继续往后走
 - IGNORE 完全透明，不收事件也不挡下层
 - 铺满屏幕的 HUD 根节点，装饰用的 ColorRect TextureRect Panel，叠在按钮上的图标，一律改成 IGNORE
 - 整棵子树关掉鼠标输入：`mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED` 4.5+
