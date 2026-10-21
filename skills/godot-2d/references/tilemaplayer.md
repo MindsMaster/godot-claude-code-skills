@@ -123,6 +123,60 @@ func flash(coords: Vector2i) -> void:
 
 `get_pattern` 取一块区域成 `TileMapPattern`，`set_pattern` 贴到别处，房间模板和程序化生成用这个。`map_pattern` 处理六边形偏移坐标。
 
+## 在 .tscn 里预置格子
+
+首选无头脚本生成：加载场景，对 `TileMapLayer` 调 `set_cell`，`PackedScene.pack` 后 `ResourceSaver.save` 存回。引擎自己写 `tile_map_data`，不会错。
+
+```gdscript
+extends SceneTree
+
+const SCENE_PATH := "res://level.tscn"
+
+func _init() -> void:
+	var root := (load(SCENE_PATH) as PackedScene).instantiate()
+	var ground := root.get_node("Ground") as TileMapLayer
+	ground.clear()
+	for x in range(-2, 10):
+		ground.set_cell(Vector2i(x, 5), 0, Vector2i(0, 0))
+	var packed := PackedScene.new()
+	packed.pack(root)
+	ResourceSaver.save(packed, SCENE_PATH)
+	root.free()
+	quit()
+```
+
+```bash
+timeout 30 godot --headless --path . -s res://tools/paint_level.gd
+```
+
+- 4.7.2 实测，存回的场景能读回 12 格，`tile_set` 仍是外部资源引用
+- 脚本在 `_init` 里报错时 `quit()` 不会执行，进程不退出。命令前加 `timeout`
+- 存回后场景头由 `format=3` 变成 `format=4`，`tile_map_data` 变成 base64 字符串。这是引擎的正常输出
+- 场景里的图层节点要先带好 `tile_set`。代码新建的 `TileMapLayer` 要设 `owner`，否则 `pack` 不打包它
+
+手编 `tile_map_data` 只在改几格的小修改时用。格式 ID 0：
+
+| 位置 | 类型 | 内容 |
+|---|---|---|
+| 头 2 字节 | uint16 | 格式 ID，必须是 0 |
+| 每格 12 字节 | int16 int16 | 格子坐标 x y |
+| | uint16 | source_id |
+| | uint16 uint16 | 图集坐标 x y |
+| | uint16 | alternative_tile |
+
+全部小端，总长 2 加 12 乘格数。负坐标写补码，-1 是 `255, 255`，-3 是 `253, 255`。
+
+```ini
+[node name="Ground" type="TileMapLayer" parent="."]
+tile_map_data = PackedByteArray(0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 253, 255, 0, 0, 1, 0, 0, 0, 0, 0)
+tile_set = ExtResource("1")
+```
+
+这段是 3 格：(0, 2) 和 (1, 2) 用 source 0 的图集坐标 (0, 0)，(-1, -3) 用图集坐标 (1, 0)。
+
+- 头写成 1 或 2 时 4.7.2 报 `Unsupported tile map data format: 2. Expected format ID lower or equal to: 0`，整层读成 0 格。没有格子就没有碰撞，角色会穿过地面
+- 引擎写出的 base64 形式解码后是同一布局，手编用十进制列表更好核对
+
 ## 存档
 
 运行时改过的地图存档：遍历 `get_used_cells`，记 `get_cell_source_id`、`get_cell_atlas_coords`、`get_cell_alternative_tile`，读档用 `set_cell` 还原。TileSet 删过瓦片后用 `fix_invalid_tiles` 清掉无效格子。

@@ -180,6 +180,7 @@ func _physics_process(_delta: float) -> void:
 - 碰撞、导航、遮挡、自定义数据、地形都在 TileSet 里先建对应层再给每块瓦片填。
 - 自动连接用 `set_cells_terrain_connect`，不要自己写邻格位掩码。
 - 带逻辑的物件如宝箱、火把用 TileSet 的 Scenes Collection 源，或直接放场景，不要在 `_draw` 里模拟。
+- 手写 `.tscn` 预置格子用无头脚本 `set_cell` 加 `ResourceSaver.save` 生成，手编 `tile_map_data` 头 2 字节必须是 0，否则整层读成 0 格：references/tilemaplayer.md。
 - 完整表格、运行时改瓦片、碰撞回查格子、Y 排序：references/tilemaplayer.md。
 
 ### Camera2D 与 Parallax2D
