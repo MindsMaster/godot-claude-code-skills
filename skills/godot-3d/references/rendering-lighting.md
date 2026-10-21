@@ -11,9 +11,11 @@
 | 灯数量 | 每网格 8 个 | 每网格 8 个 每视图 256 个 | 每簇 512 个 可调 |
 | 方向光 | 最多 8 个 | 最多 8 个 | 最多 8 个 |
 | 光照投影纹理 | 否 | 是 | 是 |
+| 定位灯 PCSS | 否 | 是 | 是 |
 | 方向光 PCSS | 否 | 否 | 是 |
 | ReflectionProbe | 每网格 2 个 | 每网格 8 个 | 场景中最多 256 个 默认 64 |
 | LightmapGI | 能渲染 烘焙需 RenderingDevice | 是 | 是 |
+| SSAO | 是 | 否 | 是 |
 | VoxelGI SDFGI SSIL SSR 体积雾 次表面散射 | 否 | 否 | 是 |
 | 色调映射 雾 泛光 调整 | 是 泛光实现更简单 | 是 | 是 |
 | 全屏 shader 后处理 | 是 | 是 | 是 |
@@ -24,11 +26,11 @@
 | TAA FSR2 | 否 | 否 | 是 |
 | FXAA SMAA | 否 | 是 | 是 |
 | 法线粗糙度缓冲 | 否 | 否 | 是 |
-| 贴花 `Decal` | 4.7 不渲染 | 每网格资源 8 个 | 无限制 簇上限 512 |
+| 贴花 `Decal` | 否 | 每网格资源 8 个 | 数量不限 与灯共用簇上限 512 |
 | 自动曝光 | 否 | 否 | 是 |
 
 - 新功能先进 Forward+，Mobile 随后，Compatibility 最后
-- Forward+ 或 Mobile 在 Vulkan 不可用时回落到 D3D12，再不行回落 Compatibility，由 `rendering/rendering_device/fallback_to_opengl3` 控制
+- Forward+ 或 Mobile 在 Vulkan 不可用时回落到 D3D12，反过来也一样，两者都不行回落 Compatibility，由 `rendering/rendering_device/fallback_to_opengl3` 控制
 - 色彩精度：Compatibility RGBA8，Mobile RGB10A2 开 HDR 2D 时 RGBA16F，Forward+ RGBA16F
 - Compatibility 下 Environment 的 `glow_levels/*` `glow_normalized` `glow_strength` `glow_blend_mode` `glow_mix` `glow_map` 无效
 - 选渲染器写在 `rendering/renderer/rendering_method`，值 `forward_plus` `mobile` `gl_compatibility`，可加 `.mobile` 特性覆盖
@@ -82,11 +84,11 @@
 
 ### LightmapGI
 
-1. 导入面板 Light Baking 设为 Static Lightmaps 并设 Lightmap Texel Size，导入默认值 0.2。不设时烘焙才自动生 UV2 精度 0.1
+1. 导入面板 Light Baking 设为 Static Lightmaps 并设 Lightmap Texel Size，导入默认值 0.2。CSG 与程序化基础网格不能烘，CSG 先 Bake Mesh Instance 再 Unwrap UV2
 2. 场景里放 `LightmapGI`，它只烘兄弟节点与子节点
 3. `quality` `bounces` 默认 3 最多 16，`directional` 加方向信息得到模糊高光，`use_denoiser` 默认开，去噪器在项目设置 `rendering/lightmapping/denoising/denoiser`
 4. 动态物体用 `LightmapProbe`，`generate_probes_subdiv` 可自动生成
-5. 同一网格以相差一倍以上的缩放复用时，用 `GeometryInstance3D.gi_lightmap_texel_scale` 调整 4.4+
+5. 同一网格以相差一倍以上的缩放复用时，用 `GeometryInstance3D.gi_lightmap_texel_scale` 调整，只能提高精度 4.4+
 6. 网页编辑器不能烘焙，已烘的在网页可渲染
 7. 显存大纹理可能崩溃 先放大 texel size
 
@@ -102,8 +104,9 @@
 
 - 环境里开 `sdfgi_enabled`，不需要摆节点，跟随相机
 - `sdfgi_use_occlusion` 减少漏光 `sdfgi_read_sky_light` 室外开 室内关
-- `sdfgi_cascades` 相机快速移动时降到 4 或更低 `sdfgi_y_scale` 降到 75% 或 50% 提升质量
-- `sdfgi_bounce_feedback` 大于 0.5 的场景可能越来越亮
+- `sdfgi_cascades` 默认 4，相机快速移动或小场景再降低
+- `sdfgi_y_scale` 默认 75%，平坦场景降到 50% 可提升质量且不增加开销
+- `sdfgi_bounce_feedback` 默认 0.5，超过 0.5 在亮材质场景可能越来越亮
 - `rendering/global_illumination/sdfgi/probe_ray_count` 控制每帧射线数
 
 ### ReflectionProbe
@@ -121,15 +124,15 @@
 | 项 | 要点 |
 |---|---|
 | 背景 | Clear Color Custom Color Sky Canvas Keep Camera Feed。背景为 Sky 时天空也提供环境光与反射 |
-| 色调映射 | 默认 Linear 亮部截断 Filmic ACES AgX(4.4+) 可选 `tonemap_white` 写实场景 6 到 8 |
-| 泛光 | `glow_hdr_threshold` 1.0 `glow_bloom` 0.0 默认几乎不可见 `glow_blend_mode` 默认 Softlight 最弱 Screen 通用 |
+| 色调映射 | 默认 Linear 亮部截断 Filmic ACES AgX(4.4+) 可选 `tonemap_white` 写实场景至少 6.0，AgX 用 `tonemap_agx_white`，Mobile 的 `tonemap_white` 要 2.0 以下 |
+| 泛光 | `glow_hdr_threshold` 默认 1.0 `glow_bloom` 默认 0.0 只有超过阈值的亮部发光 Mobile 阈值降到 0.9。`glow_blend_mode` 默认 Screen Compatibility 固定用 Screen |
 | SSAO SSR SSIL | 昂贵 低端关 质量在项目设置 `rendering/environment/ssao/quality` 等 |
 | 雾 | `fog_mode` 深度或指数 体积雾仅 Forward+ |
 | 调整 | `adjustment_enabled` 亮度 对比度 饱和度 |
 
 ## 相机属性
 
-`CameraAttributesPractical` 用任意单位，含自动曝光与景深。`CameraAttributesPhysical` 用真实单位，焦距毫米，会锁死相机视野与宽高比。`Camera3D.attributes` 覆盖 `WorldEnvironment` 的设置。放在相机上景深不会在编辑器视口里显示，除非预览该相机。
+`CameraAttributesPractical` 用任意单位，含自动曝光与景深。`CameraAttributesPhysical` 用真实单位，焦距毫米，放到相机上时会覆盖 `fov` `near` `far` `keep_aspect`。自动曝光只有 Forward+ 支持。`Camera3D.attributes` 覆盖 `WorldEnvironment` 的设置。放在相机上景深不会在编辑器视口里显示，除非预览该相机。
 
 ## 参考
 

@@ -10,7 +10,7 @@
 | `PhysicalBoneSimulator3D` | 4.3+ | 布娃娃 配合 `PhysicalBone3D` |
 | `LookAtModifier3D` | 4.4+ | 骨骼看向目标 带角度限制与缓动 |
 | `SpringBoneSimulator3D` | 4.4+ | 头发 布料 尾巴的惯性摆动 链式 会回到原姿势 |
-| `SpringBoneCollision3D` 及 Sphere Capsule Plane 子类 | 4.4+ | 弹簧骨骼的碰撞体 与物理服务器无关 |
+| `SpringBoneCollision3D` 及 Sphere Capsule Plane 子类 | 4.4+ | 弹簧骨骼的碰撞体 与物理服务器无关 不是 `SpringBoneSimulator3D` 的子节点则无效 |
 | `RetargetModifier3D` | 4.4+ | 把父骨架姿势传给不同静止姿势的子骨架 |
 | `BoneConstraint3D` | 4.5+ | 约束基类 |
 | `CopyTransformModifier3D` | 4.5+ | 把参考骨骼的变换复制到目标骨骼 |
@@ -19,8 +19,8 @@
 | `ModifierBoneTarget3D` | 4.5+ | 像 `BoneAttachment3D` 一样跟随骨骼 但参与修改器顺序 适合当别的修改器的目标 |
 | `IKModifier3D` `ChainIK3D` `IterateIK3D` | 4.6+ | IK 基类 |
 | `TwoBoneIK3D` | 4.6+ | 两段骨骼解析解 需要极向量 手臂 腿 |
-| `FABRIK3D` | 4.6+ | 位置法 适合无约束的简单链 目标靠近根部时会折叠 |
-| `CCDIK3D` | 4.6+ | 旋转法 适合有限制的链 目标靠近根部时可能翻转 |
+| `FABRIK3D` | 4.6+ | 位置法 适合无约束的简单链 目标靠近根部时出现之字形抖动 |
+| `CCDIK3D` | 4.6+ | 旋转法 适合有限制的链 目标靠近根部时可能关节翻转与振荡 |
 | `JacobianIK3D` | 4.6+ | 同时算所有关节 平滑 适合生物动作 收敛慢 |
 | `SplineIK3D` | 4.6+ | 让骨骼沿 `Path3D` 排列 |
 | `LimitAngularVelocityModifier3D` | 4.6+ | 限制骨骼旋转角速度 压住抖动与突变 |
@@ -33,10 +33,10 @@
 
 - `active` 开关，`influence` 0 到 1 的权重，用 `Tween` 做淡入淡出
 - 自写修改器重写 `_process_modification_with_delta(delta)`，4.5+。老的 `_process_modification()` 已弃用。不要在里面自己乘 `influence`，`Skeleton3D` 会统一应用
-- `Skeleton3D.modifier_callback_mode_process` 选在物理帧或空闲帧更新，或手动
+- `Skeleton3D.modifier_callback_mode_process` 默认空闲帧更新，可选物理帧或手动，手动时用 `Skeleton3D.advance()` 4.5+
 - 骨骼名与索引都可设，名字更稳
 - IK 与弹簧骨骼的每条链是一个索引项：先设 `setting_count`，再对每个索引调用 `set_root_bone_name(index, name)` 一类方法
-- `mutable_bone_axes` 默认 true，每帧从姿势取骨轴。设 false 只用静止姿势并缓存，略快但忽略之前对位置的改动
+- `IKModifier3D` 与 `SpringBoneSimulator3D` 的 `mutable_bone_axes` 默认 true，每帧从姿势取骨轴。设 false 只用静止姿势并缓存，略快但忽略之前对位置的改动
 
 ## 看向目标
 
@@ -82,14 +82,14 @@ func setup_leg_ik(foot_target: Node3D, knee_pole: Node3D) -> TwoBoneIK3D:
 
 - 设置里给根骨与末骨，一条链一个设置，不支持分叉的 Y 形链
 - 数值可用 `Curve` 沿链分布，或开 individual config 逐关节设 `set_joint_stiffness()` 等
-- 碰撞：把 `SpringBoneCollisionSphere3D` 等放成修改器的子节点，选定骨骼
+- 碰撞：把 `SpringBoneCollisionSphere3D` 等放成修改器的子节点，设 `bone_name` 让它跟随骨骼。每条链用 `set_enable_all_child_collisions()` 切换全部子碰撞体生效或手动用 `set_collision_path()` 登记
 - 不要缩放 `SpringBoneSimulator3D` 或其父骨架，缩放后行为不对
 - 它会回到原姿势，与 `PhysicalBoneSimulator3D` 的自由物理不同
 
 ## 其他
 
 - 路径 IK 要让路径跟随骨骼时，在 `SplineIK3D` 之前放 `ModifierBoneTarget3D`，把 `Path3D` 作为它的子节点
-- 只是把节点挂在骨骼上用 `BoneAttachment3D`。要在修改器链里被引用用 `ModifierBoneTarget3D` 4.5+
+- 单纯把节点挂在骨骼上用 `BoneAttachment3D`。要在修改器链里被引用用 `ModifierBoneTarget3D` 4.5+
 - 重定向动画（不同骨架共用动画）先看 `retargeting_3d_skeletons` 的 `BoneMap` 与导入面板，`RetargetModifier3D` 用于运行时
 
 ## 参考

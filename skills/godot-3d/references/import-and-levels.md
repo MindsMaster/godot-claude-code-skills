@@ -27,10 +27,11 @@ Blender 导出 glTF 的两个坑：含混合形状的模型要开 Data > Armatur
 | `meshes/lightmap_texel_size` | 默认 0.2 只在 Static Lightmaps 下有效 |
 | animation 分组的 `fps` | 默认 30 烘焙曲线用 与源软件一致 |
 | animation 分组的 `trimming` `remove_immutable_tracks` | 减小体积 |
-| `materials/extract` | 把内嵌材质提取成 `.tres` |
+| `materials/extract` | 材质提取模式 0 保持内嵌 1 提取一次 2 每次导入覆盖 格式由 `materials/extract_format` 定 默认 `.tres` |
 | `import_script/path` | 导入后处理脚本 |
-| `nodes/use_node_type_suffixes` | 关掉后类型后缀失效 `-noimp` 仍有效 |
-| `nodes/use_name_suffixes` | 关掉后所有后缀失效 |
+| `nodes/root_script` | 给根节点挂脚本 类型不兼容时根节点会换成兼容类型 |
+| `nodes/use_node_type_suffixes` | 关掉后决定节点类型的后缀失效 `-noimp` `-alpha` `-vcol` `-loop` 仍有效 |
+| `nodes/use_name_suffixes` | 关掉后通用导入代码不再看后缀 glTF 导入器自己检查的 `-loop` 仍可能有效 |
 
 glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extract Textures 抽出成图片可改压缩，Embed as Basis Universal 与 Embed as Uncompressed 保持内嵌。
 
@@ -46,14 +47,14 @@ glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extr
 | `-convcolonly` | 同上 用凸分解 |
 | `-occ` `-occonly` | 生成 `Occluder3D` 保留或不保留网格 |
 | `-navmesh` | 转成导航网格 原网格删除 |
-| `-rigid` | 导入为 `RigidBody3D` |
+| `-rigid` | 导入为 `RigidBody3D` 碰撞形状为凸包 |
 | `-vehicle` `-wheel` | `VehicleBody3D` 与 `VehicleWheel3D` |
 | `-noimp` | 节点或动画不导入 |
 | `-alpha` | 材质用 Alpha 透明 |
 | `-vcol` | 材质用顶点色作反照率 |
-| `loop` `cycle` | 动画名含此词则循环 不需要连接符 |
+| `loop` `cycle` | 动画名以此词开头或结尾则循环 不需要连接符 |
 
-能用少量基本形状就别用三角网或凸包。
+多个节点引用同一个网格时，碰撞形状按网格共享，4.7.2 实测第一个带碰撞后缀的节点决定全部节点的形状类型，要不同形状就用不同网格。能用少量基本形状就别用三角网或凸包。
 
 ## 高级导入设置
 
@@ -72,7 +73,6 @@ glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extr
 |---|---|
 | 直接实例化到自己的场景，开 Editable Children 改子节点属性 | 摆放道具 改个别节点的变换或材质 |
 | 在编辑器里打开导入场景时选新建继承场景 | 给导入模型加脚本 碰撞 粒子 子节点 基础场景的节点不能删 子资源不能直接改 需先存成外部文件 |
-| 场景树右键 Make Local | 断开实例与导入文件的链接，节点变成当前场景自己的，之后重导入的变化不再同步过来。只在确定不再跟随源文件时用 |
 | 导入脚本 `EditorScenePostImport` | 批量规则 例如统一改材质 命名 加碰撞层 |
 
 能在源文件或导入设置里解决的事不要放到导入后处理里。大体量的网格数据（几十万顶点的 JSON 或自定义格式）不要在运行时解析再手建 `ArrayMesh`，在导入阶段烘焙成 `.res` 网格资源，运行时直接 `load()`。
@@ -83,7 +83,7 @@ extends EditorScenePostImport
 
 func _post_import(scene: Node) -> Object:
 	for body: Node in scene.find_children("*", "StaticBody3D"):
-		(body as StaticBody3D).collision_layer = 1
+		(body as StaticBody3D).collision_layer = 1 << 1
 	return scene
 ```
 
@@ -115,8 +115,8 @@ MeshLibrary 场景格式：
 - 根节点 `Node3D`
 - 每个子节点是一个 `MeshInstance3D`，成为一个库条目
 - 材质放在网格的材质槽里，节点上的材质被忽略
-- 最多一个 `StaticBody3D` 子节点作碰撞，下面放 `CollisionShape3D`
-- 最多一个 `NavigationRegion3D` 子节点作导航，它下面的网格不会导出为视觉网格
+- 条目下最多一个 `StaticBody3D` 子节点作碰撞，下面放 `CollisionShape3D`
+- 条目下最多一个 `NavigationRegion3D` 子节点作导航，它下面的网格只用于烘焙，不导出为视觉网格
 - 其他节点类型不识别
 
 菜单 Scene > Export As > MeshLibrary 存成资源，赋给 `GridMap.mesh_library`。`GridMap` 不能放任意节点，只能放网格加碰撞加导航。
@@ -142,10 +142,10 @@ func place(world_position: Vector3, item: int) -> void:
 
 CSG 只用于灰盒。节点有 `CSGBox3D` `CSGSphere3D` `CSGCylinder3D` `CSGTorus3D` `CSGPolygon3D` `CSGMesh3D` `CSGCombiner3D`，操作有 Union Intersection Subtraction，没有 UV 编辑。
 
-- 根 CSG 节点才产生网格和碰撞。`CSGShape3D.use_collision` 默认关
-- 4.4+ 菜单 CSG 下 Bake Mesh Instance 得到 `MeshInstance3D`，之后才能烘光照图和遮挡，加载也更快。烘完要隐藏原 CSG 节点
+- 根 CSG 节点才产生网格和碰撞。`CSGShape3D.use_collision` 默认关，开启后隐藏节点碰撞仍然有效
+- 4.4+ 菜单 CSG 下 Bake Mesh Instance 得到 `MeshInstance3D`，之后才能烘遮挡，烘光照图还要对它执行 Mesh 菜单的 Unwrap UV2。烘完不会自动隐藏原 CSG 节点，要自己隐藏
 - 4.4+ Bake Collision Shape 生成三角网碰撞，必须放在 `StaticBody3D` 或 `AnimatableBody3D` 下才有效
-- 脚本里用 `CSGShape3D.bake_static_mesh()` 与 `CSGShape3D.bake_collision_shape()`，4.4+
+- 脚本里用 `CSGShape3D.bake_static_mesh()` 与 `CSGShape3D.bake_collision_shape()`，4.4+。CSG 网格延迟一帧更新，在 `_ready()` 里用之前先 `await get_tree().process_frame`
 - 正式关卡用 Blender 建模，或 FuncGodot 一类的关卡插件
 
 ## 参考

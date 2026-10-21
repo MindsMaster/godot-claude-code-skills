@@ -40,16 +40,17 @@ func _ready() -> void:
 	_far.visibility_range_begin_margin = 1.0
 ```
 
+- `visibility_range_begin` 与 `visibility_range_end` 默认 0 即不做范围检查
 - `visibility_range_fade_mode`：Disabled 用滞回瞬间切换 最快。Self 用 alpha 淡入淡出 Dependencies 配合 `Node3D.visibility_parent` 做 HLOD。淡出时对象被强制透明渲染
-- 淡出模式只在 margin 大于 0 时才可见
+- 淡出模式只在 margin 大于 0 时才可见，且只在 Forward+ 有效，Mobile 与 Compatibility 下等同 Disabled 且没有滞回
 - HLOD：一组房子的合并大网格设 `visibility_range_begin`，每个房子的 `visibility_parent` 指向合并网格，无需再设房子的 end
 - `visibility_parent` 目标必须是 `GeometryInstance3D`，可以不是父节点，不能指向子节点
-- 隐藏 `visible` 为 false 的节点退出依赖树
+- `visible` 为 false 的节点退出依赖树，`visibility_parent` 目标被隐藏时子节点不再按它的 `visibility_range_begin` 隐藏
 - 自动 LOD 与 visibility range 可以同时用在同一个网格上
 
 ## 遮挡剔除
 
-1. 打开 `rendering/occlusion_culling/use_occlusion_culling`，即时生效。也可运行时设根视口 `use_occlusion_culling`
+1. 打开 `rendering/occlusion_culling/use_occlusion_culling`，默认关，即时生效，网页导出模板不支持。也可运行时设根视口 `use_occlusion_culling`
 2. 场景里放 `OccluderInstance3D`，点 Bake Occluders。只烘 `MeshInstance3D`，不含 `MultiMeshInstance3D` 粒子和 CSG，CSG 先转成 `MeshInstance3D`
 3. 动态物体被烘进去时：把它们放到其他可见层，并在烘焙掩码 `bake_mask` 去掉那一层，重烘
 4. 手摆遮挡体：`QuadOccluder3D` `BoxOccluder3D` `SphereOccluder3D` `PolygonOccluder3D`，过程化用 `ArrayOccluder3D`
@@ -83,7 +84,7 @@ func build(mesh_to_draw: Mesh, count: int, area: float) -> void:
 	multimesh = mm
 ```
 
-- `use_colors` `use_custom_data` `transform_format` 必须在 `instance_count` 之前设。`instance_count` 会清空并重设缓冲，之后改格式无效
+- `use_colors` `use_custom_data` `transform_format` 必须在 `instance_count` 之前设，或先把 `instance_count` 设回 0。`instance_count` 会清空并重设缓冲，之后改格式无效
 - 改数量用 `visible_instance_count`，默认 -1 全画
 - 大量更新用 `buffer` 一次写入，比逐个 `set_instance_transform()` 快
 - 逐实例颜色要材质读顶点色：`StandardMaterial3D` 的 `vertex_color_use_as_albedo`，自写 shader 读 `COLOR` 与 `INSTANCE_CUSTOM`
@@ -116,13 +117,13 @@ func spawn(texture: Texture2D, point: Vector3, normal: Vector3) -> void:
 	tween.tween_callback(decal.queue_free)
 ```
 
-- `size` 的 Y 轴是投影深度，尽量短以便剔除。贴花沿自己的 Y 轴向下投射
+- `size` 的 Y 轴是投影深度，尽量短以便剔除。贴花沿自己的 Y 轴向下投射。硬表面贴花把 `upper_fade` 与 `lower_fade` 设 0 再压低 Y，外观不变而 AABB 更小
 - 有法线或 ORM 贴图时必须有 `texture_albedo` 提供 alpha 作遮罩。只想改法线或粗糙度，`albedo_mix` 设 0
 - 贴花看起来镜像就绕投影轴转 180 度。`normal_fade` 设 0.5 可确认朝向
-- 排序用 `VisualInstance3D.sorting_offset`，只是指引，不是严格优先级。要永远在上，设成大于重叠中最大贴花 AABB 长度的正数
+- 排序用 `VisualInstance3D.sorting_offset`，仅作指引，不保证严格优先级。要永远在上，设成大于重叠中最大贴花 AABB 长度的正数
 - `cull_mask` 配合可见层，避免贴到动态物体上
 - 贴花不能用自定义 shader。被投影表面的 shader 能读到贴花改写的粗糙度与金属度
-- Forward+ 贴花数量不限，但与灯 反射探针共用 512 个簇元素上限，调 `rendering/limits/cluster_builder/max_clustered_elements`。Mobile 每个网格资源最多 8 个，超出会闪烁。4.7 的 Compatibility 不渲染贴花
+- Forward+ 贴花数量不限，但与灯 反射探针共用 512 个簇元素上限，调 `rendering/limits/cluster_builder/max_clustered_elements`。Mobile 每个网格资源最多 8 个，超出会闪烁。Compatibility 在 4.7 不渲染贴花
 - 过滤方式 `rendering/textures/decals/filter`，像素风选 Nearest
 - Blob shadow：烘焙光照图后动态物体没有阴影，在脚下放朝下的贴花，长度拉长可提示落点
 - 在世界里写任意文字用 `Label3D`，不用贴花

@@ -61,12 +61,12 @@ func _physics_process(delta: float) -> void:
 | `floor_snap_length` | 0.1 | 下坡贴地 上升速度大于 0 时不吸附 |
 | `floor_stop_on_slope` | true | 站着不下滑 |
 | `floor_constant_speed` | false | 上下坡速度一致 需配合 `floor_snap_length` |
-| `floor_block_on_wall` | true | 不能爬墙 |
-| `wall_min_slide_angle` | 0.2617994 | 弧度 15 度 撞墙小于此角度不滑 |
+| `floor_block_on_wall` | true | 只在地面上移动 不能爬墙 但会沿墙下滑 |
+| `wall_min_slide_angle` | 0.2617994 | 弧度 15 度 撞墙角度小于此值不滑 Grounded 下需 `floor_block_on_wall` 为 true 才生效 |
 | `max_slides` | 6 | 一次 `move_and_slide()` 最多换向次数 |
-| `safe_margin` | 0.001 | 太小易卡边 太大有缝 |
+| `safe_margin` | 0.001 | 碰撞恢复余量 大了更稳地识别墙和地面 小了更精确 极小缩放或叠放多个角色时用小值 |
 | `motion_mode` | 0 | `MOTION_MODE_GROUNDED` 平台类 `MOTION_MODE_FLOATING` 太空与俯视 |
-| `platform_on_leave` | 0 | 离开移动平台时保留平台速度 |
+| `platform_on_leave` | 0 | `PLATFORM_ON_LEAVE_ADD_VELOCITY` 离开移动平台时带上平台速度 另有 `ADD_UPWARD_VELOCITY` `DO_NOTHING` |
 
 没有内置台阶。需要上台阶时用斜面碰撞体，或用 `ShapeCast3D` 自己做台阶检测。重力方向不是 Y 轴时改 `up_direction`。
 
@@ -74,8 +74,8 @@ func _physics_process(delta: float) -> void:
 
 | 引擎 | 状态 |
 |---|---|
-| GodotPhysics3D | 4.7 里 `DEFAULT` 仍解析为它 老项目升级后保持 |
-| Jolt Physics | 4.4 起内置 4.6 起新建项目默认选用 通常更快更稳 |
+| GodotPhysics3D | 设置值 `DEFAULT` 在 4.7 仍等于它 老项目升级后保持 |
+| Jolt Physics | 4.4 起内置模块 4.6 起新建项目默认选用 通常更快更稳 |
 
 ```ini
 [physics]
@@ -83,7 +83,7 @@ func _physics_process(delta: float) -> void:
 3d/physics_engine="Jolt Physics"
 ```
 
-新建项目已写好此项。从 4.5 及更早升级的项目手动改，改完重启编辑器。切换后关节软限制属性不支持，单体关节固定当作 `node_b`，射线 `face_index` 恒为 -1，其余差异见 [references/physics-3d.md](references/physics-3d.md)。
+新建项目默认就是它。从 4.5 及更早升级的项目手动改，改完重启编辑器。切换后关节软限制属性不支持，只设一个物体的关节默认把它当 `node_b`，射线 `face_index` 默认 -1，其余差异见 [references/physics-3d.md](references/physics-3d.md)。
 
 ### 碰撞层
 
@@ -148,7 +148,7 @@ C# 版本和 `Dictionary` 取值写法见 [references/physics-3d.md](references/
 
 ### 第三人称相机
 
-节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。`SpringArm3D.shape` 留空时相机必须是它的直接子节点，会用相机近平面做形状。给了形状就一直用该形状，球形最顺滑。
+节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。`spring_length` 默认 1.0，按需要的臂长改。`SpringArm3D.shape` 留空且相机是直接子节点时，用相机近平面做形状；留空但相机不是直接子节点会退成射线，不推荐。给了形状就一直用该形状，球形最顺滑。
 
 ```gdscript
 extends Node3D
@@ -166,11 +166,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
 	if motion == null or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
-	rotate_y(-motion.relative.x * mouse_sensitivity)
-	_arm.rotation.x = clampf(_arm.rotation.x - motion.relative.y * mouse_sensitivity, -1.2, 1.2)
+	rotate_y(-motion.screen_relative.x * mouse_sensitivity)
+	_arm.rotation.x = clampf(_arm.rotation.x - motion.screen_relative.y * mouse_sensitivity, -1.2, 1.2)
 ```
 
-不排除玩家自己的碰撞体，弹簧臂会被自己顶到最短。也可以让弹簧臂的 `collision_mask` 只勾 world 层。
+弹簧臂 `collision_mask` 默认只有第 1 层。玩家碰撞层落在它的 mask 里又没排除时，弹簧臂会被自己顶到最短。上面的层表里玩家在第 2 层，保持 mask 只勾 world 层也能避开。
 
 ### 渲染器
 
@@ -193,22 +193,22 @@ func _unhandled_input(event: InputEvent) -> void:
 | SDFGI | 仅 Forward+ | 半实时 | 只接收 | 环境里开关 |
 | SSIL | 仅 Forward+ | 是 | 是 | 环境里开关 只当补充 |
 
-桌面项目先开 SDFGI，不够再换。手机只能 `LightmapGI` 加 `ReflectionProbe`。性能从快到慢：`ReflectionProbe`，`LightmapGI`，`VoxelGI`，SSIL，SDFGI。网格的 `gi_mode` 默认 Static，会参与 SDFGI 与光照图。小型动态物体设为 Disabled 或 Dynamic。灯的烘焙模式细节见参考文件。
+桌面项目先开 SDFGI，不够再换。手机只能 `LightmapGI` 加 `ReflectionProbe`。性能从快到慢：`ReflectionProbe`，`LightmapGI`，`VoxelGI`，SSIL，SDFGI。网格的 `gi_mode` 默认 Static，会参与 SDFGI 与光照图。小型动态物体设 Disabled，大型动态物体如移动的列车设 Dynamic，Dynamic 只对 VoxelGI 有效。灯的烘焙模式细节见参考文件。
 
 ### 环境与相机属性
 
 - `WorldEnvironment` 每个场景树只放一个。`Camera3D.environment` 优先级更高
-- `Environment.tonemap_mode` 默认 Linear，亮部直接截断。换 Filmic 或 ACES，4.4+ 有 AgX
-- `Camera3D.attributes` 优先于 `WorldEnvironment` 上的 `CameraAttributes`。拿不准用 `CameraAttributesPractical`，`CameraAttributesPhysical` 会锁死相机视野
+- `Environment.tonemap_mode` 默认 Linear，亮部直接截断。换 Filmic 或 ACES，4.4+ 有 AgX。写实场景 `tonemap_white` 至少 6.0，AgX 改用 `tonemap_agx_white`，Mobile 的 `tonemap_white` 要 2.0 以下
+- `Camera3D.attributes` 优先于 `WorldEnvironment` 上的 `CameraAttributes`。拿不准用 `CameraAttributesPractical`，`CameraAttributesPhysical` 会覆盖相机的 `fov` `near` `far` `keep_aspect`
 
 ### 场景导入
 
 glTF 2.0 优先，`.glb` 是单文件。`.blend` 直接导入要求每个人装 Blender。OBJ 没有骨骼动画 PBR UV2。
 
-- 在 Blender 里给对象改名带后缀：`-col` 三角网碰撞，`-convcol` 凸包，`-colonly` 只留碰撞，`-rigid` 刚体，`-navmesh`，`-occ` `-occonly`，`-noimp` 跳过。后缀大小写不敏感，前缀可以是 `-` `$` `_`
-- 动画片段名带 `loop` 或 `cycle` 导入时自动循环
+- 在 Blender 里给对象改名带后缀：`-col` 三角网碰撞，`-convcol` 凸包，`-colonly` `-convcolonly` 只留碰撞，`-rigid` 刚体，`-navmesh`，`-occ` `-occonly`，`-noimp` 跳过，完整清单含 `-vehicle` `-wheel` `-alpha` `-vcol`。后缀大小写不敏感，连接符可以是 `-` `$` `_`
+- 动画片段名以 `loop` 或 `cycle` 开头或结尾，导入时自动循环，不需要连接符
 - 改材质：高级导入设置 Actions 里 Extract Materials，之后改外部 `.tres`，重导入不覆盖
-- 加节点或脚本：新建继承场景，基础场景的节点不能删
+- 加节点：新建继承场景，基础场景的节点不能删。只挂根脚本用导入选项 `nodes/root_script`
 - 要碰撞：优先用后缀，其次高级导入设置的 Generate Physics，静态关卡 Trimesh，动态物体用基本形状
 
 详细流程见 [references/import-and-levels.md](references/import-and-levels.md)。
@@ -221,8 +221,8 @@ glTF 2.0 优先，`.glb` 是单文件。`.blend` 直接导入要求每个人装 
 ### 剔除与 LOD
 
 - 导入的 glTF 默认生成 mesh LOD，OBJ 要先把导入类型改为 Scene
-- 手做的多级模型用 `visibility_range_begin` `visibility_range_end` 与 `visibility_range_end_margin`。`visibility_range_fade_mode` 选 Disabled 性能最好，Self 与 Dependencies 用透明渲染做淡入淡出
-- 遮挡剔除先开 `rendering/occlusion_culling/use_occlusion_culling`，加 `OccluderInstance3D` 烘焙。只烘 `MeshInstance3D`，动态物体放到别的可见层并在烘焙剔除掩码里去掉
+- 手做的多级模型用 `visibility_range_begin` `visibility_range_end` 与 `visibility_range_end_margin`。`visibility_range_fade_mode` 选 Disabled 性能最好，Self 与 Dependencies 用透明渲染做淡入淡出且只在 Forward+ 有效
+- 遮挡剔除先开 `rendering/occlusion_culling/use_occlusion_culling`（默认关，网页导出模板不支持），加 `OccluderInstance3D` 烘焙。只烘 `MeshInstance3D`，动态物体放到别的可见层并在烘焙剔除掩码里去掉
 - `MultiMeshInstance3D`：`transform_format` `use_colors` `use_custom_data` 必须先于 `instance_count` 设置，整个节点是一个剔除单位，实例散得太开要拆成多个节点
 - `Decal` 的 `size` 里 Y 是投影深度，越短越利于剔除
 
@@ -284,7 +284,7 @@ func _physics_process(_delta: float) -> void:
 - 光照图烘焙时隐藏灯无效，要把灯的 `light_bake_mode` 设为 Disabled
 - 导入场景用菜单生成的 UV2 会在重载后丢失，在导入面板里设 Light Baking 为 Static Lightmaps
 - SDFGI 对已烘的静态网格修改后要相机走远再走近才刷新
-- `Environment.glow_enabled` 默认几乎看不见，要降低 `glow_hdr_threshold` 或加 `glow_bloom`
+- `Environment.glow_enabled` 只对亮度超过 `glow_hdr_threshold`（默认 1.0）的像素生效，暗部要加 `glow_bloom`，Mobile 把阈值降到 0.9
 - 在 `_ready()` 里立刻取导航路径可能为空，等地图第一次同步
 
 ## 参考
