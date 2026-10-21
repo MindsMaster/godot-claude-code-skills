@@ -50,7 +50,7 @@ func _ready() -> void:
 - `:=` 从右值推断，右值是 Variant 时是错误 `inference_on_variant`。无类型 Dictionary 取值、`call()` 返回值都是 Variant，写 `var v: int = raw["k"]`
 - `load()` 返回 `Resource`，要具体类型写 `var tex: Texture2D = load(path)`。路径是常量字符串时用 `preload()`，它带出具体类型
 - `$Node` 和 `get_node()` 返回 `Node`，写 `@onready var sprite: Sprite2D = $Sprite`，场景里类型不符时加载处立即报错。`as` 失败静默得 `null`，只在就要这个结果时用
-- `Array[T]` 运行时强制元素类型。`map()` `filter()` 返回无类型 Array，赋给 `Array[T]` 用 `typed.assign(untyped)`
+- `Array[T]` 运行时强制元素类型。`map()` 返回无类型 Array，赋给 `Array[T]` 变量报错，用 `typed.assign(untyped)`。`filter()` 保留源数组的元素类型
 - `Dictionary[K, V]` 4.4+，不支持再嵌套类型，`Dictionary[String, Dictionary]` 可以
 - 循环变量写类型 4.2+：`for n: Node in nodes:`
 - 大量数值用 `PackedFloat32Array`、`PackedVector2Array`，`Array[float]` 仍是 Variant 数组
@@ -70,7 +70,7 @@ var main_weapon: Rifle = Rifle.new()
 ```
 
 - 两个脚本互相 `preload` 在 4.7 可加载。仍建议用 `class_name` 打断环
-- Inspector 只认全局类，内部类不能当 `@export` 类型
+- `@export` 类型只能是内置类型、`Resource`、`Node`、枚举，继承 `RefCounted` 的内部类是解析错误
 - 3.x 的 `export var`、`onready var`、`yield`、`connect("sig", obj, "method")` 在 4.x 都没了
 
 ## 注解
@@ -99,14 +99,14 @@ func _ready() -> void:
 
 全表见 [references/annotations.md](references/annotations.md)。
 
-- `@export` 的类型来自标注或默认值，两者都没有则是 Variant
+- `@export` 的类型来自标注或默认值，两者都没有是解析错误，要 Variant 写 `: Variant`
 - `@export var n: Node` 只在 Node 派生脚本里可用，`Resource` 里导出 Node 是解析错误
 - 顺序是声明初值，`_init()`，场景里保存的值赋入，`_ready()`。`_init()` 里读到的是默认值
 - 导出变量的 setter 在场景实例化时先于 `_ready()` 调用，此时 `@onready` 变量是 `null`，setter 里判断 `is_node_ready()`
 - `@onready` 与 `@export` 同用是错误 `onready_with_export`。成员默认值里用 `$` 不带 `@onready` 是错误 `get_node_default_without_onready`
 - 代码里 `add_child()` 创建的节点直接赋成员，不需要 `@onready`
 - 场景里已存的属性值覆盖脚本新默认值，改默认值不会改已保存过该属性的场景
-- 导出 `Resource` 会在场景加载时一并加载，大关卡场景用 `@export_file` 存路径，用时再 `load()`
+- 导出 `Resource` 会在场景加载时一并加载，大关卡场景用 `@export_file` 存路径，用时再 `load()`。4.5+ 它存 UID，要原始路径用 `@export_file_path`
 - `@export_tool_button("名字")` 4.4+，必须配 `@tool`
 
 ## 信号
@@ -136,7 +136,7 @@ func _log_damage(amount: int, _source: Node, tag: String) -> void:
 - `CONNECT_ONE_SHOT` 触发一次后断开，`CONNECT_DEFERRED` 推迟到帧末
 - 接收者释放时连接自动断开，lambda 捕获了 `self` 成员时也一样
 - 声明后类内没有 emit、connect、await 任何使用触发 `unused_signal`，由外部发射的信号加 `@warning_ignore("unused_signal")`
-- 信号参数类型写在声明里供文档和补全，发射时不强制检查
+- 信号参数类型写在声明里供文档和补全，`emit()` 不检查，接收方法的参数类型不符时调用报错
 
 ```gdscript
 extends Node
@@ -172,7 +172,7 @@ func ask() -> int:
 
 - 函数体里有 `await` 就是协程。调用者不 `await` 时，协程跑到第一个 `await` 就返回，调用者继续往下。`missing_await` 默认关闭，开启能抓到漏写
 - 信号带 1 个参数时 `await` 得到该值，多个参数得到 Array，无参数得到 `null`
-- `await` 之后世界已变：目标节点可能已释放，自己可能已离开场景树，此时 `get_tree()` 是 `null`，下一个 `await get_tree()...` 直接报错
+- `await` 之后世界已变：目标节点可能已释放，自己可能已离开场景树，此时 `get_tree()` 打印错误并返回 `null`，下一个 `await get_tree()...` 报空值调用错误
 - 自己被 `free()` 时挂起的协程不再恢复也不报错，`await` 后面的清理与状态复位都不执行。要清理的状态放 `_exit_tree()` 或 `tree_exiting` 里复位
 - `create_timer(time_sec, process_always = true)` 默认暂停时也走，要受暂停影响传 `false`
 - `await get_tree().process_frame` 等一帧，`physics_frame` 等物理帧，`await node.ready` 等就绪
@@ -246,7 +246,7 @@ gdscript/warnings/int_as_enum_without_cast=2
 gdscript/warnings/unassigned_variable=2
 ```
 
-- `untyped_declaration` 要求每个变量、参数、返回值有类型，`:=` 算有类型
+- `untyped_declaration` 要求每个变量、参数、返回值、`for` 循环变量有类型，`:=` 算有类型
 - `inferred_declaration` 反过来禁止 `:=`，用 `:=` 风格时保持 0
 - `return_value_discarded` 对每个不接返回值的 `connect()` 报警，开启后要接 `var err := ...` 或加 `@warning_ignore`
 - `unsafe_method_access`、`unsafe_property_access`、`unsafe_call_argument` 抓鸭子类型调用，默认关，想收紧时设 1

@@ -14,7 +14,7 @@
 | `confusable_local_usage` | 1 | 使用了块内稍后会被遮蔽的标识符 | 改名 |
 | `confusable_temporary_modification` | 1 | 对内置属性的 `Packed*Array` 做链式赋值或非 const 方法调用，改的是临时副本 | 取到局部变量，改完写回 |
 | `deprecated_keyword` | 1 | 已弃用关键字，目前没有 | 无 |
-| `directory_rules` | `{ "res://addons": 0 }` | 按目录开关警告，值同上 | 第三方目录设 0 |
+| `directory_rules` | `{ "res://addons": 0 }` | 按目录排除或包含警告，值 0 排除 1 包含，取最深的匹配目录 | 第三方目录设 0 |
 | `empty_file` | 1 | 空文件 | 删文件 |
 | `enum_variable_without_default` | 1 | 枚举类型变量无初值且枚举里没有 0 | 写初值 |
 | `get_node_default_without_onready` | 2 | 成员默认值里用 `$` 或 `get_node()` 没加 `@onready` | 加 `@onready` |
@@ -56,4 +56,4 @@
 
 ## 抓不到的警告
 
-编辑器之外运行时，加载脚本的输出默认不打印级别 1 的警告。想在命令行看到全部警告，用 `godot --headless --debug` 运行并加载脚本。级别 2 的错误任何时候都会打印并让脚本加载失败。
+命令行运行默认不打印级别 1 的警告，加 `--debug` 才打印，如 `godot --headless --debug` 加载脚本。级别 2 的错误任何时候都会打印并让脚本加载失败。

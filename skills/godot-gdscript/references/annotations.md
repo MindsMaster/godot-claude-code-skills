@@ -7,12 +7,12 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 | 需求 | 写法 |
 |---|---|
 | 基本类型 | `@export var speed: float = 200.0`，类型来自标注或默认值 |
-| 数值范围 | `@export_range(0, 100, 1)`，附加提示 `"or_less"` `"or_greater"` `"exp"` `"hide_slider"` `"prefer_slider"` `"suffix:m"` `"radians_as_degrees"` `"degrees"` |
+| 数值范围 | `@export_range(0, 100, 1)`，附加提示 `"or_less"` `"or_greater"` `"exp"` `"hide_control"` 4.6+ 之前叫 `"hide_slider"`，`"prefer_slider"` `"suffix:m"` `"radians_as_degrees"` `"degrees"` |
 | 枚举类型 | `@export var state: State`，存整数 |
 | 整数或字符串枚举 | `@export_enum("Idle", "Run") var mode: int`，类型写 `String` 时存字符串；`"Slow:30"` 指定值 |
-| 位标志 | `@export_flags("Fire", "Water")`，值依次为 1 2 4，`"Self:4"` 指定值，只允许 2 的幂 |
+| 位标志 | `@export_flags("Fire", "Water")`，值依次为 1 2 4，`"Self:4"` 指定值，取值 1 到 2**32-1，不承接前一项的值 |
 | 物理渲染层 | `@export_flags_2d_physics`、`_2d_render`、`_2d_navigation`、`_3d_physics`、`_3d_render`、`_3d_navigation`、`@export_flags_avoidance` |
-| 文件与目录 | `@export_file("*.tscn")`、`@export_dir`、`@export_file_path` 4.5+；全局路径 `@export_global_file`、`@export_global_dir` 只在 `@tool` 脚本里可用 |
+| 文件与目录 | `@export_file("*.tscn")`、`@export_dir`；4.5+ `@export_file` 存 UID，`@export_file_path` 存原始路径；全局路径 `@export_global_file`、`@export_global_dir` |
 | 多行文本 | `@export_multiline var text: String` |
 | 占位文本 | `@export_placeholder("hint") var s: String` |
 | 颜色 | `@export var c: Color`，无 alpha 用 `@export_color_no_alpha` |
@@ -38,16 +38,17 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 @export var combat_ranged_range := 5.0
 ```
 
-- `@export_group` 之后的导出都属于该组，`@export_group("")` 退出。第二参数是属性名前缀，Inspector 里省略该前缀
+- `@export_group` 之后的导出都属于该组，`@export_group("")` 退出。第二参数是属性名前缀，只收带该前缀的属性，遇到第一个不带前缀的属性即结束，Inspector 里省略该前缀
 - 组不能嵌套，子组用 `@export_subgroup`
-- 开关整个组的布尔属性用 `@export_custom(PROPERTY_HINT_GROUP_ENABLE, "")`，4.5+，名字以 `_enabled` 结尾
+- 开关整个组的布尔属性用 `@export_custom(PROPERTY_HINT_GROUP_ENABLE, "")`，4.5+，只在组或子组内有效，组关闭时隐藏组内其他属性，hint_string 写 `"checkbox_only"` 取消隐藏
 
 ## 导出的约束
 
-- 导出的变量需要有常量初值或类型标注
+- `@export` 没有类型标注也没有初值是解析错误
+- 导出数组的初值必须是常量表达式
 - 导出 Resource 时，场景加载就把该资源当依赖一起加载。大关卡场景、可选内容用 `@export_file` 存路径，用时再加载
 - 非 `@tool` 脚本在编辑器里不执行，Inspector 修改导出变量时 setter 与 getter 也不运行
-- `Array[Array]` 之类嵌套类型可导出，但 Inspector 对元素类型提示有限
+- `Array[Array]` 可导出，`Array[Array[float]]` 这类嵌套类型化集合不支持
 - 在 `Resource` 里导出 `Node` 是解析错误
 
 ## 其他注解

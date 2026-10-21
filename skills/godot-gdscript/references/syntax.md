@@ -55,12 +55,12 @@ static func make(d: int) -> Hit:
 - `static func _static_init()` 在类加载后、静态变量初始化完成后自动调用
 - 带静态变量的脚本不会被卸载。持有大资源时手动清空，或在文件最顶加 `@static_unload`，当前版本有已知问题，脚本仍不释放
 - `@tool` 脚本引用的静态变量所在脚本也必须是 `@tool`
-- 内部类不写 `extends` 时是 `RefCounted`。外部用 `Outer.Hit` 引用。Inspector 不认内部类
+- 内部类不写 `extends` 时是 `RefCounted`。外部用 `Outer.Hit` 引用。继承 `RefCounted` 的内部类不能 `@export`
 
 ## StringName 与 NodePath
 
 - `&"idle"` 是 `StringName` 字面量，`^"Path/To"` 是 `NodePath` 字面量
-- 动画名、分组名、输入动作名、方法名用 `&""`。引擎 API 参数本来就是 `StringName`，字符串字面量每次调用要转换一次
+- 动画名、分组名、输入动作名、方法名这类常量用 `&""`。传给 `StringName` 参数的字符串字面量引擎多在编译期转换，运行时拼出的 `String` 才每次调用转换一次
 - `&"x" == "x"` 为真，字典里 `&"a"` 与 `"a"` 作键互通
 - `$Path` 是 `get_node(^"Path")` 的简写，路径含空格写 `$"A B"`，唯一名写 `%Name`
 
