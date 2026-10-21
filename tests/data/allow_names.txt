@@ -13,8 +13,10 @@ GD
 GlobalClass
 GodotObject
 GodotSharp
+GodotSynchronizationContext
 Health
 HurtBox
+ISerializationListener
 Icon
 InvalidCastException
 ItemData
@@ -26,7 +28,9 @@ NodePath
 ObjectDisposedException
 PropertyName
 Reload
+RestoreGodotObjectData
 Rid
+SaveGodotObjectData
 Signal
 SignalName
 SkillDef
@@ -39,7 +43,3 @@ Variant
 internationalization/locale/translation_remaps
 internationalization/locale/translations
 internationalization/locale/translations_pot_files
-GodotSynchronizationContext
-ISerializationListener
-RestoreGodotObjectData
-SaveGodotObjectData
