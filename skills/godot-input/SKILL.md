@@ -13,7 +13,7 @@ description: Godot 4 输入处理，InputMap 动作代替硬编码按键，Input
 |---|---|---|
 | 判断按键 | InputMap 动作加 `Input.is_action_pressed` | `event.keycode == KEY_W` |
 | 一维轴 二维移动 | `Input.get_axis` `Input.get_vector` | 分别读两个方向再相减拼向量 |
-| 摇杆死区 | 动作的 `deadzone`，`get_vector` 自动做圆形死区 | `if abs(x) < 0.2` |
+| 摇杆死区 | 动作的 `deadzone`，`get_vector` 取各动作死区平均值做圆形死区，第五个参数 `deadzone` 可覆盖 | `if abs(x) < 0.2` |
 | 手柄支持 | 同一动作加 `InputEventJoypadButton` `InputEventJoypadMotion` | 另写一套手柄分支 |
 | 改键 | `InputMap.action_erase_event` 加 `action_add_event` | 自己维护按键表 |
 | 触屏摇杆 | VirtualJoystick 4.7+，TouchScreenButton | 自己解析 `InputEventScreenTouch` |
@@ -28,9 +28,9 @@ description: Godot 4 输入处理，InputMap 动作代替硬编码按键，Input
 
 jump={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+"events": Array[InputEvent]([Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":0,"pressure":0.0,"pressed":false,"script":null)
-]
+])
 }
 ```
 
@@ -62,8 +62,8 @@ func _physics_process(_delta: float) -> void:
 事件顺序：`_input`，GUI，`_shortcut_input`，`_unhandled_key_input`，`_unhandled_input`。处理完调 `get_viewport().set_input_as_handled()`。
 
 - 事件回调里用 `event.is_action_pressed(&"jump")`，文档要求不在输入处理中用 `Input.is_action_just_pressed`。默认不含按住重复，要重复传 `allow_echo = true`
-- `Input.is_action_just_pressed` 在 `_process` 与 `_physics_process` 里各按帧和按物理 tick 计算，同一次按下两边各读到一次，按下又迅速松开也不丢
-- 在哪个回调里消费就在哪个回调里读。别在 `_process` 里置标志让物理消费，一帧里物理可能跑 0 次或 2 次，标志会丢或重复
+- `Input.is_action_just_pressed` 在 `_process` 里按帧、在 `_physics_process` 里按物理 tick 判断。一帧跑多个 tick 时只有一个 tick 为 true，按下后迅速松开也返回 true
+- 在哪个回调里消费就在哪个回调里读。别在 `_process` 里置标志让物理消费，一帧里物理可能跑 0 次或多次，标志会晚到或被重复消费
 
 ## 输入缓冲
 
@@ -123,7 +123,7 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 
 - 只清同一类设备的事件，改键盘键不要清掉手柄绑定
 - 存档存键码整数，启动时调一次 `load_saved`
-- 恢复默认：`InputMap.load_from_project_settings()` 再删存档文件。冲突检测用 `InputMap.action_has_event()`
+- 恢复默认：`InputMap.load_from_project_settings()` 再删存档文件。冲突检测遍历 `InputMap.get_actions()` 逐个调 `InputMap.action_has_event()`
 - 捕获新按键：进入监听状态后，在 `_input` 里接第一个 `pressed` 的 `InputEventKey`，调 `set_input_as_handled()`，Esc 取消。手柄接 `InputEventJoypadButton`
 
 ## 鼠标与触屏
@@ -131,17 +131,17 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 - 视角控制：`Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`，在 `_unhandled_input` 里读 `InputEventMouseMotion.relative`。打开菜单时切回 `Input.MOUSE_MODE_VISIBLE`
 - 2D 世界坐标用 `get_global_mouse_position()`，`get_viewport().get_mouse_position()` 是视口坐标
 - `Input.use_accumulated_input` 默认 true，同一帧鼠标移动合并成一个事件。自由画线需要逐点轨迹时关掉
-- VirtualJoystick 4.7+ 是 Control，`action_left` `action_right` `action_up` `action_down` 指到 InputMap 动作后，`Input.get_vector` 照常读，玩法代码不用改。它的 `deadzone_ratio` 先于动作死区生效
+- VirtualJoystick 4.7+ 是 Control，`action_left` `action_right` `action_up` `action_down` 指到 InputMap 动作后，`Input.get_vector` 照常读，玩法代码不用改。`action_*` 默认是 `ui_*` 动作，必须改成玩法动作。它的 `deadzone_ratio` 默认 0.0，设了以后先于动作死区生效
 - 按钮用 TouchScreenButton 的 `action` 属性。`input_devices/pointing/emulate_mouse_from_touch` 默认开，触摸合成鼠标事件
 
 ## 陷阱
 
-- 手写 `Axis(neg, pos)` 分别读两个轴拼向量，没有圆形死区，斜向速度超过 1
+- 两次 `Input.get_axis` 拼向量没有圆形死区，斜向长度到 1.414
 - InputMap 只有键盘事件，插手柄毫无反应。每个动作都检查手柄绑定
 - 用 `Input.is_key_pressed(KEY_W)` 或 `event.keycode` 判断玩法键，改键和键盘布局都失效
 - `_input` 里处理游戏内点击会穿透按钮，改 `_unhandled_input`
 - 把 `ui_accept` `ui_cancel` 当玩法键，菜单打开时同时触发
-- 键盘幽灵键让某些组合键的 `is_action_just_pressed` 为 false，组合键别设计得太多
+- 键盘幽灵键让某些组合键的 `is_action_pressed` `is_action_just_pressed` 为 false，组合键别设计得太多
 
 ## 参考
 
