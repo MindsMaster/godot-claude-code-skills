@@ -1,0 +1,24 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Godot
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          echo "GODOT_BIN=$PWD/godot" >> "$GITHUB_ENV"
+      - run: python3 tests/check.py --sdk-version "$GODOT_VERSION"
