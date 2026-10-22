@@ -451,6 +451,9 @@ await RenderingServer.frame_post_draw
 var image := node.get_viewport().get_texture().get_image()
 expect(image.get_pixel(64, 64).g < 0.05, "闪白前保持原色")
 node.hit_flash()
+var first: Tween = node._tween
+node.hit_flash()
+expect(not first.is_valid(), "再次受击时旧 Tween 已 kill")
 await RenderingServer.frame_post_draw
 await RenderingServer.frame_post_draw
 image = node.get_viewport().get_texture().get_image()
