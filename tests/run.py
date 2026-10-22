@@ -356,6 +356,8 @@ def plan(docs: list, index: dict) -> tuple:
                 mode = "game"
             jobs.append(Job(d.where, b, n, blocks, mode, node_base(code, classes, index), fx))
     for where in fixtures:
+        if (ROOT / where).exists():
+            continue
         out.append(("ERROR", f"tests/run/{where.split('/')[1]}.md", f"run 指向不存在的文档 {where}"))
     return jobs, out
 
