@@ -182,6 +182,53 @@ await frames(2)
 expect(not is_instance_valid(dock), "退出时 dock 被释放")
 ```
 
+## references/editor-recipes.md `func _enable_plugin`
+
+<!-- check: prepare -->
+```gdscript
+DirAccess.make_dir_recursive_absolute("res://addons/items")
+var file := FileAccess.open("res://addons/items/items_service.gd", FileAccess.WRITE)
+file.store_string("extends Node\n")
+file.close()
+```
+
+```gdscript
+var key := "autoload/" + node.AUTOLOAD_NAME
+expect(not ProjectSettings.has_setting(key), "启用前没有 autoload")
+node._enable_plugin()
+var value: String = ProjectSettings.get_setting(key, "")
+expect(value.begins_with("*") and ResourceUID.uid_to_path(value.trim_prefix("*")) == "res://addons/items/items_service.gd", "启用时登记带星号的 autoload " + value)
+node._disable_plugin()
+expect(not ProjectSettings.has_setting(key), "停用时移除 autoload")
+```
+
+## references/editor-recipes.md `func _has_main_screen`
+
+<!-- check: prepare -->
+```gdscript
+DirAccess.make_dir_recursive_absolute("res://addons/items")
+var panel := VBoxContainer.new()
+panel.name = "MainScreen"
+var packed := PackedScene.new()
+packed.pack(panel)
+ResourceSaver.save(packed, "res://addons/items/main_screen.tscn")
+panel.free()
+```
+
+```gdscript
+var screen: Control = node._screen
+expect(screen.get_parent() == EditorInterface.get_editor_main_screen(), "面板挂在主屏幕容器下")
+expect(not screen.visible, "进树后先隐藏")
+expect(screen.size_flags_vertical == Control.SIZE_EXPAND_FILL, "纵向 EXPAND_FILL")
+expect(node._has_main_screen() and node._get_plugin_name() == "Items", "主屏幕标签页名")
+expect(node._get_plugin_icon() != null, "取得编辑器内置图标")
+node._make_visible(true)
+expect(screen.visible, "_make_visible(true) 显示")
+node.free()
+await frames(2)
+expect(not is_instance_valid(screen), "退出时面板被释放")
+```
+
 ## references/editor-recipes.md `NOTIFICATION_THEME_CHANGED`
 
 ```gdscript
