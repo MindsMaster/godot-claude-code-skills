@@ -23,7 +23,7 @@ BENIGN = re.compile(r"resources still in use at exit|RID allocations of type .* 
 RENDER_BENIGN = re.compile(r"Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 INPUT_CALL = re.compile(r"(?:Input\.\w+|is_action\w*)\s*\(([^)]*)\)")
-STRING = re.compile(r"&?\"(\w+)\"")
+STRING = re.compile(r"&?[\"'](\w+)[\"']")
 ONREADY = re.compile(r"^@onready\s+var\s+\w+\s*:\s*(\w+)\s*=\s*([$%])(\"[^\"]+\"|[\w/]+)\s*$", re.M)
 EXPORT = re.compile(r"^@export\s+var\s+(\w+)\s*:\s*([A-Z]\w*)\s*$", re.M)
 PUBLIC_FUNC = re.compile(r"^(?:static\s+)?func\s+([a-z]\w*)\s*\(", re.M)
@@ -259,14 +259,18 @@ def isolated(proj: Path) -> dict:
     return env
 
 
-def import_doc(godot: str, blocks: list, base: Path) -> None:
+def import_doc(godot: str, blocks: list, base: Path) -> str:
     # 每个文档导入一次 各代码块复制 .godot 再跑
     base.mkdir(parents=True)
     for n, b in enumerate(blocks):
         (base / f"s{n}.gd").write_text(source(b)[0])
     (base / "project.godot").write_text(PROJECT)
     cmd = [godot, "--headless", "--path", str(base), "--import"]
-    subprocess.run(cmd, capture_output=True, timeout=TIMEOUT, env=isolated(base))
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=TIMEOUT * 3, env=isolated(base))
+    except subprocess.TimeoutExpired:
+        return f"导入超过 {TIMEOUT * 3} 秒"
+    return ""
 
 
 def run_job(godot: str, job: Job, base: Path, proj: Path) -> tuple:
@@ -395,7 +399,10 @@ def check(docs: list, godot: str, jobs_n: int) -> list:
         for j in runnable:
             bases.setdefault(j.doc, (Path(tmp) / f"doc{len(bases)}", j.blocks))
         with concurrent.futures.ThreadPoolExecutor(jobs_n) as pool:
-            list(pool.map(lambda kv: import_doc(godot, kv[1], kv[0]), bases.values()))
+            imported = dict(zip(bases, pool.map(lambda kv: import_doc(godot, kv[1], kv[0]), bases.values())))
+            for where, err in imported.items():
+                if err:
+                    out.append(("ERROR", where, "run " + err))
             futures = {}
             for i, j in enumerate(runnable):
                 futures[pool.submit(run_job, godot, j, bases[j.doc][0], Path(tmp) / str(i))] = j
