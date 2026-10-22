@@ -57,7 +57,7 @@ description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GD
 - 多个节点共用一个材质但各自状态不同（闪白 颜色变体 溶解进度）：用 instance uniform，不复制材质
 - instance uniform 只用于 `spatial` 与 `canvas_item` shader，`particles` `sky` `fog` 不支持。3D 在 `GeometryInstance3D` 上设置，`CanvasItem.set_instance_shader_parameter()` 是 4.4+
 - instance uniform 不支持纹理与数组，每个 shader 最多 16 个，同一网格多个材质时靠 `instance_index` 提示避免冲突
-- global uniform 必须先在项目设置的 Shader Globals 页创建（写入 `shader_globals/<名字>`），否则编辑器里保存 shader 时编译失败，运行时只有警告且取值不对。适合风力 昼夜 玩家位置，设置很便宜，读取很贵（`global_shader_parameter_get()` 会同步渲染线程）
+- global uniform 必须先在项目设置的 Shader Globals 页创建（写入 `shader_globals/<名字>`），否则编辑器里保存 shader 时编译失败，运行时只有警告且取值不对。适合风力 昼夜 玩家位置，设置很便宜，游戏里读不了：`global_shader_parameter_get()` 在编辑器之外报错并返回 `null`，数值自己记一份
 - 颜色 uniform 加 `source_color`，贴图 uniform 作反照率时也加
 
 ### 命中闪白

@@ -61,7 +61,7 @@ func _ready() -> void:
 4. UI 不发光：UI 放进 `CanvasLayer`，层号大于 `Environment.background_canvas_max_layer`
 5. 路线 B 的副作用：2D 在线性空间混合，半透明精灵更显眼，字体变粗，编辑器自身渲染也受影响；canvas shader 里的颜色采样器必须带 `source_color`，关掉 HDR 2D 时它仍然正确，所以总是写上
 6. Compatibility 不支持 HDR 2D 与 `glow_blend_mode`，只走路线 A
-7. 本地只在 Compatibility 下验证了第 1 点，Forward+ 与 Mobile 按文档写
+7. 本地在 Compatibility 与 Forward+ 下验证了第 1 点，Mobile 按文档写
 
 不要用多个平级 `SubViewport` 手搓 bloom 与多缓冲，更不要为模拟 MRT 复制节点。灯光用 `PointLight2D` 与 `CanvasModulate`。
 
@@ -177,7 +177,7 @@ func _render_callback(_effect_callback_type: int, render_data: RenderData) -> vo
 - 类参考标为实验性，接口可能随版本变
 - 回调在渲染线程，不能碰场景树，初始化用 `RenderingServer.call_on_render_thread()`，编辑器里改 shader 文本要加互斥锁
 - 开 `needs_motion_vectors` `needs_normal_roughness`（仅 Forward+）申请额外缓冲，`access_resolved_color` `access_resolved_depth` 在开 MSAA 时先做解析
-- 本页示例只验证了 GDScript 能解析，没有在 Vulkan 上运行。官方示例项目 `compute/post_shader` 可对照
+- 本页示例在 Forward+（Vulkan）下跑过，反色生效，`enabled` 设为 false 还原。官方示例项目 `compute/post_shader` 可对照
 - 仅 Mobile 与 Forward+，Compatibility 里需要改走第 3 或第 4 级
 
 ## 用 glow 模糊画面
