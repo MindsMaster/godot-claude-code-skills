@@ -112,8 +112,8 @@ func _ready() -> void:
 	play()
 	_poly = get_stream_playback()
 
-func play_sfx(sound: AudioStream, volume_db: float = 0.0) -> int:
-	return _poly.play_stream(sound, 0.0, volume_db)
+func play_sfx(sound: AudioStream, gain_db: float = 0.0) -> int:
+	return _poly.play_stream(sound, 0.0, gain_db)
 ```
 
 - 声音走播放器的 `bus`，4.7.2 实测 Stream 播放类型下 `play_stream` 的 `bus` 参数无效。要分总线就按总线各挂一个播放器
