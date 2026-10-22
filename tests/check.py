@@ -13,7 +13,7 @@ from markdown import ROOT, parse_doc
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("steps", nargs="*", default=["lint", "api", "gd", "cs"])
+    ap.add_argument("steps", nargs="*", default=["lint", "api", "gd", "run", "cs"])
     ap.add_argument("--godot", default=os.environ.get("GODOT_BIN", "godot"))
     ap.add_argument("--dotnet", default=os.environ.get("DOTNET_BIN", "dotnet"))
     ap.add_argument("--sdk-version", default=os.environ.get("GODOT_SDK_VERSION", "4.7.2"))

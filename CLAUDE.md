@@ -65,8 +65,8 @@ GDScript 为主。C# 只在写法和 GDScript 不同或容易写错时给，C# �
 # 测试
 
 ```
-python3 tests/check.py              # lint api gd cs 全跑
-python3 tests/check.py run          # 真跑 GDScript 示例
+python3 tests/check.py              # lint api gd run cs 全跑
+python3 tests/check.py run          # 只真跑 GDScript 示例
 python3 tests/check.py lint api     # 不需要 Godot 和 dotnet
 python3 tests/check.py --only godot-2d
 ```
