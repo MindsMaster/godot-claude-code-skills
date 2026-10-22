@@ -51,6 +51,8 @@ static func write(state: Dictionary) -> Error:
 	return DirAccess.rename_absolute(tmp, PATH)
 
 static func read() -> Dictionary:
+	if not FileAccess.file_exists(PATH) and FileAccess.file_exists(PATH + ".tmp"):
+		DirAccess.rename_absolute(PATH + ".tmp", PATH)
 	if not FileAccess.file_exists(PATH):
 		return {}
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
@@ -70,7 +72,7 @@ static func _migrate(payload: Dictionary) -> Dictionary:
 	return state
 ```
 
-- 先写 `.tmp` 再改名，写到一半断电或崩溃不会毁掉旧存档
+- 先写 `.tmp` 再改名，写到一半断电或崩溃不会毁掉旧存档。Windows 上引擎覆盖已有文件是先删旧文件再移动，崩在两步之间只剩完整的 `.tmp`，所以 `read` 开头发现只有 `.tmp` 时先改名回 `PATH`
 - `JSON.parse_string` 读回的数字都是 `float`，`3` 变成 `3.0`。用 `JSON.from_native` 写、`JSON.to_native` 读（4.4+）可以保留 `int`、`Vector2`、`Color` 等类型，代价是 `Dictionary` 变成 `{"type":"Dictionary","args":[...]}`，键和 `int` 带 `s:` `i:` 前缀，手改不方便
 - 存档带 `version`，读到旧版本在 `_migrate` 里逐级升。不要靠字段是否存在猜版本
 - 读取是系统边界：解析失败、字段缺失、类型不对都要处理，回到默认值或提示玩家，不要让游戏崩
