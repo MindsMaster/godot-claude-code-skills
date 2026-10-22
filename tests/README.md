@@ -41,6 +41,8 @@ python3 tests/check.py [lint] [api] [gd] [run] [cs] [--only 路径子串] [--str
 
 每个代码块单独起一个 Godot 进程。同一文档的代码块放在同一个工程里，互相能用 `class_name`。
 
+进程环境固定 `LANG=en_US.UTF-8`，XDG 目录指向工程内，结果不随本机语言与配置变化。
+
 | 模式 | 怎么跑 | 默认用于 |
 | --- | --- | --- |
 | game | 无头 `--fixed-fps 60`，实例化脚本挂到 `root` 下，跑完夹具或 60 个物理帧后释放 | 其余代码块 |

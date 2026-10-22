@@ -256,6 +256,8 @@ def isolated(proj: Path) -> dict:
     env = dict(os.environ)
     for var in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"):
         env[var] = str(proj / ".xdg" / var.lower())
+    # Godot 只读 LANG 定系统语言
+    env["LANG"] = "en_US.UTF-8"
     return env
 
 
