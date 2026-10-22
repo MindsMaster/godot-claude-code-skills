@@ -260,6 +260,7 @@ textures/canvas_textures/default_texture_filter=0
 - `PhysicsRayQueryParameters2D` 不会自动排除发射者，射线从体内出发加 `hit_from_inside` 或穿过自己的形状都会命中自己，`exclude` 填 `[get_rid()]`。节点 `RayCast2D` 才有 `exclude_parent`。
 - `collide_with_areas` 在 `RayCast2D`、`ShapeCast2D` 和三种 query 参数里默认都是 false，射线与点查询打不到 `Area2D`，受击框用 Area2D 时要手动开。
 - `Area2D` 要检测 TileMapLayer 或 StaticBody2D，对方的 layer 要出现在它的 mask 里，并且 TileSet 里配了碰撞形状。
+- 静止的 `Area2D` 检测不到之后生成或瞬移进来的 `StaticBody2D`，实测 `body_entered` 不触发，Area2D 自己生成或移动时才检测。会动的固体用 `AnimatableBody2D`。
 - `Camera2D.zoom` 不计入位图字体与光栅化字体的过采样，缩放后文字会糊。清晰文字放进 CanvasLayer，或开 MSDF。
 - `viewport` 拉伸模式下场景整体低分辨率渲染，精灵没有亚像素位置和旋转。需要时走 `canvas_items` 加取整。
 - 把 2D 节点每帧手算透视缩放伪 3D：位置、缩放、排序、光照都要自己维护。需要真透视、旋转镜头、光照阴影时改真 3D 加 `Sprite3D`，取舍见 godot-2d-in-3d。
