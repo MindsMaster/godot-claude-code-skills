@@ -1,6 +1,6 @@
 ---
 name: godot-2d-in-3d
-description: Godot 4 在 3D 场景里放 2D 角色，HD-2D 风格 像素角色配 3D 场景。Sprite3D AnimatedSprite3D billboard BILLBOARD_FIXED_Y pixel_size alpha_cut ALPHA_CUT_DISCARD OPAQUE_PREPASS 投影阴影 cast_shadow double_sided shaded 透明排序 render_priority sorting_offset no_depth_test flip_h 朝向翻转 Camera3D 正交 透视 倾斜角 SubViewport ViewportTexture 把 2D 场景或骨骼动画贴进 3D Label3D 世界内 UI CanvasLayer 叠加 WorldEnvironment glow ssao fog 体积雾 CameraAttributesPractical 景深 移轴 DOF 像素对齐 闪烁 抖动 Decal 地面阴影 blob。也用于判断该手算透视伪 3D 还是真 3D 加 Sprite3D。纯 2D 游戏见 godot-2d。
+description: Godot 4 在 3D 场景里放 2D 角色，2.5D 纸片人 HD-2D 风格 像素角色配 3D 场景。Sprite3D AnimatedSprite3D billboard BILLBOARD_FIXED_Y pixel_size alpha_cut ALPHA_CUT_DISCARD OPAQUE_PREPASS 投影阴影 cast_shadow double_sided shaded 透明排序 render_priority sorting_offset no_depth_test flip_h 朝向翻转 Camera3D 正交 透视 倾斜角 SubViewport ViewportTexture 把 2D 场景或骨骼动画贴进 3D Label3D 世界内 UI CanvasLayer 叠加 WorldEnvironment glow ssao fog 体积雾 CameraAttributesPractical 景深 移轴 DOF 像素对齐 闪烁 抖动 Decal 地面阴影 blob。也用于判断该手算透视伪 3D 还是真 3D 加 Sprite3D。纯 2D 游戏见 godot-2d。
 ---
 
 # Godot 2D 角色放进 3D 场景
