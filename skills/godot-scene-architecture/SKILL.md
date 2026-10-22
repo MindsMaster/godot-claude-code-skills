@@ -186,7 +186,7 @@ Settings="*res://src/autoload/settings.gd"
 
 - 开头的 `*` 对应面板的 Enable 列，GDScript 里才有全局名。C# 不受影响，自己写静态 Instance 属性
 - 从 autoload 的 `_ready` 里取当前场景节点会失败，主场景还没加载
-- 能放进场景的就放进场景。每个场景自己持有自己的 `AudioStreamPlayer`，不要做全局音效池
+- 能放进场景的就放进场景。每个场景自己持有自己的 `AudioStreamPlayer`，不要做全局音效池。会 `queue_free` 的对象不播自己的收尾音效，它出树时声音被停，交给关卡里常驻的播放器
 - 共享函数用 `class_name` + `static func`，共享数据用自定义 `Resource`，都不需要 autoload
 - 不建 GameManager EventBus UIManager 这类总管。信号总线让谁发谁收无法追踪，改成直接引用或沿树传递
 
