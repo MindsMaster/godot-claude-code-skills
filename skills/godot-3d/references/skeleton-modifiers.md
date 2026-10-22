@@ -25,7 +25,7 @@
 | `SplineIK3D` | 4.6+ | 让骨骼沿 `Path3D` 排列 |
 | `LimitAngularVelocityModifier3D` | 4.6+ | 限制骨骼旋转角速度 压住抖动与突变 |
 | `BoneTwistDisperser3D` | 4.6+ | 把末端骨骼的扭转分摊到父骨骼 配合 Copy 与 IK |
-| `SkeletonIK3D` | 4.3 起存在 4.7 类参考标为已弃用 | 新项目用 4.6+ 的 IK 系列 |
+| `SkeletonIK3D` | 4.3 到 4.7 的类参考都标为已弃用 | 新项目用 4.6+ 的 IK 系列 |
 
 低于 4.6 的项目没有 IK 系列，自己继承 `SkeletonModifier3D` 实现，或用 `SkeletonIK3D`。
 
