@@ -80,7 +80,7 @@ func _ready() -> void:
 
 - Container 在子节点变化与 `queue_sort()` 时重排。直接 Tween 子节点的 `position` 或 `size` 会被下一次排序覆盖。要动画就 Tween `scale` `modulate` `rotation`，或把动画节点包一层普通 Control
 - `scale` 的中心是 `pivot_offset`，默认左上角。缩放按钮设 `pivot_offset_ratio = Vector2(0.5, 0.5)` 4.6+，4.5 及以前在 `resized` 信号里设 `pivot_offset = size / 2.0`
-- Label 开 `autowrap_mode` 后宽度要来自 `custom_minimum_size.x` 或 `SIZE_EXPAND_FILL`
+- Label 开 `autowrap_mode` 后宽度要来自 `custom_minimum_size.x` 或 `SIZE_EXPAND_FILL`，否则在收缩的 Container 里被压成 1 像素宽。对话气泡要短句收窄、长句到上限换行，设 `custom_maximum_size.x` 4.7+
 - ScrollContainer 的内容子节点设 `SIZE_EXPAND` 才会随滚动区变宽
 - FoldableContainer 4.5+ 配 FoldableGroup 做手风琴，标题栏按钮用 `add_title_bar_control`
 
