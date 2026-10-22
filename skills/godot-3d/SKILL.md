@@ -250,7 +250,7 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 ```
 
-场景里放 `NavigationRegion3D`，给它 `NavigationMesh`，下面放参与烘焙的网格，编辑器里点 Bake。`NavigationMesh.cell_size` 要与 `navigation/3d/default_cell_size` 一致。运行时烘焙用 `bake_navigation_mesh(true)`。`get_next_path_position()` 每物理帧只调一次，到达后不要再调。避让要开 `avoidance_enabled`、连 `velocity_computed`、给 `velocity` 赋值，并且必须设过 `target_position`。
+场景里放 `NavigationRegion3D`，给它 `NavigationMesh`，下面放参与烘焙的网格，编辑器里点 Bake。`NavigationMesh.cell_size` 要与 `navigation/3d/default_cell_size` 一致。运行时烘焙用 `bake_navigation_mesh(true)`。导航地图默认在后台线程同步，`navigation/world/map_use_async_iterations` 为 true，进场头几帧 `map_get_iteration_id()` 为 0，上面的示例先判断它。`get_next_path_position()` 每物理帧只调一次，到达后不要再调。避让要开 `avoidance_enabled`、连 `velocity_computed`、给 `velocity` 赋值，并且必须设过 `target_position`。
 
 ### 骨骼修改器
 
