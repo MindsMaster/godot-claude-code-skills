@@ -8,6 +8,7 @@
 class_name State
 extends Node
 
+@warning_ignore("unused_signal")
 signal transition_requested(state_name: StringName)
 
 func enter() -> void:
