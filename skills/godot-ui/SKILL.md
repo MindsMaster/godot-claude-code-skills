@@ -201,7 +201,7 @@ func set_health(value: float) -> void:
 
 - Label Button 等控件的 `text` 填翻译键，如 `MENU_START`，运行时自动翻译，不用写 `tr()`
 - 脚本里拼接的文本用 `tr("KEY")`。带变量用命名占位符 `tr("PICKED_UP").format({item = name})`，占位符位置由译者调整
-- 复数用 `tr_n("APPLE", "APPLES", count)`，不要自己写 `if count == 1`。语言的复数形式不止两种
+- 复数用 `tr_n("%d item", "%d items", count) % count`，不要自己写 `if count == 1`。语言的复数形式不止两种。前两个参数写带 `%d` 的英文原文，它是翻译表的键，也是缺翻译时的回退文本。写成 `ITEM_ONE` 这类键名，缺翻译时返回的键名里没有 `%d`，`%` 报 `String formatting error`。CSV 需要 `?plural` 列 4.6+，4.5 及以前用 PO
 - 同一英文词不同含义用第二个参数 context：`tr("Close", "Distance")`
 - 不该翻译的文本，如玩家名，把节点的 `auto_translate_mode` 设成 `Node.AUTO_TRANSLATE_MODE_DISABLED`
 - 切换语言：`TranslationServer.set_locale("zh_CN")`，选择存进设置文件，启动时读出来再调
@@ -215,7 +215,7 @@ var _count: int = 0
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
-		text = tr_n("ITEM_COUNT_ONE", "ITEM_COUNT_MANY", _count) % _count
+		text = tr_n("%d item", "%d items", _count) % _count
 ```
 
 ## 按键提示

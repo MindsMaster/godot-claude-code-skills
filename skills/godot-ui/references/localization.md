@@ -42,6 +42,8 @@ There is %d apple,There are %d apples,Il y a %d pomme,Есть %d яблоко
 
 `?pluralrule` 行给每种语言写 gettext 复数规则。带复数列的表，控件不会自动翻译，只能用 `tr_n()`。
 
+单数行头同时是查找用的键，`tr_n()` 的前两个参数要写成单数行头和 `?plural` 列的文本，缺翻译时回退到它们。用 `ITEM_ONE` 这类键名当单数行头时，回退文本不含 `%d`，`%` 会报 `String formatting error`。
+
 ### 上下文列
 
 4.6+ 可加 `?context` 列，不能放第一列。用英文原文当键时用它区分同形异义。带上下文的行同样要手动调 `tr()` 或 `tr_n()`。
@@ -81,7 +83,7 @@ func _ready() -> void:
 
 - `tr()` 用在任何 Object 上，非 Object 的静态上下文用 `TranslationServer.translate()` 与 `TranslationServer.translate_plural()`
 - `atr()` 在 Node 上，行为同 `tr()` 并遵守 `auto_translate_mode`
-- 找不到翻译时返回原键，缺键在界面上直接显示成 `MENU_START`，很容易发现
+- 找不到翻译时返回原键，缺键在界面上直接显示成 `MENU_START`，很容易发现。`tr_n()` 缺翻译时 n 为 1 返回第一个参数，其余返回第二个
 - `%` 占位符的顺序固定，`{name}` 命名占位符可以让译者调整顺序，多个变量时用后者
 - 复数只用于正整数与 0
 
@@ -120,7 +122,7 @@ func apply_language(saved: String) -> void:
 
 - 命令行 `godot --language fr` 临时用某语言启动，参数是小写 2 或 3 位语言代码，可带地区如 `zh_CN`
 - `internationalization/locale/test` 非空时覆盖系统语言，导出后依然生效，只想在编辑器里测试要用 `editor` 特性标签覆盖
-- 伪本地化：`internationalization/pseudolocalization/use_pseudolocalization` 打开后，所有翻译文本被替换成带重音的字符串，默认不拉长，拉长要设 `expansion_ratio` 或 `double_vowels`。用来找漏掉的硬编码文本与溢出的布局，占位符保留。其他可调项在同一目录下，如 `fake_bidi`。运行时开关是 `TranslationServer.pseudolocalization_enabled`
+- 伪本地化：`internationalization/pseudolocalization/use_pseudolocalization` 打开后，所有翻译文本被替换成带重音的字符串，默认不拉长，拉长要设 `expansion_ratio` 或 `double_vowels`。用来找漏掉的硬编码文本与溢出的布局。`%d` `%s` 这类百分号占位符保留，`{item}` 这类花括号占位符会被加重音，`format()` 替换不到。其他可调项在同一目录下，如 `fake_bidi`。运行时开关是 `TranslationServer.pseudolocalization_enabled`
 - 导出时 CJK 与泰语等换行需要字典，开 `internationalization/locale/include_text_server_data` 约增加 4 MB
 
 ## 字体回退
@@ -130,5 +132,5 @@ func apply_language(saved: String) -> void:
 ## 数字与方向
 
 - `TranslationServer.format_number("123", "ar")` 4.6+ 把西方数字转成目标语言的数字系统。Control 的 `localize_numeral_system` 默认 true，SpinBox 与 ProgressBar 的数值自动转换，文本里的数字不转
-- 阿拉伯语与希伯来语从右到左，Control 的 `layout_direction` 默认继承父级，根节点由 `internationalization/rendering/root_node_layout_direction` 决定，默认 `Control.LAYOUT_DIRECTION_APPLICATION_LOCALE` 跟随语言，且该语言的翻译已加载才生效。容器会自动镜像排列
+- 阿拉伯语与希伯来语从右到左，Control 的 `layout_direction` 默认继承父级，根节点由 `internationalization/rendering/root_node_layout_direction` 决定，默认 `Control.LAYOUT_DIRECTION_APPLICATION_LOCALE` 跟随语言。容器会自动镜像排列
 - 布局为 RTL 时，图标与箭头不会自动翻转，用 `is_layout_rtl()` 判断后自己翻
