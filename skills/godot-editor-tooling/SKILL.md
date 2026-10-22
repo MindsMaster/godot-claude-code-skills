@@ -1,6 +1,6 @@
 ---
 name: godot-editor-tooling
-description: Godot 4 编辑器扩展与工具脚本，用于项目内数据编辑、Inspector 定制、编辑器插件、导入插件。Use when writing @tool scripts, Engine.is_editor_hint(), @export_tool_button, EditorPlugin / plugin.cfg, EditorInspectorPlugin / EditorProperty, EditorImportPlugin, EditorScenePostImport, EditorScript batch scripts, EditorUndoRedoManager, EditorDock / add_control_to_dock, EditorFileSystem signals, editor theme colors (get_editor_theme), Shortcut, _get_property_list / _validate_property dynamic properties, _get_configuration_warnings, @export_group annotations, C# [Tool] hot reload pitfalls. 编辑器插件 工具脚本 数据编辑器 Inspector 导入器 撤销重做 停靠面板 热重载。
+description: Godot 4 编辑器扩展与工具脚本，用于项目内数据编辑、Inspector 定制、编辑器插件、导入插件。Use when writing @tool scripts, Engine.is_editor_hint(), @export_tool_button, EditorPlugin / plugin.cfg, EditorInspectorPlugin / EditorProperty, EditorImportPlugin, EditorScenePostImport, EditorScript batch scripts, EditorUndoRedoManager, EditorDock / add_control_to_dock, EditorFileSystem signals, add_autoload_singleton / _enable_plugin, main screen plugin (_has_main_screen), editor theme colors (get_editor_theme), Shortcut, _get_property_list / _validate_property dynamic properties, _get_configuration_warnings, @export_group annotations, C# [Tool] hot reload pitfalls. 编辑器插件 工具脚本 数据编辑器 Inspector 导入器 撤销重做 停靠面板 主屏幕 插件 Autoload 热重载。
 ---
 
 # Godot 编辑器工具
@@ -29,6 +29,7 @@ description: Godot 4 编辑器扩展与工具脚本，用于项目内数据编�
 | 停靠面板 | `EditorDock`（4.6+），4.5 及以下 `add_control_to_dock`，4.6+ 已弃用 | 独立 `Window` |
 | 右键菜单 命令面板 | `EditorContextMenuPlugin`（4.4+），`EditorCommandPalette.add_command` | 监听鼠标自己弹菜单 |
 | 项目里自定义设置 | `ProjectSettings.add_property_info` | 另存一份配置文件 |
+| 插件自带 Autoload，顶部主屏幕标签页 | `_enable_plugin` 里 `add_autoload_singleton`，`_has_main_screen` | 让用户手动去项目设置里加 Autoload，用独立窗口代替主屏幕 |
 
 ## 数据编辑器做成 Resource
 
@@ -174,7 +175,7 @@ func snap_to_target() -> void:
 
 ## 插件
 
-目录 `addons/<名>/plugin.cfg` 加 `plugin.gd`，在 Project Settings 的 Plugins 页启用。骨架 Dock 主题 快捷键 菜单 文件变化信号 项目设置 EditorScript 撤销的完整写法见 [references/editor-recipes.md](references/editor-recipes.md)。
+目录 `addons/<名>/plugin.cfg` 加 `plugin.gd`，在 Project Settings 的 Plugins 页启用。骨架 Dock Autoload 主屏幕 主题 快捷键 菜单 文件变化信号 项目设置 EditorScript 撤销的完整写法见 [references/editor-recipes.md](references/editor-recipes.md)。
 
 `EditorPlugin` 的基本约束：
 
@@ -223,6 +224,6 @@ JSON 表格导出文件放进工程自动变成 `Resource`：`EditorImportPlugin
 - [references/export-annotations.md](references/export-annotations.md)：`@export_*` 注解一览，C# 特性对照
 - [references/inspector-plugin.md](references/inspector-plugin.md)：`EditorInspectorPlugin` 与 `EditorProperty`
 - [references/import-plugin.md](references/import-plugin.md)：`EditorImportPlugin` 与 `EditorScenePostImport`
-- [references/editor-recipes.md](references/editor-recipes.md)：插件骨架 Dock 主题 快捷键 菜单 文件变化 项目设置 EditorScript 撤销 C# 插件
+- [references/editor-recipes.md](references/editor-recipes.md)：插件骨架 Dock Autoload 主屏幕 主题 快捷键 菜单 文件变化 项目设置 EditorScript 撤销 C# 插件
 - 官方文档：https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html
 - 官方文档：https://docs.godotengine.org/en/stable/tutorials/plugins/editor/index.html

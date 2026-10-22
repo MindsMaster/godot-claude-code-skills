@@ -273,6 +273,60 @@ func randomize_color() -> void:
 - 需要调函数的动作用 `add_do_method` 和 `add_undo_method`
 - 连续拖动同一属性，动作用同一个名字加 `UndoRedo.MERGE_ENDS` 合并成一步
 
+## Autoload 与主屏幕
+
+插件带 Autoload 时，在 `_enable_plugin` 登记，`_disable_plugin` 移除。这两个回调只在用户于 Plugins 页勾选或取消时调用一次，`_enter_tree` 每次打开编辑器都会跑。
+
+```gdscript
+@tool
+extends EditorPlugin
+
+const AUTOLOAD_NAME: String = "ItemsService"
+
+func _enable_plugin() -> void:
+	add_autoload_singleton(AUTOLOAD_NAME, "res://addons/items/items_service.gd")
+
+func _disable_plugin() -> void:
+	remove_autoload_singleton(AUTOLOAD_NAME)
+```
+
+主屏幕插件在编辑器顶部 2D 3D Script 旁多一个标签页：
+
+```gdscript
+@tool
+extends EditorPlugin
+
+var _screen: Control
+
+func _enter_tree() -> void:
+	_screen = load("res://addons/items/main_screen.tscn").instantiate()
+	_screen.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	EditorInterface.get_editor_main_screen().add_child(_screen)
+	_make_visible(false)
+
+func _exit_tree() -> void:
+	if _screen != null:
+		_screen.queue_free()
+		_screen = null
+
+func _has_main_screen() -> bool:
+	return true
+
+func _make_visible(visible: bool) -> void:
+	if _screen != null:
+		_screen.visible = visible
+
+func _get_plugin_name() -> String:
+	return "Items"
+
+func _get_plugin_icon() -> Texture2D:
+	return EditorInterface.get_editor_theme().get_icon("Node", "EditorIcons")
+```
+
+- 主屏幕容器是 VBoxContainer，内容根节点要 `SIZE_EXPAND_FILL` 才铺满
+- 切换主屏幕标签页时编辑器调 `_make_visible`，显示隐藏要插件自己管，所以进树后先隐藏
+- 面板脚本要 `@tool`，否则按钮和逻辑在编辑器里不运行
+
 ## C# 插件
 
 ```csharp
