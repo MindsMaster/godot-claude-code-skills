@@ -58,7 +58,7 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 | `@onready` | 在 `_ready()` 之前赋值。不能用于 `static var`，不能与 `@export` 同用 |
 | `@tool` | 脚本在编辑器里运行。被它引用的静态变量所在脚本也要是 `@tool` |
 | `@icon("res://x.svg")` | 给 `class_name` 类指定图标 |
-| `@static_unload` | 放在文件最顶、`class_name` 之前，允许卸载带静态变量的脚本，当前有已知问题 |
+| `@static_unload` | 放在文件最顶、`class_name` 与 `extends` 之前，允许卸载带静态变量的脚本。官方文档注明当前因 bug 脚本仍不会释放 |
 | `@warning_ignore("name")` | 忽略下一条语句的指定警告，名字同项目设置名 |
 | `@warning_ignore_start("name")` / `@warning_ignore_restore("name")` | 区域忽略，省略 restore 则到文件末 |
 | `@rpc` | 多人网络 RPC 方法标注 |
