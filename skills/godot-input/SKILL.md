@@ -1,6 +1,6 @@
 ---
 name: godot-input
-description: Godot 4 输入处理，InputMap 动作代替硬编码按键，Input.get_axis get_vector 死区，键盘手柄双绑定，_input _unhandled_input _process 轮询的选择，is_action_just_pressed 与 _physics_process 帧对齐，运行时改键 action_erase_events action_add_event 存档，鼠标捕获 MOUSE_MODE_CAPTURED，输入缓冲，触屏 VirtualJoystick。在写移动 跳跃 攻击 视角控制 改键菜单 手柄支持 时用。input map keybinding gamepad remap deadzone.
+description: Godot 4 输入处理，InputMap 动作代替硬编码按键，Input.get_axis get_vector 死区，键盘手柄双绑定，_input _unhandled_input _process 轮询的选择，is_action_just_pressed 与 _physics_process 帧对齐，运行时改键 action_erase_events action_add_event 存档，鼠标捕获 MOUSE_MODE_CAPTURED，输入缓冲，触屏 VirtualJoystick，手柄震动 start_joy_vibration 热插拔 joy_connection_changed。在写移动 跳跃 攻击 视角控制 改键菜单 手柄支持 时用。input map keybinding gamepad remap deadzone.
 ---
 
 # Godot 输入
@@ -128,11 +128,16 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 
 ## 鼠标与触屏
 
-- 视角控制：`Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`，在 `_unhandled_input` 里读 `InputEventMouseMotion.relative`。打开菜单时切回 `Input.MOUSE_MODE_VISIBLE`
+- 视角控制：`Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`，在 `_unhandled_input` 里读 `InputEventMouseMotion.screen_relative`，`relative` 会按拉伸缩放，灵敏度随分辨率变。打开菜单时切回 `Input.MOUSE_MODE_VISIBLE`
 - 2D 世界坐标用 `get_global_mouse_position()`，`get_viewport().get_mouse_position()` 是视口坐标
 - `Input.use_accumulated_input` 默认 true，同一帧鼠标移动合并成一个事件。自由画线需要逐点轨迹时关掉
 - VirtualJoystick 4.7+ 是 Control，`action_left` `action_right` `action_up` `action_down` 指到 InputMap 动作后，`Input.get_vector` 照常读，玩法代码不用改。`action_*` 默认是 `ui_*` 动作，必须改成玩法动作。它的 `deadzone_ratio` 默认 0.0，设了以后先于动作死区生效
 - 按钮用 TouchScreenButton 的 `action` 属性。`input_devices/pointing/emulate_mouse_from_touch` 默认开，触摸合成鼠标事件
+
+## 手柄
+
+- 震动：`Input.start_joy_vibration(device, weak, strong, duration)`，两个马达强度各 0 到 1，`duration` 为 0 时尽量久，约 65 秒，`Input.stop_joy_vibration` 提前停。给玩家留关闭选项
+- 热插拔：连 `Input.joy_connection_changed(device, connected)` 信号，已连接的设备编号用 `Input.get_connected_joypads()`
 
 ## 陷阱
 
@@ -140,6 +145,7 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 - InputMap 只有键盘事件，插手柄毫无反应。每个动作都检查手柄绑定
 - 用 `Input.is_key_pressed(KEY_W)` 或 `event.keycode` 判断玩法键，改键和键盘布局都失效
 - `_input` 里处理游戏内点击会穿透按钮，改 `_unhandled_input`
+- `Input.is_action_pressed` 等轮询不看 GUI 焦点。LineEdit 聚焦打字时，W 键照样让角色移动，聊天框或改名框打开时要自己暂停轮询
 - 把 `ui_accept` `ui_cancel` 当玩法键，菜单打开时同时触发
 - 键盘幽灵键让某些组合键的 `is_action_pressed` `is_action_just_pressed` 为 false，组合键别设计得太多
 
