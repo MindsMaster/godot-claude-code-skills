@@ -4,7 +4,7 @@
 
 | 级 | 手段 | Compatibility | Mobile | Forward+ |
 |---|---|---|---|---|
-| 1 | `Environment`：glow tonemap adjustments fog ssao 等 | 有 SSAO 无 SSR SSIL 体积雾，泛光为简化实现 | 无 SSAO SSR SSIL 体积雾 | 全部 |
+| 1 | `Environment`：glow tonemap adjustments fog ssao 等 | 有 SSAO（4.6+）无 SSR SSIL 体积雾，泛光为简化实现 | 无 SSAO SSR SSIL 体积雾 | 全部 |
 | 2 | `CompositorEffect`（4.3+） | 否 | 是 | 是 |
 | 3 | `CanvasLayer` 加 `ColorRect` 的全屏 shader | 是 | 是 | 是 |
 | 4 | 3D 全屏四边形 | 是 | 是 | 是 |
@@ -26,7 +26,7 @@
 | 调整 | `adjustment_enabled` `adjustment_brightness` `adjustment_contrast` `adjustment_saturation` `adjustment_color_correction`（颜色查找图） |
 | 雾 | `fog_enabled` `fog_mode` `fog_density` `fog_light_color` `fog_height` `fog_depth_begin` |
 | 体积雾 | `volumetric_fog_enabled`，仅 Forward+，配 `FogVolume` 与 `FogMaterial` 局部加雾 |
-| 环境光遮蔽 | `ssao_enabled` `ssao_radius` `ssao_intensity`。Mobile 无 |
+| 环境光遮蔽 | `ssao_enabled` `ssao_radius` `ssao_intensity`。Mobile 无。Compatibility 是 4.6+ 的简化版，只能调 `ssao_radius` 与 `ssao_intensity` |
 | 屏幕空间反射 | `ssr_enabled`，仅 Forward+ |
 | 屏幕空间间接光 | `ssil_enabled`，仅 Forward+ |
 

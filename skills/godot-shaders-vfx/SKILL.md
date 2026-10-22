@@ -26,6 +26,8 @@ description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GD
 | 多个精灵合成后加描边与特效 | `CanvasGroup` 加材质 | 每个精灵各写一份 |
 | 屏幕模糊 菜单背景 | `hint_screen_texture` 配 `textureLod`，3D 场景也可用 `Environment` 的 glow 模糊 | 额外相机加 `SubViewport` |
 | 动态噪声 渐变 曲线贴图 | `NoiseTexture2D` `GradientTexture1D` `CurveTexture` 传给 uniform | 在脚本里逐像素生成 |
+| 在 GPU 上往贴图里画 涂抹 轨迹图 4.7+ | `DrawableTexture2D` 的 `blit_rect()`，可配 `texture_blit` shader，类参考标为实验性 | 每帧 `Image.set_pixel` 再更新 `ImageTexture` |
+| 天空 全景背景 | `Environment` 的 `sky` 配 `ProceduralSkyMaterial` `PhysicalSkyMaterial` `PanoramaSkyMaterial` | 包住场景的大球加贴图 |
 | 受击闪白 | shader uniform 加 `Tween` | `modulate` 超过 1 |
 
 ## 做法
@@ -43,6 +45,7 @@ description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GD
 | `particles` | GPU 粒子的运动 | `start` `process` | `keep_data` `disable_velocity` |
 | `sky` | 天空 | `sky` | |
 | `fog` | `FogVolume` 体积雾 仅 Forward+ | `fog` | |
+| `texture_blit` 4.7+ | `DrawableTexture2D.blit_rect()` 的绘制规则 | `blit` | `blend_disabled`（默认） `blend_mix` `blend_add` `blend_sub` `blend_mul` |
 
 `spatial` 另有 `blend_mul` `diffuse_toon` `specular_disabled` `shadows_disabled` `vertex_lighting` `ambient_light_disabled` 等，完整表见 [references/shader-language.md](references/shader-language.md)。`BaseMaterial3D.stencil_mode` 与 stencil 相关 render_mode 是 4.5+。
 
@@ -216,7 +219,7 @@ func _ready() -> void:
 - 在 `ColorRect` 上叠多个全屏 shader，顺序由 `CanvasLayer` 的 `layer` 决定，大的在上
 - GPU 粒子在可见框外会整体消失，用编辑器 Generate Visibility Rect 或 AABB 工具，或设大 `visibility_aabb` `visibility_rect`
 - 运行时改 `GPUParticles3D.amount` 会重启粒子，要连续调数量用 `amount_ratio`
-- 一次性粒子再次播放用 `restart()`，只设 `emitting` 可能在内部还有粒子时无效
+- 一次性粒子再次播放用 `restart()`，只设 `emitting` 可能在内部还有粒子时无效。`restart()` 会清掉现有粒子，同一节点反复触发时等 `finished` 再调，否则画面里的粒子突然消失
 - 被指定为子发射器的节点会停止自身发射，`emitting` 也改不回来，且不能自己做自己的子发射器
 - Compatibility 渲染器不支持 `CompositorEffect` 粒子拖尾 粒子 SDF 碰撞 `emit_particle()`
 - `CompositorEffect` 的回调在渲染线程，不要从那里碰场景树
