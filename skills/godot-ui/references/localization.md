@@ -112,6 +112,7 @@ func apply_language(saved: String) -> void:
 ```
 
 - `OS.get_locale_language()` 取系统语言的 2 或 3 位代码，`TranslationServer.set_locale()` 会把 `en-US` 规整成 `en_US`
+- Linux 上系统语言只看 `LANG`。服务器与 CI 常见的 `C.UTF-8` 得到 `C`，`set_locale` 规整成 `en`。`LANG` 设成空串时得到空串，`set_locale` 报 `Locale cannot be an empty string`
 - 语言代码丢掉地区，`zh_TW` 的系统只得到 `zh`，会匹配到 `zh_CN` 的翻译。简繁并存时改用 `OS.get_locale()` 取完整 locale
 - 系统语言不在支持列表时，`internationalization/locale/fallback` 起作用，默认 `en`
 - 比较相近程度用 `TranslationServer.compare_locales(a, b)`，返回 0 到 10。已加载的语言用 `TranslationServer.get_loaded_locales()`
