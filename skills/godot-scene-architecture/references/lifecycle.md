@@ -83,7 +83,7 @@ targets = [NodePath("../Player"), NodePath("../Enemy")]
 
 | 场合 | 症状 | 写法 |
 |---|---|---|
-| 物理回调里增删碰撞体、改 `disabled` `monitoring` | `Can't change this state while flushing queries` | `shape.set_deferred("disabled", true)` |
+| 物理回调里增删碰撞体、改 `disabled` `monitoring` | 增删碰撞体和改 `disabled` 报 `Can't change this state while flushing queries`，改 `monitoring` 报 `Function blocked during in/out signal` | `shape.set_deferred("disabled", true)` |
 | 子节点 `_ready` 里给父节点 `add_child` | `Parent node is busy setting up children` | `get_parent().add_child.call_deferred(node)` |
 | `_exit_tree` 或遍历子节点时改子节点列表 | `Parent node is busy removing children` | `remove_child.call_deferred(node)` |
 | 工作线程里改场景树 | 崩溃或随机报错 | `call_deferred` 回主线程 |
@@ -136,7 +136,7 @@ public partial class Pickup : Area2D
 |---|---|
 | `queue_free()` | 帧末释放，安全。子树一起释放 |
 | `free()` | 立即释放。节点在回调或信号发射中被锁定时报错，别对树内节点用 |
-| `remove_child(n)` | 只出树，不释放，`n` 变成孤儿，要自己 `free` 或重新挂回，`owner` 不再是祖先时被清成 `null` |
+| `remove_child(n)` | 只出树，不释放，`n` 变成孤儿，要自己 `free` 或重新挂回。父节点在树内时，`owner` 不再是祖先就被清成 `null`，在树外则保持原值 |
 | `new()` 创建后没 `add_child` | 同样是孤儿，不用就 `free` |
 
 - `is_instance_valid(x)` 判断对象是否已释放。刚 `queue_free` 的节点在帧末之前仍然有效，要排除用 `x.is_queued_for_deletion()`

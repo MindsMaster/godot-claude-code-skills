@@ -283,7 +283,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 - 子节点的 `_ready` 先于父节点。父的 `_ready` 里可以放心用子，子的 `_ready` 里不要假设父已就绪
 - `queue_free()` 后对象到帧末才释放，`is_instance_valid` 在这之前仍返回 `true`。判断是否已在销毁用 `is_queued_for_deletion()`
-- 物理回调（`body_entered` `area_entered`）里增删碰撞体、改 `monitoring`、改 `CollisionShape2D.disabled` 会报 `Can't change this state while flushing queries`。用 `set_deferred("disabled", true)` 或 `call_deferred`
+- 物理回调（`body_entered` `area_entered`）里增删碰撞体、改 `CollisionShape2D.disabled` 会报 `Can't change this state while flushing queries`，改 `monitoring` `monitorable` 报 `Function blocked during in/out signal`。用 `set_deferred("disabled", true)` 或 `call_deferred`
 - 手写 `.tscn` 给 `@export` 的 Node 类型属性赋值，节点头漏写 `node_paths=PackedStringArray(...)` 则运行期为 `null`，见 [references/lifecycle.md](references/lifecycle.md)
 - `%Name` 只在同一个场景的 owner 内有效，跨实例化子场景取不到；代码里 `add_child` 的节点 `owner` 为 `null` 时 `%Name` 查不到，设了 `owner` 才生效
 - 节点在树外时 `get_tree()` 返回 `null`，`await get_tree().process_frame` 报错。先 `add_child`
