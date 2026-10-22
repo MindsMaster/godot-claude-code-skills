@@ -1,6 +1,6 @@
 ---
 name: godot-ui
-description: Godot 4 UI 与 HUD 做法，Control 布局 Container anchors size_flags，项目级 Theme 与 theme type variation，StyleBox，血条 ProgressBar TextureProgressBar，RichTextLabel BBCode，多分辨率 stretch mode aspect，本地化 tr() CSV PO TranslationServer，按键提示 InputMap，手柄焦点导航 focus_neighbor grab_focus，mouse_filter 吃点击，_gui_input。在写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用。UI layout theme localization health bar focus navigation.
+description: Godot 4 UI 与 HUD 做法，Control 布局 Container anchors size_flags，项目级 Theme 与 theme type variation，StyleBox，血条 ProgressBar TextureProgressBar，RichTextLabel BBCode，多分辨率 stretch mode aspect，本地化 tr() CSV PO TranslationServer，按键提示 InputMap，手柄焦点导航 focus_neighbor grab_focus，mouse_filter 吃点击，_gui_input，CanvasLayer 固定 HUD，AcceptDialog ConfirmationDialog 弹窗，拖放 tooltip。在写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用。UI layout theme localization health bar focus navigation dialog drag and drop.
 ---
 
 # Godot UI
@@ -13,11 +13,12 @@ description: Godot 4 UI 与 HUD 做法，Control 布局 Container anchors size_f
 |---|---|---|
 | 界面摆放 | 场景里的 Container 加 anchors preset | 代码里按 1920x1080 写死 `position` 和 `size` |
 | 边距 | MarginContainer | 手算偏移 |
-| 竖排横排 | VBoxContainer HBoxContainer | 逐个设 `position.y` |
-| 网格 | GridContainer 的 `columns` | 双重循环算坐标 |
-| 自动换行排列 | HFlowContainer VFlowContainer | 手写换行逻辑 |
+| 竖排 横排 网格 自动换行 | VBoxContainer HBoxContainer GridContainer 的 `columns` HFlowContainer VFlowContainer | 逐个设 `position`，双重循环算坐标，手写换行 |
 | 保持宽高比 | AspectRatioContainer | `_process` 里改 `size` |
 | 滚动列表 | ScrollContainer | 手写裁剪与拖动 |
+| 屏幕固定的 HUD | `CanvasLayer` 下放铺满的 Control | 世界场景里直接放 Control，随 Camera2D 滚走 |
+| 确认框 弹窗 | AcceptDialog ConfirmationDialog，`popup_centered()`，自带 `confirmed` `canceled` 信号与 Esc 关闭 | 手写居中 确定取消按钮与 Esc 处理 |
+| 拖放 悬浮提示 | `_get_drag_data` `_can_drop_data` `_drop_data`，`tooltip_text`，`_make_custom_tooltip` | `_gui_input` 里自己算拖拽与悬停计时 |
 | 折叠面板 | FoldableContainer 4.5+ | Button 加手动 `visible` |
 | 面板背景 | PanelContainer 或 Panel 加 StyleBoxFlat | ColorRect 叠 ColorRect |
 | 血条 经验条 | ProgressBar 或 TextureProgressBar | 改 ColorRect 的 `size.x` |
@@ -59,6 +60,7 @@ show_percentage = false
 
 要点：
 
+- 有 Camera2D 的世界场景里，HUD 放在 `CanvasLayer` 下，Control 直接挂在 Node2D 世界里会随相机移动。`layer` 默认 1，大的在上
 - 根 Control 的 `mouse_filter = 2` 即 `MOUSE_FILTER_IGNORE`，否则整屏 HUD 吃掉所有点击，见陷阱
 - Container 的子节点由 Container 决定位置，子节点只表达需求：`custom_minimum_size` 是下限，`size_flags_*` 是分配方式
 - `size_flags_horizontal = 3` 即 `Control.SIZE_EXPAND_FILL`，占满剩余空间。空 Control 加 EXPAND_FILL 当弹簧，把左右两组控件推开
@@ -98,6 +100,7 @@ theme/custom_font="res://ui/fonts/main.ttf"
 - 同一类控件的多种样式用 theme type variation：在 Theme 里新建类型如 `DangerButton`，Base Type 选 `Button`，节点上设 `theme_type_variation`。项目级 Theme 里的变体才会出现在 Inspector 下拉里
 - 颜色字号间距都在 Theme 编辑器里改，脚本只读：`get_theme_color(&"font_color", &"Label")`
 - 代码生成的 UI 同样继承 Theme，不用逐个 `add_theme_*_override`
+- 单个 Label 的字号颜色描边阴影用 `label_settings`，LabelSettings 资源可多个 Label 共用，优先于 Theme
 
 只有单个节点的一次性差异才用 override，如血条的填充颜色随阵营变：
 
@@ -238,6 +241,7 @@ func _key_text(action_name: StringName) -> String:
 ```
 
 - 绑定的是 `physical_keycode` 时用 `as_text_physical_keycode()`，绑定 `keycode` 时用 `as_text_keycode()`。`InputEvent.as_text()` 对物理键会返回 "E - Physical" 这类带后缀的文本
+- `as_text_physical_keycode()` 给的是 US QWERTY 位置的名字，AZERTY 上 `physical_keycode` 为 W 的键帽印的是 Z。要显示键帽字母用 `OS.get_keycode_string(DisplayServer.keyboard_get_label_from_physical(key.physical_keycode))`，只有 Linux Windows macOS 实现，无头模式和其他平台报错并原样返回
 - 手柄事件的 `as_text()` 是长描述，不适合直接显示，按 `InputEventJoypadButton.button_index` 映射到自己的图标
 - 键盘与手柄提示的切换：在 `_input` 里看最近一个事件是 `InputEventJoypadButton` 还是 `InputEventKey`，记成当前设备类型，据此选图标集
 
@@ -279,14 +283,10 @@ UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_inpu
 ## 陷阱
 
 - 代码里 `new Label()` 加 `new ColorRect()` 按像素写死位置，`expand` 与不同比例屏幕下错位。改成场景加 Container
-- 在 Container 的子节点上设 `size` 或 `position` 无效，下次排序就被重置，改 `custom_minimum_size` 与 `size_flags`
 - `custom_minimum_size` 只能放大最小尺寸，文字内容也会撑大它
 - 手写 `.tscn` 实例化 HUD 并给 `@export var player: Player` 赋 `NodePath`，节点头漏写 `node_paths=PackedStringArray("player")` 则运行期为 `null`，信号连不上。写法见 godot-scene-architecture 的 references/lifecycle.md
-- 血条用 ColorRect 改 `size.x`：没有背景，没有圆角，改 Theme 又得改代码。用 ProgressBar
 - 每关 `new Theme()` 或到处 `add_theme_*_override`：改一个字号要翻遍代码。用项目级 Theme 与 type variation
 - 改 `get_theme_stylebox()` 的返回值前不 `duplicate()`，会改到共享样式
-- 把按键名写死在文本里，改键后提示就错了
-- 只在 `_ready` 里 `tr()` 一次，切换语言后文本不更新
 - 显示玩家名的 Label 没关 `auto_translate_mode`，名字与翻译键同名时会被替换
 - 手柄菜单不给初始焦点，或隐藏再显示后不重新 `grab_focus()`
 - 用 `ui_accept` 之类内置动作做玩法，菜单打开时会重复触发
