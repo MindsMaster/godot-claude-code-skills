@@ -56,11 +56,15 @@ func change_to(path: String) -> void:
 	tween.tween_property(fade, "modulate:a", 1.0, 0.3)
 	await tween.finished
 	ResourceLoader.load_threaded_request(path)
-	while ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+	var status := ResourceLoader.load_threaded_get_status(path)
+	while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 		await get_tree().process_frame
-	var packed := ResourceLoader.load_threaded_get(path) as PackedScene
-	get_tree().change_scene_to_packed(packed)
-	await get_tree().scene_changed
+		status = ResourceLoader.load_threaded_get_status(path)
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(path) as PackedScene)
+		await get_tree().scene_changed
+	else:
+		push_error("场景加载失败 %s" % path)
 	tween = create_tween()
 	tween.tween_property(fade, "modulate:a", 0.0, 0.3)
 	await tween.finished
