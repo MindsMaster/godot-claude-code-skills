@@ -50,7 +50,7 @@ func _physics_process(_delta: float) -> void:
 | 方法 | 用途 |
 |---|---|
 | `travel(to, reset_on_teleport)` | 沿转场图走到目标，无路径则直接跳 |
-| `start(node, reset)` | 直接开始于某状态 |
+| `start(node, reset)` | 直接开始于某状态，与 `travel` 一样下次处理才生效 |
 | `next()` | 有 travel 路径或 Auto 转场时立即进入下一状态 |
 | `stop()` | 停止 |
 | `get_current_node()` | 当前状态名 |
