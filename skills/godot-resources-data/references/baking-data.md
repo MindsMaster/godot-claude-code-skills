@@ -63,6 +63,7 @@ func _run() -> void:
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(raw["indices"])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	DirAccess.make_dir_recursive_absolute("res://baked")
 	var err := ResourceSaver.save(mesh, "res://baked/terrain.res")
 	if err != OK:
 		push_error(error_string(err))

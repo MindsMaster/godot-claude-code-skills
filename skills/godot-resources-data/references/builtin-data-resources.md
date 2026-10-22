@@ -74,7 +74,7 @@ void fragment() {
 
 - `GradientTexture1D` 的 `width` 默认 256，决定精度
 - shader 写法见 godot-shaders-vfx
-- `CurveTexture` 只有红通道，`CurveXYZTexture` 三个通道各一条曲线
+- `CurveTexture` 默认 `texture_mode` 是 `TEXTURE_MODE_RGB`，三个通道存同一条曲线，改成 `TEXTURE_MODE_RED` 才只存红通道。`CurveXYZTexture` 三个通道各一条曲线
 - 粒子的 `ParticleProcessMaterial` 的 `scale_curve` `color_ramp` `alpha_curve` 直接吃这些纹理，不用自己写随生命周期变化的逻辑
 
 ## Curve2D 与路径

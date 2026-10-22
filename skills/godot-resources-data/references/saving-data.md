@@ -56,7 +56,9 @@ static func read() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 	if not parsed is Dictionary:
 		return {}
-	var payload: Dictionary = JSON.to_native(parsed)
+	var payload: Variant = JSON.to_native(parsed)
+	if not payload is Dictionary:
+		return {}
 	return _migrate(payload)
 
 static func _migrate(payload: Dictionary) -> Dictionary:
