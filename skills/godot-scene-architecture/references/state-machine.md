@@ -87,6 +87,6 @@ func _physics_process(_delta: float) -> void:
 ```
 
 - `AnimationTree.active` 默认 `true`，设 `false` 才停。参数路径 `parameters/playback` 由根状态机节点生成
-- `travel` 按转移图走最短路径，没有路径时直接跳到目标状态。要立即跳转用 `playback.start("name")`
+- `travel` 按转移图走最短路径，没有路径时直接跳到目标状态。不走转移图直接切用 `playback.start("name")`。两者都在 AnimationTree 下次处理时生效，调用后立刻读 `get_current_node()` 还是旧状态
 - 转移的 `advance_mode` 设 `ADVANCE_MODE_AUTO` 后，转移上的 `advance_condition` 才生效，脚本里 `tree.set("parameters/conditions/on_floor", true)`，适合布尔条件多的情况
 - 逻辑状态（能不能攻击）和动画状态分开：逻辑用 `enum`，动画状态机只跟随表现
