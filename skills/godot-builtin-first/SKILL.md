@@ -23,6 +23,7 @@ ls *.csproj *.sln 2>/dev/null
 | 想做 | 用这个 | 去哪个 skill |
 | --- | --- | --- |
 | 节点树 组件 引用 状态机 | PackedScene、`@export` 节点引用、`%UniqueName`、信号、分组 | godot-scene-architecture |
+| 全局状态 跨场景数据 | autoload 只放真全局状态，其余用信号和 `Resource` | godot-scene-architecture godot-resources-data |
 | 暂停菜单 场景切换 | `SceneTree.paused` 加 `Node.process_mode`、`change_scene_to_file`、`change_scene_to_packed` | godot-scene-architecture |
 | 配置数据 角色数值 关卡定义 | 自定义 `Resource` + `.tres` | godot-resources-data |
 | 异步加载 加载界面 | `ResourceLoader.load_threaded_request` | godot-resources-data |
@@ -33,9 +34,11 @@ ls *.csproj *.sln 2>/dev/null
 | 关键帧动画 角色动画状态 | `AnimationPlayer`、`AnimationTree` | godot-animation |
 | 逐帧精灵 | `AnimatedSprite2D` 加 `SpriteFrames` | godot-animation |
 | 2D 移动 碰撞 | `CharacterBody2D.move_and_slide`、碰撞层 | godot-2d |
+| 拾取 伤害区 触发区 | `Area2D`/`Area3D` 加信号 | godot-2d godot-3d |
 | 2D 地图 | `TileMapLayer` | godot-2d |
 | 相机跟随 边界 平滑 震屏 | `Camera2D` 的 limit 和 smoothing、`offset` + `FastNoiseLite` | godot-2d |
 | 视差背景 | `Parallax2D` | godot-2d |
+| 2D 光照 阴影 压暗 | `PointLight2D`、`LightOccluder2D`、`CanvasModulate` | godot-2d |
 | 是否在屏幕内 离屏暂停 | `VisibleOnScreenNotifier2D`/`3D`、`VisibleOnScreenEnabler2D`/`3D` | godot-2d godot-3d godot-performance |
 | 2D 寻路 | `NavigationRegion2D` 加 `NavigationAgent2D`，格子地图用 `AStarGrid2D` | godot-2d |
 | 3D 寻路 避让 | `NavigationRegion3D` 加 `NavigationAgent3D` | godot-3d |
@@ -48,6 +51,7 @@ ls *.csproj *.sln 2>/dev/null
 | HD-2D 后处理 景深 雾 | `WorldEnvironment` 的 `Environment` 加 `CameraAttributesPractical` | godot-2d-in-3d godot-3d |
 | HUD 菜单 布局 | Container + anchors + 项目级 `Theme` | godot-ui |
 | 血条 | `ProgressBar`、`TextureProgressBar` | godot-ui |
+| 打字机效果 拖放 悬浮提示 | `RichTextLabel.visible_ratio`、`Control._get_drag_data`、`tooltip_text` | godot-ui |
 | 多语言 | `tr()`、翻译 CSV/PO、`TranslationServer` | godot-ui |
 | 按键 手柄 改键 | InputMap 动作、`Input.get_vector` | godot-input |
 | 音量分组 随机音效 动态音乐 | Audio bus、`AudioStreamRandomizer`、`AudioStreamInteractive` | godot-audio |
@@ -82,6 +86,7 @@ grep -ril '<关键词>' <godot源码>/doc/classes | head
 不确定某个方法是否存在时，不要猜，查：
 
 ```
+mkdir -p /tmp/godot-doc
 godot --headless --doctool /tmp/godot-doc
 grep -l 'name="move_and_slide"' /tmp/godot-doc/doc/classes/*.xml
 ```
