@@ -4,6 +4,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+# 引擎默认报警告的项与 untyped_declaration 全升为错误
+WARNINGS = """
+assert_always_false assert_always_true confusable_capture_reassignment confusable_identifier
+confusable_local_declaration confusable_local_usage confusable_temporary_modification
+constant_used_as_function deprecated_keyword empty_file enum_variable_without_default
+function_used_as_property incompatible_ternary int_as_enum_without_cast int_as_enum_without_match
+integer_division missing_tool narrowing_conversion property_used_as_function redundant_await
+redundant_static_unload shadowed_global_identifier shadowed_variable shadowed_variable_base_class
+standalone_expression standalone_ternary static_called_on_instance unassigned_variable
+unassigned_variable_op_assign unreachable_code unreachable_pattern unsafe_void_return
+unused_local_constant unused_parameter unused_private_class_variable unused_signal unused_variable
+untyped_declaration
+""".split()
+
 PROJECT = """config_version=5
 
 [application]
@@ -12,8 +26,7 @@ config/name="snippets"
 
 [debug]
 
-gdscript/warnings/untyped_declaration=2
-"""
+""" + "".join(f"gdscript/warnings/{w}=2\n" for w in WARNINGS)
 
 RUNNER = """extends SceneTree
 
