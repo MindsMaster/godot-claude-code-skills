@@ -208,7 +208,7 @@ func _ready() -> void:
 ```
 
 - `call_deferred` 在当前帧空闲阶段末尾执行，返回值永远是 `null`
-- 物理回调里改碰撞形状、`Area2D.monitoring`、`CollisionShape2D.disabled` 要用 `set_deferred`，直接改报 `Can't change this state while flushing queries`
+- 物理回调里改碰撞形状、`Area2D.monitoring`、`CollisionShape2D.disabled` 要用 `set_deferred`，直接改报 `Can't change this state while flushing queries`，改 `monitoring` 报 `Function blocked during in/out signal`
 - 线程里碰场景树只能 `call_deferred`
 - 方法引用直接写 `_on_pressed`，不写 `Callable(self, "_on_pressed")`，改名时前者会被检查到
 - `callable.is_valid()` 判断绑定对象是否还在

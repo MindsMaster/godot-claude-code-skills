@@ -9,12 +9,16 @@ extends Node
 
 enum State { IDLE, RUN, JUMP }
 
-func describe(state: State, data: Variant) -> String:
+func describe(state: State) -> String:
 	match state:
 		State.IDLE, State.RUN:
 			return "ground"
 		State.JUMP:
 			return "air"
+		_:
+			return "unknown"
+
+func classify(data: Variant) -> String:
 	match data:
 		[var x, var y]:
 			return "pair %s %s" % [x, y]
@@ -28,6 +32,7 @@ func describe(state: State, data: Variant) -> String:
 
 - 无贯穿，不写 `break`。3.x 的 `continue` 贯穿行为在 4.0 移除
 - 模式有常量、`var x` 绑定、`_` 通配、数组与字典结构、逗号分隔多个、`when` 守卫
+- 数组和字典模式要求长度相同，字典多出键、数组多出元素时在末尾写 `..` 才匹配，如 `{"type": "hit", ..}`
 - 排在通配之后或被前面完全覆盖的分支触发 `unreachable_pattern`
 - `String` 与 `StringName` 比较相等，`match name:` 里 `&"run"` 能匹配 `"run"`
 
