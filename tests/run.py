@@ -2,6 +2,7 @@ import concurrent.futures
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -47,6 +48,7 @@ class Job:
     blocks: list
     mode: str
     is_node: bool
+    script: bool
     fixture: Fixture | None
 
 
@@ -280,19 +282,22 @@ def run_job(godot: str, job: Job, base: Path, proj: Path) -> tuple:
         (plugin / "plugin.cfg").write_text('[plugin]\n\nname="run"\ndescription=""\nauthor=""\nversion="1"\nscript="plugin.gd"\n')
         (plugin / "plugin.gd").write_text(driver(job, me))
         project += '\n[editor_plugins]\n\nenabled=PackedStringArray("res://addons/_run/plugin.cfg")\n'
-    elif job.mode != "script":
+    elif not job.script:
         (proj / "_run.gd").write_text(driver(job, me))
     (proj / "project.godot").write_text(project)
     logs = []
 
     def call(*args: str) -> subprocess.CompletedProcess:
+        # xvfb-run 的子进程要连进程组一起杀
+        proc = subprocess.Popen(godot_cmd(godot, job, proj, *args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, start_new_session=True)
         try:
-            res = subprocess.run(godot_cmd(godot, job, proj, *args), capture_output=True, text=True, timeout=TIMEOUT, env=env)
-        except subprocess.TimeoutExpired as e:
-            out = (e.stdout or b"").decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
-            return subprocess.CompletedProcess(args, -1, out + "\nRUN_TIMEOUT", "")
-        logs.append(ANSI.sub("", res.stdout + res.stderr))
-        return res
+            out, _ = proc.communicate(timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            out, _ = proc.communicate()
+            return subprocess.CompletedProcess(args, -1, ANSI.sub("", out) + "\nRUN_TIMEOUT", "")
+        logs.append(ANSI.sub("", out))
+        return subprocess.CompletedProcess(args, proc.returncode, out, "")
 
     if job.fixture and job.fixture.prepare:
         wrap = "extends SceneTree\n\nfunc _initialize() -> void:\n" + indent(job.fixture.prepare, "pass") + "\n\tquit()\n"
@@ -301,7 +306,7 @@ def run_job(godot: str, job: Job, base: Path, proj: Path) -> tuple:
         call("--import")
     if job.mode == "editor":
         res = call("--editor")
-    elif job.mode == "script":
+    elif job.script:
         res = call("--fixed-fps", "60", "-s", f"res://{me}")
     else:
         res = call("--fixed-fps", "60", "-s", "res://_run.gd")
@@ -309,7 +314,7 @@ def run_job(godot: str, job: Job, base: Path, proj: Path) -> tuple:
         logs.append(res.stdout)
     text = "\n".join(logs)
     problems = [ln.strip() for ln in text.split("\n") if PROBLEM.search(ln) and not BENIGN.search(ln)]
-    done = job.mode == "script" or "RUN_DONE" in text
+    done = job.script or "RUN_DONE" in text
     ok = not problems and done and res.returncode == 0
     if "RUN_TIMEOUT" in text:
         detail = [f"{TIMEOUT} 秒超时", *problems[:3], *text.strip().split("\n")[-3:-1]]
@@ -346,15 +351,16 @@ def plan(docs: list, index: dict) -> tuple:
             if "norun" in opts:
                 jobs.append(("norun", b, opts["norun"]))
                 continue
+            script = bool(re.search(r"^extends\s+SceneTree\b", code, re.M))
             if "mode" in opts:
                 mode = opts["mode"]
-            elif re.search(r"^extends\s+SceneTree\b", code, re.M):
+            elif script:
                 mode = "script"
             elif EDITOR.search(code):
                 mode = "editor"
             else:
                 mode = "game"
-            jobs.append(Job(d.where, b, n, blocks, mode, node_base(code, classes, index), fx))
+            jobs.append(Job(d.where, b, n, blocks, mode, node_base(code, classes, index), script, fx))
     for where in fixtures:
         if (ROOT / where).exists():
             continue
@@ -380,7 +386,7 @@ def check(docs: list, godot: str, jobs_n: int) -> list:
     if any(j.mode == "render" for j in runnable) and not shutil.which("xvfb-run"):
         out.append(("ERROR", "run", "找不到 xvfb-run"))
         runnable = [j for j in runnable if j.mode != "render"]
-    with tempfile.TemporaryDirectory(prefix="gdrun") as tmp:
+    with tempfile.TemporaryDirectory(prefix="gdrun", ignore_cleanup_errors=True) as tmp:
         bases = {}
         for j in runnable:
             bases.setdefault(j.doc, (Path(tmp) / f"doc{len(bases)}", j.blocks))

@@ -44,7 +44,7 @@ python3 tests/check.py [lint] [api] [gd] [run] [cs] [--only 路径子串] [--str
 | 模式 | 怎么跑 | 默认用于 |
 | --- | --- | --- |
 | game | 无头 `--fixed-fps 60`，实例化脚本挂到 `root` 下，跑完夹具或 60 个物理帧后释放 | 其余代码块 |
-| script | 代码块本身就是 `-s` 脚本，要自己 `quit()`，退出码非 0 算失败 | `extends SceneTree` |
+| script | 代码块本身就是 `-s` 脚本，要自己 `quit()`，退出码非 0 算失败。写 `mode render` 则在 xvfb 下跑 | `extends SceneTree` |
 | editor | 无头编辑器里由一个插件实例化并驱动 | 用到 `Editor*` 类的代码块 |
 | render | `xvfb-run` 下开窗口渲染，默认 Vulkan Forward+ | 夹具里写 `mode render` |
 
