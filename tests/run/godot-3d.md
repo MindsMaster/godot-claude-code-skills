@@ -174,12 +174,18 @@ node.position = Vector3(-4.0, 0.0, -4.0)
 ```
 
 ```gdscript
+var agent := node.get_node("NavigationAgent3D") as NavigationAgent3D
+var map := agent.get_navigation_map()
+for i in 100:
+	if NavigationServer3D.map_get_iteration_id(map) > 0:
+		break
+	await wait_real(0.05)
+expect(NavigationServer3D.map_get_iteration_id(map) > 0, "地图在后台线程同步完成")
 var target := Vector3(4.0, 0.0, 4.0)
 var start := node.global_position.distance_to(target)
 node.go_to(target)
 await frames(120)
 expect(node.global_position.distance_to(target) < start - 3.0, "沿导航路径朝目标移动")
-var agent := node.get_node("NavigationAgent3D") as NavigationAgent3D
 expect(not agent.is_navigation_finished() and agent.target_position == target, "未到达时 is_navigation_finished 为 false")
 node.global_position = target
 await frames(10)
