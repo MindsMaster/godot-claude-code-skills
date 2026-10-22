@@ -223,6 +223,7 @@ func _ready() -> void:
 - 被指定为子发射器的节点会停止自身发射，`emitting` 也改不回来，且不能自己做自己的子发射器
 - Compatibility 渲染器不支持 `CompositorEffect` 粒子拖尾 粒子 SDF 碰撞 `emit_particle()`
 - `CompositorEffect` 的回调在渲染线程，不要从那里碰场景树
+- `DrawableTexture2D.setup()` 4.7+ 的第 4 个参数是 `color`，`use_mipmaps` 在第 5 位。官方教程示例 `setup(500, 500, DrawableTexture2D.DRAWABLE_FORMAT_RGBA8, false)` 在 4.7.2 报解析错误
 
 ## 参考
 
