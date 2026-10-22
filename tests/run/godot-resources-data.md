@@ -213,11 +213,10 @@ expect(not node.is_processing(), "_ready 里先关掉 _process")
 node.start("res://scenes/main.tscn")
 expect(node.is_processing(), "start 之后开始轮询")
 var seen: Array[float] = []
-var guard := 0
-while done.is_empty() and guard < 600:
+var deadline := Time.get_ticks_msec() + 10000
+while done.is_empty() and Time.get_ticks_msec() < deadline:
 	seen.append(node.bar.value)
 	await frames(1)
-	guard += 1
 expect(done.size() == 1 and done[0] is PackedScene, "加载完成发出 finished")
 expect(not node.is_processing(), "完成后关掉 _process")
 var previous := 0.0
