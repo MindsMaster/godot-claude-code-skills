@@ -207,7 +207,7 @@ func _initialize() -> void:
 - `--write-movie`、`--log-file` 的输出目录必须已存在
 - 标准版 Godot 不加载 `.cs`。C# 要 mono 版加 `dotnet build`，没构建就跑会卡住。见 references/ci-and-frameworks.md
 - 命令行运行 GDScript 警告不打印，无头和 xvfb 都一样，`--check-only` 也不报。想让警告变失败，按上一节生成 `override.cfg`，用完删除
-- grep `ERROR:` 会命中几种无害行：退出时 `resources still in use` 与 `RID allocations ... leaked at exit`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。要排除就具体排除，不要整类忽略
+- grep `ERROR:` 会命中几种无害行：退出时 `resources still in use` 与 `RID allocations ... leaked at exit`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。grep `WARNING:` 还会命中 xvfb 下 `opengl3` 的 `Could not set V-Sync mode`。要排除就具体排除，不要整类忽略
 - 退出时的 `WARNING: N ObjectDB instances were leaked` 说明测试脚本创建的节点没 `free`，不是引擎问题，加 `--verbose` 看 `Leaked instance`
 - `--log-file` 不会让终端静默，两边都有输出
 
