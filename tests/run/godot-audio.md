@@ -48,6 +48,24 @@ expect(first != AudioStreamPlaybackPolyphonic.INVALID_ID and second != first, "�
 await frames(30)
 ```
 
+## SKILL.md `func song_time`
+
+<!-- check: setup -->
+```gdscript
+node.stream = make_tone(1.0)
+```
+
+```gdscript
+await frames(2)
+node.play()
+await wait_real(0.4)
+var first: float = node.song_time()
+await wait_real(0.2)
+var second: float = node.song_time()
+expect(first > 0.0, "播放后歌曲时间为正")
+expect(second > first, "歌曲时间随播放前进")
+```
+
 ## references/dynamic-music.md `func enter_combat`
 
 <!-- check: setup -->
