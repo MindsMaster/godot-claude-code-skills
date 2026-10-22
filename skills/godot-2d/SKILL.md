@@ -1,6 +1,6 @@
 ---
 name: godot-2d
-description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_and_slide 角色移动 碰撞层与 mask 规划 Area2D 触发区 TileMapLayer TileSet 瓦片地图 地形 自定义数据层 Camera2D limit 平滑 drag zoom 震屏 Parallax2D 视差背景 y_sort_enabled z_index 绘制顺序 CanvasLayer HUD 像素风 pixel art stretch viewport integer scale snap_2d_transforms_to_pixel PointLight2D CanvasModulate 2D 光照 VisibleOnScreenNotifier2D VisibleOnScreenEnabler2D 离屏暂停 NavigationAgent2D 寻路 RayCast2D ShapeCast2D 射线检测 intersect_ray intersect_shape intersect_point direct_space_state 物理查询 Line2D Polygon2D _draw 自绘 2D HDR glow 泛光。用于写 2D 场景、做 2D 相机或地图、查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
+description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_and_slide 角色移动 单向平台 one_way_collision RigidBody2D 可推物体 碰撞层与 mask 规划 Area2D 触发区 TileMapLayer TileSet 瓦片地图 地形 自定义数据层 Camera2D limit 平滑 drag zoom 震屏 Parallax2D 视差背景 y_sort_enabled z_index 绘制顺序 CanvasLayer HUD 像素风 pixel art stretch viewport integer scale snap_2d_transforms_to_pixel PointLight2D CanvasModulate 2D 光照 VisibleOnScreenNotifier2D VisibleOnScreenEnabler2D 离屏暂停 NavigationAgent2D 寻路 RayCast2D ShapeCast2D 射线检测 intersect_ray intersect_shape intersect_point direct_space_state 物理查询 Line2D Polygon2D _draw 自绘 2D HDR glow 泛光。用于写 2D 场景、做 2D 相机或地图、查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
 ---
 
 # Godot 2D
@@ -12,6 +12,8 @@ description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_
 | 需求 | 用这个 | 别自己写 |
 |---|---|---|
 | 角色、敌人移动与碰撞 | `CharacterBody2D.move_and_slide` | 手写碰撞检测与滑动 |
+| 单向平台 | `CollisionShape2D.one_way_collision` | 按 Y 坐标手动开关碰撞 |
+| 推得动的箱子、球 | `RigidBody2D`，一次性冲击 `apply_central_impulse`，持续推力 `apply_central_force` | 每帧改 `position` 或 `linear_velocity` |
 | 拾取、伤害区、触发区 | `Area2D` 加信号 | 手写矩形相交 |
 | 脚下、身前持续探测 | `RayCast2D`、`ShapeCast2D` 节点 | 每帧 new 查询参数 |
 | 一次性射线、点选、范围内有谁 | `direct_space_state` 的 `intersect_ray`、`intersect_point`、`intersect_shape` | 遍历全部物体手算相交 |
@@ -76,6 +78,13 @@ public override void _PhysicsProcess(double delta)
 ```
 
 C# 里 Velocity 是结构体属性，直接给它的 X 赋值编译不过，先取副本再整体赋回。
+
+### 单向平台与可推物体
+
+- 单向平台：平台的 `CollisionShape2D` 勾 `one_way_collision`，从下往上能穿过，从上面站得住。子形状在 `Area2D` 下无效。高速物体漏过去时加大 `one_way_collision_margin`，默认 1 像素。`one_way_collision_direction` 改单向的朝向，4.7+。
+- 下穿：平台放独立 layer，按下键时对角色 `set_collision_mask_value(层号, false)`，落到平台下面再恢复。4.7.2 实测去掉该位后角色穿过平台。
+- `CharacterBody2D` 撞上 `RigidBody2D` 不会推动它，4.7.2 实测箱子纹丝不动。`move_and_slide` 之后遍历 `get_slide_collision(i)`，每个物理帧对 `get_collider()` 得到的刚体调 `apply_central_force`，力的方向取碰撞法线的反方向。`apply_central_impulse` 与时间无关，每帧调用会随帧率变化，只用于一次性冲击。
+- `RigidBody2D` 的位置和速度归物理模拟。频繁直接改 `position` 或 `linear_velocity` 行为不可预测，要改就放进 `_integrate_forces(state)`。
 
 ### 碰撞层与 mask
 
