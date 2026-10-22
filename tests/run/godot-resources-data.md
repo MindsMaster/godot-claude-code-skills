@@ -435,6 +435,12 @@ expect(curve3d.sample_baked_with_rotation(5.0).origin.is_equal_approx(Vector3(0,
 if FileAccess.file_exists(SaveStore.PATH):
 	DirAccess.remove_absolute(SaveStore.PATH)
 expect(SaveStore.read().is_empty(), "没有存档返回空字典")
+var orphan := FileAccess.open(SaveStore.PATH + ".tmp", FileAccess.WRITE)
+orphan.store_string(JSON.stringify(JSON.from_native({"version": 2, "state": {"gold": 4}})))
+orphan.close()
+expect(SaveStore.read() == {"gold": 4}, "只剩 tmp 时改名回存档再读")
+expect(not FileAccess.file_exists(SaveStore.PATH + ".tmp") and FileAccess.file_exists(SaveStore.PATH), "tmp 已改名成存档")
+DirAccess.remove_absolute(SaveStore.PATH)
 var state := {"gold": 5, "pos": Vector2(1, 2), "ids": [1, 2], "color": Color.RED}
 expect(SaveStore.write(state) == OK, "写入成功")
 expect(not FileAccess.file_exists(SaveStore.PATH + ".tmp"), "tmp 已改名")
