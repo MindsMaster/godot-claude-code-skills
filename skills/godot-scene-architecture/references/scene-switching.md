@@ -68,7 +68,7 @@ func change_to(path: String) -> void:
 ```
 
 - 遮罩 `CanvasLayer` 的 `layer` 设大于 HUD，`process_mode` 设 `PROCESS_MODE_ALWAYS` 让暂停时也能转场
-- 带进度条的加载见 godot-resources-data 的异步加载一节
+- 带进度条的加载见 godot-resources-data 的带进度的异步加载一节
 - 不要手动 `current_scene.free()` 再 `add_child` 新场景再赋值 `current_scene`。`change_scene_to_*` 已经处理了释放时机和 `current_scene`
 - 切换前先把 `get_tree().paused` 恢复，暂停状态会带到新场景
 
