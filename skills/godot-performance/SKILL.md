@@ -1,6 +1,6 @@
 ---
 name: godot-performance
-description: 排查和优化卡顿掉帧时用。先测再改：Debugger Profiler、Visual Profiler、Monitors、Performance.get_monitor、add_custom_monitor。热点的内置解法：MultiMesh、RenderingServer 与 PhysicsServer 直接调用、对象池、VisibleOnScreenEnabler、set_process(false)、物理插值 physics_interpolation、WorkerThreadPool、ResourceLoader 线程加载、着色器编译卡顿 pipeline ubershader、每帧字符串与分配。Godot performance profiling, stutter, frame drops, optimization.
+description: 排查和优化卡顿掉帧 帧率低 FPS 内存增长 孤儿节点时用。先测再改：Debugger Profiler、Visual Profiler、Monitors、Performance.get_monitor、add_custom_monitor。热点的内置解法：MultiMesh、RenderingServer 与 PhysicsServer 直接调用、对象池、VisibleOnScreenEnabler、set_process(false)、物理插值 physics_interpolation、WorkerThreadPool、ResourceLoader 线程加载、着色器编译卡顿 pipeline ubershader、每帧字符串与分配。Godot performance profiling, stutter, frame drops, optimization.
 ---
 
 # Godot 性能
@@ -154,11 +154,10 @@ common/physics_ticks_per_second=30
 common/physics_interpolation=true
 ```
 
-- `physics/common/physics_ticks_per_second` 默认 60，降低能直接减少物理与 `_physics_process` 的 CPU，代价是模拟更粗
+- `physics/common/physics_ticks_per_second` 默认 60，降低能直接减少物理与 `_physics_process` 的 CPU，有的游戏可以降到 30 甚至 20，代价是模拟更粗、输入延迟更大。官方建议有实时玩家移动的游戏保持 60
 - 开启 `physics/common/physics_interpolation`（默认 `false`）后渲染在物理帧之间插值，低 tick 率也平滑。2D 自 4.3，3D 自 4.4
 - 移动和游戏逻辑放 `_physics_process()`，在 `_process()` 里移动会抖，间接移动也算，如移动父节点、Tween、AnimationPlayer。Tween 用 `set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)`，AnimationPlayer 设 `callback_mode_process` 为 `ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS`，二者默认都跟随 idle。必须在 `_process()` 里动的节点把 `physics_interpolation_mode` 设为 `PHYSICS_INTERPOLATION_MODE_OFF`
 - 摆放或瞬移后先设变换，再 `reset_physics_interpolation()`，顺序反了会拖尾
-- tick 率越低输入延迟越大，需要时调高
 - 3D 的相机或自定义插值可读 `Node3D.get_global_transform_interpolated()`（4.4+），2D 没有对应方法，用 `Engine.get_physics_interpolation_fraction()` 自己算
 - 改 tick 率会改变 `linear_damp` 一类阻尼的手感，要重调
 - `physics/common/max_physics_steps_per_frame` 默认 8，限制单帧最多模拟步数，防止卡顿越滚越大。tick 率调到 60 以上较多时同步调高，否则游戏会变慢
@@ -240,7 +239,8 @@ func _process(_delta: float) -> void:
 Forward+ 与 Mobile 渲染器自 4.4 起用 ubershader 与加载时预编译管线，Compatibility 渲染器没有。
 
 - 效果第一次出现卡一下，打开 Monitors 里的 Pipeline 编译类监视器，如 `Performance.PIPELINE_COMPILATIONS_SURFACE`。游戏中数字突增就是在那一刻编译
-- 运行中才实例化的特效，在关卡加载时把它的场景实例化一次，隐藏或放在屏幕外即可，引擎因此预编译管线。关掉挂在它上面的脚本
+- 运行中才实例化的 3D 特效，在关卡加载时把它的场景实例化一次，隐藏或放在屏幕外即可，引擎因此预编译管线。关掉挂在它上面的脚本
+- 2D 节点没有预编译，首次绘制时才编译，对应 `Performance.PIPELINE_COMPILATIONS_CANVAS`。预热要让它在视野内真的画一帧，用全屏 `ColorRect` 盖住
 - 用到的渲染特性如反射探针、SDFGI、VoxelGI、TAA、SSAO 尽早出现在场景里，运行中途开关会触发重编译。MSAA 级别运行中改也会卡，不同视口用不同 MSAA 级别同样会卡
 - Compatibility 渲染器：加载关卡时把每种网格和特效在相机前显示一帧，用全屏 `ColorRect` 盖住
 - `rendering/rendering_device/pipeline_cache/enable` 默认 `true`，把管线缓存写盘，二次运行更快。想模拟首次运行体验才关，并清理驱动缓存
