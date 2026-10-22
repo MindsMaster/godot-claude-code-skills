@@ -7,6 +7,7 @@ import api
 import csharp
 import gdscript
 import lint
+import run
 from markdown import ROOT, parse_doc
 
 
@@ -36,6 +37,11 @@ def main() -> int:
             findings += gdscript.check(docs, args.godot, args.jobs)
         else:
             findings.append(("ERROR", "gd", f"找不到 Godot {args.godot} 设 GODOT_BIN"))
+    if "run" in args.steps:
+        if shutil.which(args.godot):
+            findings += run.check(docs, args.godot, args.jobs)
+        else:
+            findings.append(("ERROR", "run", f"找不到 Godot {args.godot} 设 GODOT_BIN"))
     if "cs" in args.steps:
         if shutil.which(args.dotnet):
             findings += csharp.check(docs, args.dotnet, args.sdk_version)
