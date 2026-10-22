@@ -84,7 +84,7 @@ func build(mesh_to_draw: Mesh, count: int, area: float) -> void:
 	multimesh = mm
 ```
 
-- `use_colors` `use_custom_data` `transform_format` 必须在 `instance_count` 之前设，或先把 `instance_count` 设回 0。`instance_count` 会清空并重设缓冲，之后改格式无效
+- `use_colors` `use_custom_data` `transform_format` 必须在 `instance_count` 之前设，或先把 `instance_count` 设回 0。`instance_count` 大于 0 时改它们会报错且不生效。设 `instance_count` 会清空并重设缓冲
 - 改数量用 `visible_instance_count`，默认 -1 全画
 - 大量更新用 `buffer` 一次写入，比逐个 `set_instance_transform()` 快
 - 逐实例颜色要材质读顶点色：`StandardMaterial3D` 的 `vertex_color_use_as_albedo`，自写 shader 读 `COLOR` 与 `INSTANCE_CUSTOM`

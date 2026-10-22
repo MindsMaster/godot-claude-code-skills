@@ -170,7 +170,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	_arm.rotation.x = clampf(_arm.rotation.x - motion.screen_relative.y * mouse_sensitivity, -1.2, 1.2)
 ```
 
-弹簧臂 `collision_mask` 默认只有第 1 层。玩家碰撞层落在它的 mask 里又没排除时，弹簧臂会被自己顶到最短。上面的层表里玩家在第 2 层，保持 mask 只勾 world 层也能避开。
+弹簧臂 `collision_mask` 默认只有第 1 层。玩家碰撞层落在它的 mask 里又没排除时，起点在玩家碰撞体外、朝玩家扫去的弹簧臂会被自己顶短，如枢轴高过头顶再仰视。起点已在碰撞体内的重叠会被忽略。上面的层表里玩家在第 2 层，保持 mask 只勾 world 层也能避开。
 
 ### 渲染器
 

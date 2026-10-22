@@ -35,6 +35,7 @@
 - 自写修改器重写 `_process_modification_with_delta(delta)`，4.5+。老的 `_process_modification()` 已弃用。不要在里面自己乘 `influence`，`Skeleton3D` 会统一应用
 - `Skeleton3D.modifier_callback_mode_process` 默认空闲帧更新，可选物理帧或手动，手动时用 `Skeleton3D.advance()` 4.5+
 - 骨骼名与索引都可设，名字更稳
+- 修改结果只在 `Skeleton3D.skeleton_updated` 或 `SkeletonModifier3D.modification_processed` 发出的那一刻读得到，其余时刻 `get_bone_global_pose()` 返回未修改的姿势。要读修改后的骨骼位置，在这两个信号的回调里读
 - IK 与弹簧骨骼的每条链是一个索引项：先设 `setting_count`，再对每个索引调用 `set_root_bone_name(index, name)` 一类方法
 - `IKModifier3D` 与 `SpringBoneSimulator3D` 的 `mutable_bone_axes` 默认 true，每帧从姿势取骨轴。设 false 只用静止姿势并缓存，略快但忽略之前对位置的改动
 
