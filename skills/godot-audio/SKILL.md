@@ -1,6 +1,6 @@
 ---
 name: godot-audio
-description: Godot 4 音频，Audio bus 布局 default_bus_layout Music SFX Voice 总线，设置菜单音量 AudioServer.set_bus_volume_db linear_to_db，AudioStreamPlayer bus 属性，AudioStreamRandomizer 随机音效，max_polyphony 与 AudioStreamPolyphonic 代替播放器池，AudioStreamInteractive Playlist Synchronized 动态音乐，导入设置里设循环，2D 3D 空间音频，AudioEffectHardLimiter。在写音效 音乐 音量设置 脚步声 受击音 战斗音乐切换 时用。audio bus volume music sfx randomizer polyphony.
+description: Godot 4 音频，Audio bus 布局 default_bus_layout Music SFX Voice 总线，设置菜单音量 AudioServer.set_bus_volume_db linear_to_db，AudioStreamPlayer bus 属性，AudioStreamRandomizer 随机音效，max_polyphony 与 AudioStreamPolyphonic 代替播放器池，AudioStreamInteractive Playlist Synchronized 动态音乐，导入设置里设循环，节奏游戏对时 get_playback_position，2D 3D 空间音频，AudioEffectHardLimiter。在写音效 音乐 音量设置 脚步声 受击音 战斗音乐切换 节奏同步 时用。audio bus volume music sfx randomizer polyphony.
 ---
 
 # Godot 音频
@@ -17,6 +17,7 @@ description: Godot 4 音频，Audio bus 布局 default_bus_layout Music SFX Voic
 | 同一音效叠播 | `max_polyphony` | 复制多个 AudioStreamPlayer |
 | 大量不同的一次性音效 | AudioStreamPolyphonic | 自建 16 个播放器的池 |
 | 战斗与探索音乐切换 分层配器 曲目列表 | AudioStreamInteractive Synchronized Playlist | 多个播放器手动淡入淡出和对时间 |
+| 节奏游戏的歌曲时间 | `get_playback_position()` 加 `AudioServer.get_time_since_last_mix()` 减输出延迟 | 用 `_process` 的 delta 累加当歌曲时间 |
 | 限制爆音 | Master 上的 AudioEffectHardLimiter | 逐个调低音量 |
 | 说话时压低音乐 | Music 总线加 AudioEffectCompressor，`sidechain` 设为 Voice | 脚本里逐帧调音乐音量 |
 | 循环 | 导入设置里的循环选项 | 运行时改共享 stream 的 `loop` |
@@ -135,6 +136,24 @@ func play_sfx(sound: AudioStream, gain_db: float = 0.0) -> int:
 - 不要运行时对共享的 stream 写 `loop = true`，所有引用同一资源的播放器一起变，缓存也被改。需要不同循环行为就导入两份，或 `duplicate()` 后再改
 - 循环音频的播放器不发 `finished`
 
+## 歌曲时间
+
+节奏游戏要对齐音乐。`get_playback_position()` 按混音块更新，同一块内多次调用返回同一个值，要加上 `AudioServer.get_time_since_last_mix()`，再减输出延迟：
+
+```gdscript
+extends AudioStreamPlayer
+
+var _latency: float = AudioServer.get_output_latency()
+
+func song_time() -> float:
+	return get_playback_position() + AudioServer.get_time_since_last_mix() - _latency
+```
+
+- `get_output_latency()` 开销大，类参考不建议每帧调，取一次存起来
+- 结果有抖动，文档的做法是丢弃比上一帧小的值
+- 几分钟的曲子，文档推荐另一种：`play()` 前记下 `Time.get_ticks_usec()`，再把 `AudioServer.get_time_to_next_mix()` 加输出延迟存为延迟，歌曲时间等于系统时钟走过的时间减延迟。不抖，但系统时钟与声卡时钟会慢慢漂移，长时间播放用上面的写法
+- stream 是 AudioStreamInteractive 时 `get_playback_position()` 恒为 0.0
+
 ## 空间音频
 
 - 2D 与 3D 播放器都有 `max_distance` `panning_strength` `area_mask`。衰减 2D 用 `attenuation` 指数，默认 1.0，3D 用 `attenuation_model` 加 `unit_size`。多普勒只有 3D 的 `doppler_tracking`
@@ -144,7 +163,9 @@ func play_sfx(sound: AudioStream, gain_db: float = 0.0) -> int:
 ## 陷阱
 
 - 每个播放器写 `volume_db = -6` 当音量设置，玩家无法分开调音乐与音效，改用总线
-- 网页导出默认按 sample 方式播放，AudioEffect 不生效。需要总线效果的播放器把 `playback_type` 设为 `AudioServer.PLAYBACK_TYPE_STREAM`，或改 `audio/general/default_playback_type.web`
+- 在会 `queue_free()` 的节点上播收尾音效，节点出树时声音被暂停，释放时被停止，播不完。交给关卡里常驻的播放器，如 AudioStreamPolyphonic 的 `play_stream()`
+- `get_tree().paused = true` 时，`process_mode` 为默认的播放器会自动 `stream_paused`。暂停菜单的点击音，和暂停时要继续的音乐，把播放器的 `process_mode` 设为 `Node.PROCESS_MODE_ALWAYS`
+- 网页导出默认按 sample 方式播放，AudioEffect、多普勒、3D 混响总线、程序生成音频都不生效，空间音频也可能不正常。需要这些的播放器把 `playback_type` 设为 `AudioServer.PLAYBACK_TYPE_STREAM`，或改 `audio/general/default_playback_type.web`。代价是延迟更高，没开线程支持的导出更明显，可能爆音
 
 ## 参考
 
