@@ -20,7 +20,7 @@ description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑�
 | 引擎报错也算失败 | `OS.add_logger` 的 Logger 子类计数（4.5+） | 只靠 grep 或只靠退出码 |
 | 传参给脚本 | `--` 之后的参数，`OS.get_cmdline_user_args()` 读 | 环境变量或写临时文件 |
 | 按键、动作输入 | `Input.action_press`、`Input.parse_input_event` | 直接改节点状态冒充输入 |
-| 看画面 | `xvfb-run` 加 `--rendering-driver opengl3` | headless 下截图 |
+| 看画面 | `xvfb-run`，Forward+ 用 `--rendering-driver vulkan`，Compatibility 用 `opengl3` | headless 下截图 |
 | 录一段画面 | `--write-movie out/f.png` 或 `.avi`，同样要 xvfb | 循环截图 |
 | 查类和方法是否存在 | `ClassDB.class_has_method`、类参考 XML | 凭记忆写 |
 | 导出验证 | `--export-pack`，不需要模板 | 手动打 zip |
@@ -136,8 +136,9 @@ func _run() -> void:
 
 要点：
 
-- 继承 SceneTree，放 `_initialize` 里开始。自动加载节点在 `_initialize` 里已经在 `root` 下，在 `_init` 里还没有
-- 场景用 `root.add_child` 挂上去，`_ready` 才会跑
+- 继承 SceneTree，放 `_initialize` 里开始。自动加载节点在 `_initialize` 里已经是 `root` 的子节点，在 `_init` 里还没有
+- `_initialize` 返回前 `root` 不在树内：自动加载节点和刚 `root.add_child` 的节点 `is_inside_tree()` 都是 false，`_ready` 没跑，`global_position`、`look_at` 这类依赖全局变换的调用报 `!is_inside_tree()`。遇到第一个 `await` 后才进树，要用就先 `await process_frame`
+- 场景用 `root.add_child` 挂上去，进树后 `_ready` 才会跑
 - 等帧用 `await physics_frame` 和 `await process_frame`，物理相关的断言等够物理帧再查
 - 失败自己计数，最后 `quit(1)`。不用 `assert`
 - 必须有看门狗：`create_timer(30.0).timeout.connect(quit.bind(2))`。协程里一行报错后面全不执行，没有它进程永远不退出
@@ -162,7 +163,7 @@ func _initialize() -> void:
 
 - `Input.action_press` 当场生效，`parse_input_event` 要过一帧。两者读到的状态不同，写断言前先 `await`
 - 动作名不在 InputMap 里时输出 `ERROR: The InputMap action "x" doesn't exist.`，状态恒为 false，工程里要先配好输入映射
-- 无头下鼠标点击进不了 hover，`Button` 收不到 `pressed`。点 UI 用焦点加 `ui_accept`，或直接 `pressed.emit()`。要真鼠标走 xvfb
+- 无头下根窗口第一帧之后只有 64x64，坐标落在窗口外的鼠标点击点不到控件，`Button` 收不到 `pressed`。`await process_frame` 之后设 `root.size = Vector2i(1152, 648)` 就能点，`DisplayServer.window_set_size` 无效。点 UI 也可以用焦点加 `ui_accept`，或直接 `pressed.emit()`
 - 按下之后记得发松开
 
 ## 看画面
@@ -170,10 +171,10 @@ func _initialize() -> void:
 headless 不渲染。要看画面用 xvfb 起一个真窗口：
 
 ```bash
-xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT_BIN" --path . --audio-driver Dummy --rendering-driver opengl3 -s tests/shot.gd
+xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT_BIN" --path . --audio-driver Dummy --rendering-driver vulkan -s tests/shot.gd
 ```
 
-脚本里 `await RenderingServer.frame_post_draw` 后 `root.get_texture().get_image().save_png(path)`，再用 Read 工具看图。本机实测走 Mesa llvmpipe，渲染方法 gl_compatibility，没有 Vulkan。脚本见 references/smoke-scripts.md。
+脚本里 `await RenderingServer.frame_post_draw` 后 `root.get_texture().get_image().save_png(path)`，再用 Read 工具看图。装了 `mesa-vulkan-drivers`（lavapipe）时 `vulkan` 跑工程的 Forward+，`opengl3` 跑 Compatibility，都是 Mesa llvmpipe 软件渲染。没有 Vulkan 驱动时 `vulkan` 先打印 `ERROR: Required Vulkan instance extension VK_KHR_surface not found.` 再回退 OpenGL 3，按 ERROR 判失败的包装会判失败，CI 上要么装驱动要么改 `opengl3`。脚本见 references/smoke-scripts.md。
 
 ## 查 API
 
@@ -199,7 +200,7 @@ func _initialize() -> void:
 - `load()` 一个缺 `ext_resource` 的 `.tscn` 仍返回非 null 的 PackedScene，只在输出里报 ERROR。别只检查 null
 - `--import` 打开工程后退出码恒为 0，导入错误和脚本语法错误都一样。路径无效或没有 `project.godot` 时才是 1。导入错误只在第一次打印，之后 `.import` 里记 `valid=false` 不再报
 - class_name 要先 `--import` 才进全局缓存。`--quit` 不导入也不建 `.godot`。没 import 就跑会报 `Identifier "X" not declared in the current scope`，类型标注处报 `Could not find type "X" in the current scope`。这是缓存缺失，不要删类型标注或改 preload
-- `--check-only` 不认自动加载：引用 autoload 名的脚本会报 `Identifier not found`，是误报。SceneTree 脚本本身也不能用 autoload 名，要 `root.get_node("名字")`
+- `--check-only` 不认自动加载：引用 autoload 名的脚本会报 `Identifier not found`，是误报。SceneTree 脚本本身也不能用 autoload 名，要 `root.get_node("名字")`，在 `_initialize` 里它的 `_ready` 还没跑，调用方法放到 `await process_frame` 之后
 - `--quit-after` 数的是 process 帧，不是物理帧。要两者对齐加 `--fixed-fps 60`
 - `parse_input_event` 的按键过一帧才生效，`Input.action_press` 立即生效
 - headless 下 `get_texture().get_image()` 返回 null，`await RenderingServer.frame_post_draw` 永远不触发，`--write-movie` 段错误。截图和录像必须 xvfb

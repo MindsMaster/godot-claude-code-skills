@@ -10,7 +10,7 @@
 | `--path P` | 指定含 project.godot 的目录 | `-s` 的相对路径按 P 解析 |
 | `--no-header` | 不打印版本头 | 无头下少一行，grep 更干净 |
 | `--quit` | 第一次主循环迭代后退出 | 要有主场景或场景参数，否则报 `no main scene defined in the project` 退出码 1。有场景时退出码 0，不触发导入，`.godot` 不会被创建 |
-| `--quit-after N` | N 次主循环迭代后退出，0 为不限 | 计的是 process 帧。N=30 时物理帧约 11。退出码 0，脚本出错也是 0 |
+| `--quit-after N` | N 次主循环迭代后退出，0 为不限 | 计的是 process 帧。N=30 时物理帧数随机器速度变，实测 12 到 20，与 process 帧不对齐。退出码 0，脚本出错也是 0 |
 | `--fixed-fps F` | 固定步长，关闭实时同步 | `--fixed-fps 60 --quit-after 60` 得 60 个 process 帧和 60 个物理帧，可复现 |
 | `--scene PATH` 或位置参数 | 运行指定场景 | `godot --path P res://main.tscn --quit-after 3` 可用。场景不存在时退出码 1 |
 | `-s`, `--script F` | 运行脚本 | 须继承 SceneTree 或 MainLoop，否则输出 `Can't load the script ... as it doesn't inherit from SceneTree or MainLoop.` 退出码 1。路径可写 `res://x.gd` 或相对工程的 `x.gd` |
@@ -114,11 +114,11 @@ gdscript/warnings/unused_variable=2
 | `--headless` 下 `await RenderingServer.frame_post_draw` | 永远不触发，脚本卡住 |
 | `--headless --write-movie x.png` | 段错误，留下空的 wav |
 | `xvfb-run -a -s "-screen 0 1280x720x24" $G --rendering-driver opengl3` | 可用。本机用 Mesa llvmpipe，输出 `OpenGL API 4.5 (Core Profile) Mesa ... Compatibility - Using Device: Mesa - llvmpipe`，渲染方法为 gl_compatibility |
-| 同上用 `--rendering-driver vulkan` | 本机没有 Vulkan 驱动，报 `Required Vulkan instance extension VK_KHR_surface not found` 后自动回退 OpenGL 3 |
+| 同上用 `--rendering-driver vulkan` | 装了 `mesa-vulkan-drivers`（lavapipe）时输出 `Vulkan 1.4.318 - Forward+ - Using Device #0: Unknown - llvmpipe`，`get_current_rendering_method()` 为 `forward_plus`。没有 Vulkan 驱动时先打印 `ERROR: Required Vulkan instance extension VK_KHR_surface not found.`，再警告 `switching to OpenGL 3` 并回退 Compatibility，输出里的 ERROR 行会让按 ERROR 判失败的包装失败 |
 | xvfb 下 `--write-movie out/f.png --fixed-fps 30 --quit-after 5` | 生成 `f00000000.png` 到 `f00000004.png` 和 `f.wav`，结尾打印 `5 frames at 30 FPS` |
 | xvfb 下 `--write-movie out/m.avi` | 生成 avi。用 `ffmpeg -i m.avi -vf "select=eq(n\,10)" -vframes 1 f.png` 抽帧 |
 | xvfb 下的 `RenderingServer.get_video_adapter_name()` | `llvmpipe (LLVM 20.1.2, 256 bits)` |
 
-截图尺寸取工程的 `display/window/size/viewport_width` 与 `display/window/size/viewport_height`，默认 1152x648，与 xvfb 屏幕大小无关。这台机器上 Forward+ 工程只能回退到 Compatibility 渲染，截图里没有 Forward+ 才有的效果。
+截图尺寸取工程的 `display/window/size/viewport_width` 与 `display/window/size/viewport_height`，默认 1152x648，与 xvfb 屏幕大小无关。`opengl3` 下 Forward+ 工程按 Compatibility 渲染，截图里没有 Forward+ 才有的效果，要看这些效果用 `vulkan`。
 
 `--write-movie` 会强制 `--fixed-fps`，未指定时为 60。`--quit-after` 决定写多少帧。

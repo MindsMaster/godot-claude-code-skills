@@ -63,7 +63,8 @@ func _finish(code: int) -> void:
 
 - 30 秒的 `create_timer` 是看门狗。`_run` 里任何一行报错，整个协程会被中断而 `_finish(0)` 永远不执行，没有看门狗进程就卡住
 - `_run` 在 `_initialize` 里不 await 地调用，协程在第一个 await 处交还控制权
-- 用 `_initialize` 不用 `_init`：自动加载节点在 `_initialize` 里已经在 `root` 下，`_init` 里还没有
+- 用 `_initialize` 不用 `_init`：自动加载节点在 `_initialize` 里已经是 `root` 的子节点，`_init` 里还没有
+- `_initialize` 返回前 `root` 不在树内，自动加载节点和 `root.add_child` 的节点 `is_inside_tree()` 为 false，`_ready` 没跑。第一个 `await` 之后才进树，`global_position`、`look_at` 这类依赖全局变换的调用放在它之后
 - 不用 `assert`：失败只打 `SCRIPT ERROR: Assertion failed` 并中断所在函数，退出码不变，release 导出里整条被忽略
 - `_log_error` 可能在其他线程调用，所以计数加了 `Mutex`
 - 运行 `bash` 命令见 SKILL.md 的 `gdrun`
@@ -158,10 +159,10 @@ func _initialize() -> void:
 |---|---|---|
 | 焦点加 `ui_accept` 的 InputEventAction | 可用 | 可用 |
 | 直接 emit 按钮信号 | 可用 | 可用 |
-| `Input.parse_input_event` 发鼠标按下与松开 | 按钮收到 `gui_input` 但不触发 `pressed`（0 次） | 可用 |
+| `Input.parse_input_event` 发鼠标按下与松开 | 坐标在根窗口内可用，窗口外 0 次 | 可用 |
 | `root.push_input` 发鼠标事件 | 同上 | 可用 |
 
-鼠标点击在 headless 下进不了 hover 状态，所以 Button 不响应。要测鼠标就用 xvfb 方式，先发一个 `InputEventMouseMotion` 再发按下和松开，各等一帧。
+headless 的根窗口第一帧之后只有 64x64，窗口外的坐标进不了 hover，那里的 Button 不响应。第一帧之后设 `root.size = Vector2i(1152, 648)` 即可，在 `_initialize` 里设会被第一帧改回。发鼠标事件时先发一个 `InputEventMouseMotion` 再发按下和松开，各等一帧。
 
 动作输入的时机：
 
@@ -191,10 +192,10 @@ func _initialize() -> void:
 ```
 
 ```bash
-xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --audio-driver Dummy --rendering-driver opengl3 -s tests/shot.gd
+xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --audio-driver Dummy --rendering-driver vulkan -s tests/shot.gd
 ```
 
-实测输出里有 `OpenGL API 4.5 (Core Profile) Mesa ... Compatibility - Using Device: Mesa - llvmpipe`、`size=(1152, 648)`、`save=0`。图用 Read 工具直接看。
+`vulkan` 需要 `mesa-vulkan-drivers`，实测输出里有 `Vulkan 1.4.318 - Forward+ - Using Device #0: Unknown - llvmpipe`、`size=(1152, 648)`、`save=0`。换成 `opengl3` 是 Compatibility，输出 `OpenGL API 4.5 (Core Profile) Mesa ... Compatibility - Using Device: Mesa - llvmpipe`。图用 Read 工具直接看。
 
 多帧录像：
 
