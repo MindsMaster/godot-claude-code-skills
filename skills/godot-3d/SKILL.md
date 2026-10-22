@@ -1,6 +1,6 @@
 ---
 name: godot-3d
-description: Godot 3D 场景搭建与选型 用于 CharacterBody3D 角色移动 floor slope 参数, Jolt 与 GodotPhysics3D 物理引擎选择, 碰撞层规划, RayCast3D ShapeCast3D 与 PhysicsDirectSpaceState3D 查询, SpringArm3D 第三人称相机, Forward+ Mobile Compatibility 渲染器选择, 光照与全局光照选型 SDFGI VoxelGI LightmapGI ReflectionProbe, WorldEnvironment Environment CameraAttributes, 阴影参数, glTF 场景导入与 -col -rigid 后缀, GridMap MeshLibrary, CSG 原型, mesh LOD visibility_range OccluderInstance3D 遮挡剔除, MultiMeshInstance3D, Decal, NavigationAgent3D 寻路, LookAtModifier3D SpringBoneSimulator3D TwoBoneIK3D 骨骼修改器. Use when building or debugging 3D scenes, character controllers, lighting, level import, culling and 3D navigation.
+description: Godot 3D 场景搭建与选型 用于 CharacterBody3D 角色移动 floor slope 参数, Jolt 与 GodotPhysics3D 物理引擎选择, 碰撞层规划, RayCast3D ShapeCast3D 与 PhysicsDirectSpaceState3D 查询, SpringArm3D 第三人称相机 第一人称 FPS 鼠标视角 RigidBody3D 可推物体, Forward+ Mobile Compatibility 渲染器选择, 光照与全局光照选型 SDFGI VoxelGI LightmapGI ReflectionProbe, WorldEnvironment Environment CameraAttributes, 阴影参数, glTF 场景导入与 -col -rigid 后缀, GridMap MeshLibrary, CSG 原型, mesh LOD visibility_range OccluderInstance3D 遮挡剔除, MultiMeshInstance3D, Decal, NavigationAgent3D 寻路, LookAtModifier3D SpringBoneSimulator3D TwoBoneIK3D 骨骼修改器. Use when building or debugging 3D scenes, character controllers, lighting, level import, culling and 3D navigation.
 ---
 
 # Godot 3D
@@ -12,6 +12,7 @@ description: Godot 3D 场景搭建与选型 用于 CharacterBody3D 角色移动 
 | 需求 | 用这个 | 别自己写 |
 |---|---|---|
 | 角色走跑跳 | `CharacterBody3D` + `move_and_slide()` | 手算坡度和地面检测 |
+| 推得动的箱子、球 | `RigidBody3D`，一次性冲击 `apply_central_impulse`，持续推力 `apply_central_force` | 每帧改 `global_position` 或 `linear_velocity` |
 | 第三人称相机不穿墙 | `SpringArm3D` | 每帧射线加手动拉近 |
 | 点选 狙击 视线 | `PhysicsRayQueryParameters3D` + `intersect_ray()` | 遍历所有物体算相交 |
 | 前方探测 持续检测 | `RayCast3D` `ShapeCast3D` | 每帧 new 查询参数 |
@@ -47,13 +48,13 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_velocity
 
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction: Vector3 = (global_basis * Vector3(input.x, 0.0, input.y)).normalized()
+	var direction: Vector3 = global_basis * Vector3(input.x, 0.0, input.y)
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	move_and_slide()
 ```
 
-`velocity` 是每秒速度，不乘 `delta`。`is_on_floor()` 读的是上一次 `move_and_slide()` 的结果。相机相对移动时用相机的 yaw 基底代替 `global_basis`。
+`velocity` 是每秒速度，不乘 `delta`。`get_vector` 的长度已限制为 1，不再 `normalized()`，摇杆轻推保持慢速；`is_on_floor()` 读的是上一次 `move_and_slide()` 的结果。相机相对移动时用相机的 yaw 基底代替 `global_basis`。
 
 | 属性 | 默认 | 说明 |
 |---|---|---|
@@ -148,7 +149,7 @@ C# 版本和 `Dictionary` 取值写法见 [references/physics-3d.md](references/
 
 ### 第三人称相机
 
-节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。`spring_length` 默认 1.0，按需要的臂长改。`SpringArm3D.shape` 留空且相机是直接子节点时，用相机近平面做形状；留空但相机不是直接子节点会退成射线，不推荐。给了形状就一直用该形状，球形最顺滑。
+节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。第一人称不要弹簧臂，`Camera3D` 放在身体下的 `Node3D` 头节点，yaw 转身体，pitch 转头节点，鼠标写法同下。`spring_length` 默认 1.0，按需要的臂长改。`SpringArm3D.shape` 留空且相机是直接子节点时，用相机近平面做形状；留空但相机不是直接子节点会退成射线，不推荐。给了形状就一直用该形状，球形最顺滑。
 
 ```gdscript
 extends Node3D
@@ -276,6 +277,7 @@ func _physics_process(_delta: float) -> void:
 - 不要平移 旋转 缩放 `CollisionShape3D`，会失去物理引擎的内部优化，改形状本身的尺寸
 - 三角网碰撞 `ConcavePolygonShape3D` 只能用在静态体，角色与刚体用基本形状或凸包
 - `PhysicsBody3D` 只认直接子级的 `CollisionShape3D`
+- `CharacterBody3D` 撞上 `RigidBody3D` 不会推动它，Jolt 与 GodotPhysics3D 实测一致。`move_and_slide()` 之后遍历 `get_slide_collision()`，每个物理帧对 `get_collider()` 得到的刚体调 `apply_central_force`，方向取碰撞法线的反方向
 - 角色在斜坡抖动或飞出：先看 `floor_snap_length`，再看是否在 `_process` 里移动
 - 高刷新率下物理对象的画面抖动：开 `physics/common/physics_interpolation`，瞬移后调 `reset_physics_interpolation()`
 - 阴影缺失或漂浮：`Light3D.shadow_normal_bias` 先于 `shadow_bias` 调。`DirectionalLight3D.directional_shadow_max_distance` 设成场景需要的值，越小越清晰越快
