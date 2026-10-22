@@ -1,6 +1,6 @@
 ---
 name: godot-animation
-description: Godot 4 动画选型与做法，AnimationPlayer AnimationLibrary RESET 方法调用轨道 音频轨道 bezier 轨道，AnimationTree 状态机 BlendSpace OneShot travel advance_expression，Tween create_tween 链式 parallel tween_method kill SubtweenTweener AwaitTweener，AnimatedSprite2D SpriteFrames，命中闪白 shader 加 Tween，按帧 seek 与确定性回放，Curve 与 bezier 代替手写插值。在写动画 缓动 角色状态动画 UI 动效 转场 精灵帧动画 时用。animation tween state machine blend sprite frames.
+description: Godot 4 动画选型与做法，AnimationPlayer AnimationLibrary RESET 方法调用轨道 音频轨道 bezier 轨道，AnimationTree 状态机 BlendSpace OneShot travel advance_expression，Tween create_tween 链式 parallel tween_method kill SubtweenTweener AwaitTweener，AnimatedSprite2D SpriteFrames，Tween 驱动 shader 参数，按帧 seek 与确定性回放，Curve 与 bezier 代替手写插值。在写动画 缓动 角色状态动画 UI 动效 转场 精灵帧动画 时用。animation tween state machine blend sprite frames.
 ---
 
 # Godot 动画
@@ -23,6 +23,7 @@ description: Godot 4 动画选型与做法，AnimationPlayer AnimationLibrary RE
 | 命中闪白 受击染色 | shader 的 `instance uniform` 加 Tween | `modulate` 超过 1 的取巧值 |
 | 镜头相机运动 | Camera2D 的内置平滑与 FastNoiseLite 抖动 | 手写 SmoothDamp |
 | 2D 骨骼 | Skeleton2D Bone2D Polygon2D | 手写层级变换 |
+| 3D 骨骼看向目标 IK 头发尾巴摆动 | `SkeletonModifier3D` 系列，见 `godot-3d` | 脚本里逐帧改骨骼姿势 |
 
 ## 选哪个
 
@@ -194,15 +195,19 @@ void fragment() {
 ```gdscript
 extends Sprite2D
 
+var _tween: Tween
+
 func hit_flash() -> void:
-	var tween := create_tween()
-	tween.tween_method(_set_flash, 1.0, 0.0, 0.12)
+	if _tween:
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_method(_set_flash, 1.0, 0.0, 0.12)
 
 func _set_flash(value: float) -> void:
 	set_instance_shader_parameter(&"flash", value)
 ```
 
-`instance uniform` 每个实例独立，同一材质的敌人不会一起闪。普通 `uniform` 改的是共享材质。
+`instance uniform` 每个实例独立，同一材质的敌人不会一起闪。普通 `uniform` 改的是共享材质。3D 网格与 C# 的写法见 `godot-shaders-vfx`。
 
 ## 确定性与按帧 seek
 
