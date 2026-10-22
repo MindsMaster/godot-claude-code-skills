@@ -108,17 +108,17 @@ AnimationTree 驱动一个 AnimationPlayer 的动画。设 `anim_player`，建 `
 extends CharacterBody2D
 
 @onready var _tree: AnimationTree = $AnimationTree
-@onready var _state: AnimationNodeStateMachinePlayback = _tree["parameters/playback"]
+@onready var _state: AnimationNodeStateMachinePlayback = _tree["parameters/Locomotion/playback"]
 
 func _physics_process(_delta: float) -> void:
-	_tree["parameters/Move/blend_position"] = velocity / 200.0
+	_tree["parameters/Locomotion/Move/blend_position"] = velocity / 200.0
 	if Input.is_action_just_pressed(&"attack"):
 		_tree["parameters/Attack/request"] = AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
 	if is_on_floor():
 		_state.travel(&"Ground")
 ```
 
-- 参数路径在 Inspector 的 Parameters 里悬停可见，格式 `parameters/<节点名>/<参数>`
+- 参数路径在 Inspector 的 Parameters 里悬停可见，格式 `parameters/<节点名>/<参数>`。上例的 `tree_root` 是 AnimationNodeBlendTree，内含状态机 Locomotion 与 OneShot 节点 Attack，Move 是状态机里的 BlendSpace2D 状态。状态机直接做 `tree_root` 时路径是 `parameters/playback`，OneShot 要放进 BlendTree 连 `in` 与 `shot`
 - 状态机转场的 Advance Mode 为 Auto 时才按条件自动走。Advance Condition 只能判断变量为 true，不能判断取反。需要比较和取反用 Advance Expression，并把 `advance_expression_base_node` 指到持有变量的脚本节点。表达式区分大小写
 - `travel()` 沿转场图寻路，没有路径就直接跳。状态机必须已经运行，连了 Start 或调 `start()`
 - 转场的 Priority 与 `travel()` 配合，数值小的优先
