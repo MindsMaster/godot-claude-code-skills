@@ -76,7 +76,7 @@ GD_TIMEOUT=120 gdrun -s tests/smoke_level.gd
 
 ## 查 GDScript 警告
 
-命令行运行不打印警告，输出干净不等于没有警告。`tests/warn_as_error.gd` 在工程根生成 `override.cfg`，把等级为 Warn 的项都设成 Error，再运行就会让有警告的脚本报 `Warning treated as error`：
+命令行运行默认不打印警告，输出干净不等于没有警告。加 `--debug` 虽然会打印，但解析错误时崩溃（134），运行时错误时停在 `debug>`，不用它。`tests/warn_as_error.gd` 在工程根生成 `override.cfg`，把等级为 Warn 的项都设成 Error，再运行就会让有警告的脚本报 `Warning treated as error`：
 
 ```gdscript
 extends SceneTree
@@ -206,7 +206,7 @@ func _initialize() -> void:
 - headless 下 `get_texture().get_image()` 返回 null，`await RenderingServer.frame_post_draw` 永远不触发，`--write-movie` 段错误。截图和录像必须 xvfb
 - `--write-movie`、`--log-file` 的输出目录必须已存在
 - 标准版 Godot 不加载 `.cs`。C# 要 mono 版加 `dotnet build`，没构建就跑会卡住。见 references/ci-and-frameworks.md
-- 命令行运行 GDScript 警告不打印，无头和 xvfb 都一样，`--check-only` 也不报。想让警告变失败，按上一节生成 `override.cfg`，用完删除
+- 命令行运行 GDScript 警告默认不打印，无头和 xvfb 都一样，`--check-only` 也不报，只有 `--debug` 会打印。想让警告变失败，按上一节生成 `override.cfg`，用完删除
 - grep `ERROR:` 会命中几种无害行：退出时 `resources still in use` 与 `RID allocations ... leaked at exit`，xvfb 不加 `--audio-driver Dummy` 时的 ALSA 报错，mono 版 `--import` 的 `Parameter "singleton" is null`。grep `WARNING:` 还会命中 xvfb 下 `opengl3` 的 `Could not set V-Sync mode`。要排除就具体排除，不要整类忽略
 - 退出时的 `WARNING: N ObjectDB instances were leaked` 说明测试脚本创建的节点没 `free`，不是引擎问题，加 `--verbose` 看 `Leaked instance`
 - `--log-file` 不会让终端静默，两边都有输出

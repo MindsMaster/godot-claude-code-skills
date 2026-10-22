@@ -121,6 +121,7 @@ export GODOT_BIN=/path/to/godot
 ## 导出 API 文档与签名
 
 ```bash
+mkdir -p out/doc
 godot --headless --no-header --path . --doctool out/doc
 godot --headless --no-header --path . --doctool out/doc --gdscript-docs res://scripts
 ```

@@ -34,7 +34,7 @@
 | `--export-release P F` | 按预设 P 导出到 F | 目录须已存在。缺导出模板或预设名不存在时退出码 1 |
 | `--export-debug P F` | 同上，用 debug 模板 | |
 | `--export-pack P F` | 只导出数据包，扩展名 pck 或 zip | 不需要导出模板，成功时退出码 0 |
-| `--doctool [D]` | 把引擎 API 导出为 XML | 1 秒左右。只含签名，description 全是空的 |
+| `--doctool [D]` | 把引擎 API 导出为 XML | 1 秒左右。只含签名，description 全是空的。D 须已存在，否则输出 `Argument supplied to --doctool must be a valid directory path.` 退出码 2 |
 | `--doctool D --gdscript-docs res://dir` | 从 GDScript 的 `##` 注释生成 XML | 输出 `Class.xml`，含 brief_description 与参数 |
 | `--no-docbase` | 与 `--doctool` 连用，不导出基础类型 | |
 | `--build-solutions` | 构建 C# 工程 | 用于 mono 版，标准版上无事可做，退出码 0。C# 编译失败时退出码 1，输出 `An EditorPlugin build callback failed` |
@@ -95,7 +95,7 @@ handle_crash: Program crashed with signal 11
 
 ## 警告当错误
 
-命令行运行里 GDScript 警告（等级 1）不打印，无头和 xvfb 都一样，`--check-only` 也不报。要让警告变失败，把对应项设为 2（Error）。不改工程文件的办法是在工程根目录放 `override.cfg`：
+命令行运行里 GDScript 警告（等级 1）默认不打印，无头和 xvfb 都一样，`--check-only` 也不报，加 `--debug` 才打印，但它遇到解析错误崩溃、运行时错误停在 `debug>`。要让警告变失败，把对应项设为 2（Error）。不改工程文件的办法是在工程根目录放 `override.cfg`：
 
 ```ini
 [debug]
