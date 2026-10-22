@@ -235,24 +235,35 @@ extends CharacterBody2D
 
 enum State { IDLE, RUN, JUMP }
 
+const SPEED := 200.0
+const JUMP_VELOCITY := -400.0
+
 var state: State = State.IDLE
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	var axis := Input.get_axis("move_left", "move_right")
 	match state:
-		State.IDLE:
-			if Input.get_axis("move_left", "move_right") != 0.0:
+		State.IDLE, State.RUN:
+			if Input.is_action_just_pressed("jump") and is_on_floor():
+				_set_state(State.JUMP)
+			elif axis != 0.0:
 				_set_state(State.RUN)
-		State.RUN:
-			if Input.get_axis("move_left", "move_right") == 0.0:
+			else:
 				_set_state(State.IDLE)
 		State.JUMP:
 			if is_on_floor():
 				_set_state(State.IDLE)
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+	velocity.x = axis * SPEED
+	move_and_slide()
 
 func _set_state(next: State) -> void:
+	if next == state:
+		return
 	state = next
 	if next == State.JUMP:
-		velocity.y = -400.0
+		velocity.y = JUMP_VELOCITY
 ```
 
 - 所有转移走一个入口函数，进入和退出的一次性逻辑放在里面

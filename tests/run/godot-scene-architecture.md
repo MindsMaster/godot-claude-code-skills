@@ -229,36 +229,41 @@ expect(node.damage == 5, "damage 可改")
 var shape := CollisionShape2D.new()
 shape.shape = CircleShape2D.new()
 node.add_child(shape)
+var ground := StaticBody2D.new()
+ground.position = Vector2(0, 15)
+var ground_shape := CollisionShape2D.new()
+var rect := RectangleShape2D.new()
+rect.size = Vector2(2000, 10)
+ground_shape.shape = rect
+ground.add_child(ground_shape)
+root.add_child(ground)
 ```
 
 ```gdscript
-await frames(2)
+await frames(3)
+expect(node.is_on_floor(), "站在地面上")
 expect(node.state == node.State.IDLE, "初始 IDLE")
 Input.action_press("move_right")
 await frames(2)
 expect(node.state == node.State.RUN, "有输入进 RUN")
+expect(node.velocity.x == 200.0, "RUN 时水平速度为 SPEED")
 Input.action_release("move_right")
 await frames(2)
 expect(node.state == node.State.IDLE, "无输入回 IDLE")
-node._set_state(node.State.JUMP)
-expect(node.velocity.y == -400.0, "进入 JUMP 时起跳")
+var start_y: float = node.position.y
+Input.action_press("jump")
 await frames(2)
-expect(node.state == node.State.JUMP, "在空中保持 JUMP")
-var ground := StaticBody2D.new()
-ground.position = Vector2(0, 17)
-var ground_shape := CollisionShape2D.new()
-var rect := RectangleShape2D.new()
-rect.size = Vector2(200, 10)
-ground_shape.shape = rect
-ground.add_child(ground_shape)
-root.add_child(ground)
-await frames(2)
-node.velocity = Vector2(0, 300)
-node.move_and_slide()
-expect(node.is_on_floor(), "落在地面上")
-await frames(2)
-expect(node.state == node.State.IDLE, "落地回 IDLE")
-ground.queue_free()
+Input.action_release("jump")
+expect(node.state == node.State.JUMP, "按跳跃进 JUMP")
+expect(node.position.y < start_y, "起跳后离开地面")
+var landed := false
+for i in 120:
+	await frames(1)
+	if node.state == node.State.IDLE:
+		landed = true
+		break
+expect(landed, "落地回 IDLE")
+expect(node.is_on_floor(), "落地后在地面上")
 ```
 
 ## SKILL.md `func _unhandled_input`
