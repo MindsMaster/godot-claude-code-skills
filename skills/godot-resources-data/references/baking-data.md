@@ -40,7 +40,7 @@ func _run() -> void:
 - 转换结果提交进版本库，源 JSON 一起留着
 - 解析 JSON 是系统边界：行缺字段、类型不对时报错并跳过，不要写出半成品资源
 
-JSON 一直在变、需要源文件放进工程就自动导入时，改用 `EditorImportPlugin`，见 godot-editor-tooling 的导入插件一节。
+JSON 一直在变、需要源文件放进工程就自动导入时，改用 `EditorImportPlugin`，见 godot-editor-tooling 的导入外部数据一节。
 
 ## 大数据烘焙成 .res
 
