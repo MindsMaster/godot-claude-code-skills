@@ -89,7 +89,7 @@ func _process(delta: float) -> void:
 - 编辑器里 `@tool` 脚本的 `_process` `_physics_process` `_input` 都会跑。游戏逻辑一律用 `Engine.is_editor_hint()` 挡住
 - `@export` 的 setter 在场景加载时、节点进树之前就会调用，里面用子节点要先判断 `is_node_ready()` 或 `is_inside_tree()`
 - 改了资源内部属性不会触发持有者的 setter。资源要是 `@tool`，setter 里 `emit_changed()`，持有者连 `changed` 信号，换资源时断开旧的
-- `@tool` 脚本用到的其他脚本也要加 `@tool`，否则编辑器里拿到的是占位实例，方法不可用。静态方法 常量 枚举不受限，静态变量读出来是 `null`
+- `@tool` 脚本用到的其他脚本也要加 `@tool`，否则编辑器里 `load` 到的资源和 `set_script` 挂上的是占位实例，方法不可用，`.new()` 造的实例不受影响。静态方法 常量 枚举不受限，静态变量的初值不执行，带类型的读出类型默认值，无类型的读出 `null`
 - 子类脚本不继承父类的 `@tool`，要再写一遍
 - 在 `_init` 里读 `@export` 值拿到的是默认值，Inspector 里设的值在 `_init` 之后才赋入
 - 脚本代码在编辑器里造成的改动（改节点属性 增删节点）没有撤销，也不会自动把场景标为未保存。批量改动走 `EditorUndoRedoManager`，否则调 `EditorInterface.mark_scene_as_unsaved()`
