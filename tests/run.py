@@ -19,6 +19,8 @@ HEADING = re.compile(r"^##\s+(\S+)\s+`([^`]+)`\s*$")
 OPTION = re.compile(r"<!--\s*run:\s*(.+?)\s*-->")
 PROBLEM = re.compile(r"^(?:[A-Z]+ )*(?:ERROR|WARNING)\b|Parse Error|Assertion failed")
 BENIGN = re.compile(r"resources still in use at exit|RID allocations of type .* were leaked at exit")
+# xvfb 下 opengl3 必打
+RENDER_BENIGN = re.compile(r"Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 INPUT_CALL = re.compile(r"(?:Input\.\w+|is_action\w*)\s*\(([^)]*)\)")
 STRING = re.compile(r"&?\"(\w+)\"")
@@ -314,6 +316,8 @@ def run_job(godot: str, job: Job, base: Path, proj: Path) -> tuple:
         logs.append(res.stdout)
     text = "\n".join(logs)
     problems = [ln.strip() for ln in text.split("\n") if PROBLEM.search(ln) and not BENIGN.search(ln)]
+    if job.mode == "render":
+        problems = [ln for ln in problems if not RENDER_BENIGN.search(ln)]
     done = job.script or "RUN_DONE" in text
     ok = not problems and done and res.returncode == 0
     if "RUN_TIMEOUT" in text:
