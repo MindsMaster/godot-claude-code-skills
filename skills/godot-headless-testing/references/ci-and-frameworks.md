@@ -87,9 +87,11 @@ C# 的断言写法与 GDScript 一样：自己计数，`GetTree().Quit(code)`。
 | | GUT | gdUnit4 |
 |---|---|---|
 | 用途 | 用 GDScript 写测试的单元测试框架 | 支持 GDScript 与 C# 的测试框架，带编辑器内检视面板 |
-| 4.7 对应版本 | 9.7.1（README 里标 4.7.x，分支 godot_4_7） | 6.2.x 的 README 兼容表含 4.7 与 4.7.1 |
+| 4.7 对应版本 | 9.7.1（README 里标 4.7.x，分支 godot_4_7），已在 4.7.2 实跑 | 6.2.x 的 README 兼容表含 4.7 与 4.7.1，6.2.2 已在 4.7.2 实跑 |
 | 安装 | 把 `addons/gut` 放进工程并启用插件，重启编辑器 | 同样放进 `addons/` 并启用插件 |
 | 命令行入口 | `addons/gut/gut_cmdln.gd` | `addons/gdUnit4/runtest.sh`，内部调 `res://addons/gdUnit4/bin/GdUnitCmdTool.gd` |
+
+两个框架都靠 `class_name`，新克隆的工程先跑一次 `godot --headless --import`。没导入时 GUT 9.7.1 只打印一行 `Some GUT class_names have not been imported`，一个测试都不跑，退出码 0。gdUnit4 报解析错误，退出码 1。
 
 GUT 命令行，选项来自其文档的 `-gh` 帮助输出：
 
@@ -98,25 +100,26 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit
 ```
 
 - `-gdir` 测试目录，`-ginclude_subdirs` 含子目录，`-gtest` 指定脚本，`-gselect` 按文件名过滤，`-gunit_test_name` 按测试名过滤
-- `-gexit` 跑完退出，不加会一直开着
-- 退出码：全过为 0，有失败为 1，pending 不影响
+- `-gexit` 跑完退出。`--headless` 下 9.7.1 不加也会退出，有窗口时不加会一直开着
+- 退出码：全过为 0，有失败为 1，只有 pending 为 0。测试函数里的运行时报错算失败
 - 选项也可以放 `res://.gutconfig.json`
-- 官方文档示例用了 `-d`。`-d` 在脚本报错时会停在 `debug>` 提示符，无人值守时去掉它。这条命令行没有在本机跑过，因为本机没装 GUT
+- 官方文档示例用了 `-d`，无人值守时去掉。实测 9.7.1 加 `-d` 且 stdin 为空时，测试里一出运行时错误，后面的测试不再跑，也不打印汇总，退出码 0
 
 gdUnit4 命令行，选项来自其文档的 `-help` 输出：
 
 ```bash
 export GODOT_BIN=/path/to/godot
-./addons/gdUnit4/runtest.sh -a ./test
+./addons/gdUnit4/runtest.sh --headless --ignoreHeadlessMode -a ./test
 ```
 
+- `runtest.sh` 自己不加 `--headless`，没有显示时起不来，退出码 1。加了 `--headless` 还要加 `--ignoreHeadlessMode`，否则拒绝运行，退出码 103。headless 下不传递 InputEvent，测试要模拟输入时改用 `xvfb-run -a ./addons/gdUnit4/runtest.sh -a ./test`
 - `-a` 加测试目录或套件，可重复。`-i` 忽略某套件或用例，`-c` 失败后继续（默认第一个失败就中止），`-conf` 指定配置文件
-- 退出码：全过为 0，有失败为 100，有警告为 101。`gdrun` 之类只认 0 的包装要把 101 单独处理
+- 退出码：全过为 0，有失败或测试里的运行时报错为 100，有 orphan 节点为 101，headless 未放行为 103，发现测试时有脚本错误为 105。`gdrun` 之类只认 0 的包装要把 101 单独处理
 - `runtest.sh` 读 `GODOT_BIN` 或 `--godot_binary`，检测到 mono 版会先执行 `dotnet build --debug`
-- 6.2.0 起它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`，目的是避免脚本解析错误时本地调试器陷入无限的 `debug>` 循环。自己拼命令行时照抄这个做法
-- 本机没装 gdUnit4，没有实跑
+- 它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`，避免脚本解析错误时本地调试器陷入无限的 `debug>` 循环。自己拼命令行时照抄这个做法
+- 因为端口 0，每次运行都会打印两行无害的 `ERROR:`：`The remote port number must be between 1 and 65535` 与 `Remote Debugger: Unable to connect to host`。套 `gdrun` 时具体排除这两行
 
-框架的断言失败有退出码，但引擎自己的运行时报错仍然不会让进程失败，所以 `gdrun` 里的 grep 照样要留。
+两个框架都把测试函数里的运行时报错计为失败。测试函数以外的报错靠 `gdrun` 的 grep 兜底，grep 照样要留。
 
 ## 导出 API 文档与签名
 
