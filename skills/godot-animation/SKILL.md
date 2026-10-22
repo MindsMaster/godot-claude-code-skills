@@ -198,13 +198,11 @@ extends Sprite2D
 var _tween: Tween
 
 func hit_flash() -> void:
-	if _tween:
+	if _tween != null:
 		_tween.kill()
+	set_instance_shader_parameter(&"flash", 1.0)
 	_tween = create_tween()
-	_tween.tween_method(_set_flash, 1.0, 0.0, 0.12)
-
-func _set_flash(value: float) -> void:
-	set_instance_shader_parameter(&"flash", value)
+	_tween.tween_property(self, "instance_shader_parameters/flash", 0.0, 0.12)
 ```
 
 `instance uniform` 每个实例独立，同一材质的敌人不会一起闪。普通 `uniform` 改的是共享材质。3D 网格与 C# 的写法见 `godot-shaders-vfx`。
