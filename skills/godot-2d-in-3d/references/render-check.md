@@ -29,7 +29,8 @@ func _initialize() -> void:
 	for i in 3:
 		await process_frame
 	var image := root.get_texture().get_image()
-	var center := image.get_pixel(image.get_width() / 2, image.get_height() / 2)
+	@warning_ignore("integer_division")
+	var center := image.get_pixelv(image.get_size() / 2)
 	print(center)
 	quit()
 ```
