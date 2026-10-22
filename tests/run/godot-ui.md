@@ -527,14 +527,15 @@ var got: Array = []
 node.meta_clicked.connect(func(meta: Variant) -> void: got.append(meta))
 node.size = Vector2(300, 60)
 await frames(2)
+var center := Vector2(node.get_content_width(), node.get_content_height()) / 2.0
 var motion := InputEventMouseMotion.new()
-motion.position = Vector2(4, 4)
+motion.position = center
 motion.global_position = motion.position
 root.push_input(motion)
 var press := InputEventMouseButton.new()
 press.button_index = MOUSE_BUTTON_LEFT
 press.pressed = true
-press.position = Vector2(4, 4)
+press.position = center
 press.global_position = press.position
 root.push_input(press)
 var release := press.duplicate() as InputEventMouseButton
