@@ -55,7 +55,7 @@ func cell_center_world(cell: Vector2i) -> Vector2:
 - `local_to_map` 吃局部坐标，世界坐标先 `to_local`。
 - `map_to_local` 返回格子中心，不含 `TileData.texture_origin`。
 - 取区域：`get_used_cells` 全部、`get_used_cells_by_id` 按源和图集坐标过滤、`get_used_rect` 包围盒。邻格用 `get_surrounding_cells` 或 `get_neighbor_cell`，六边形也正确。
-- 批量改格子后引擎在帧尾统一更新。立刻要读碰撞或导航时调 `update_internals`。
+- 批量改格子后引擎在帧尾统一更新。立刻要读碰撞或导航时调 `update_internals`，之后 `move_and_collide` 马上撞得到新格子，`intersect_point` 这类空间查询仍要等下一个物理步。
 
 ## 地形自动连接
 
@@ -254,7 +254,7 @@ tile_set = ExtResource("1")
 
 这段是 3 格：(0, 2) 和 (1, 2) 用 source 0 的图集坐标 (0, 0)，(-1, -3) 用图集坐标 (1, 0)。
 
-- 头写成 1 或 2 时 4.7.2 报 `Unsupported tile map data format: 2. Expected format ID lower or equal to: 0`，整层读成 0 格。没有格子就没有碰撞，角色会穿过地面
+- 头写成 1 或 2 时 4.7.2 报 `Unsupported tile map data format: N`，N 是写入的头，整层读成 0 格。没有格子就没有碰撞，角色会穿过地面
 - 引擎写出的 base64 形式解码后是同一布局，手编用十进制列表更好核对
 
 ## 存档
