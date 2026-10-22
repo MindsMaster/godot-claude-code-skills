@@ -77,5 +77,5 @@ func _ready() -> void:
 
 ## 调试
 
-- 效果不出现时先看渲染器：Compatibility 下体积雾、景深、`Decal` 都不显示。
-- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0。`SpriteBase3D.modulate` 不支持超过 1.0 的亮度，要让精灵发光就降低阈值或设 `glow_bloom`，局部发光用 `material_override` 的自发光。在 4.7.2 Compatibility 加 llvmpipe 上读像素没有看到 glow 效果，原因未查明，这一条未验证。
+- 效果不出现时先看渲染器：Compatibility 下体积雾、景深、`Decal` 都不显示，体积雾与景深会打警告，如 `Depth of field blur is only available when using the Forward+ or Mobile renderer.`。上面的配方在 4.7.2 Forward+ 加 lavapipe 上读像素，glow、SSAO、雾、景深开关都改变画面。
+- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0。`SpriteBase3D.modulate` 不支持超过 1.0 的亮度，要让精灵发光就降低阈值或设 `glow_bloom`，局部发光用 `material_override` 的自发光。实测 `emission_energy_multiplier` 为 4 的自发光材质，Forward+ 与 Compatibility 上发光体外都出现泛光。Forward+ 的 `glow_blend_mode` 默认是 `GLOW_BLEND_MODE_SCREEN`，改成 `GLOW_BLEND_MODE_SOFTLIGHT` 后黑底上读不到泛光。

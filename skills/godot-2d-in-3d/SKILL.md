@@ -7,7 +7,7 @@ description: Godot 4 在 3D 场景里放 2D 角色，HD-2D 风格 像素角色�
 
 用 Sprite3D、SubViewport 把 2D 美术放进真 3D 场景，配 Environment 做 HD-2D 观感。纯 2D 项目、TileMapLayer、Camera2D 不在这里，见 godot-2d。动画状态机见 godot-animation，着色器细节见 godot-shaders-vfx，UI 主题见 godot-ui。
 
-本页标了实测的条目，是在 Godot 4.7.2 的 Compatibility 渲染器上用 xvfb 虚拟显示器加 llvmpipe 软件 OpenGL 渲染读像素得到的，方法见 references/render-check.md。Forward+ 与 Mobile 上的效果，以及 Compatibility 上的 glow 与 SSAO，只按 XML 与官方文档写。
+本页标了实测的条目，是在 Godot 4.7.2 上用 xvfb 虚拟显示器加软件渲染读像素得到的，Compatibility 用 llvmpipe 软件 OpenGL，Forward+ 用 lavapipe 软件 Vulkan，方法见 references/render-check.md。billboard、翻转、光照、排序、像素对齐、阴影在两个渲染器上读数一致，差异只有 `ALPHA_CUT_HASH` 与 `Decal`。Mobile 与真实显卡上的效果只按 XML 与官方文档写。
 
 ## 先查内置
 
@@ -116,9 +116,9 @@ func face(direction_x: float) -> void:
 | `ALPHA_CUT_DISABLED` | 不投影，实测 0 像素 | 平滑半透明 | 按节点原点距离从后往前，会错 |
 | `ALPHA_CUT_DISCARD` | 轮廓正确，只投不透明部分 | 硬边，配 MSAA 与 `alpha_antialiasing_mode` | 写深度，无排序问题 |
 | `ALPHA_CUT_OPAQUE_PREPASS` | 轮廓正确 | 不透明部分进深度预通道，边缘平滑 | 排序较稳，比前两者贵 |
-| `ALPHA_CUT_HASH` | 文档称可投影 | 抖动点阵 | 写深度 |
+| `ALPHA_CUT_HASH` | Forward+ 实测轮廓与 `DISCARD` 一致 | 抖动点阵 | 写深度 |
 
-- `ALPHA_CUT_HASH` 在 4.7.2 Compatibility 加 llvmpipe 上实测不裁剪任何像素，alpha 为 0 的区域照样画出。其他渲染器与显卡上未验证，Compatibility 项目先别用。
+- `ALPHA_CUT_HASH` 在 4.7.2 Compatibility 加 llvmpipe 上实测不裁剪任何像素，alpha 为 0 的区域照样画出，阴影也是整块。Forward+ 加 lavapipe 上实测裁剪正确，阴影与 `DISCARD` 一致。Compatibility 项目先别用。
 - 要接收 `DirectionalLight3D` 阴影并给别的物体投影，选 `DISCARD`，像素风的首选。半透明羽化边才选 `OPAQUE_PREPASS`。
 - MSAA 对 alpha 裁剪的边缘效果差，需要精灵的 `alpha_antialiasing_mode` 设为 `ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE`，或开 FXAA、TAA。
 - `double_sided` 默认 true。设为 false 后，光从精灵背面来时不投影，实测同一光照下双面投 320 像素、单面 0 像素。billboard 精灵的正面朝相机，背光的主光会让阴影消失，要投影就保持双面。
@@ -174,7 +174,7 @@ func _ready() -> void:
 
 ### 地面阴影 blob
 
-`Decal` 需要 Forward+ 或 Mobile，4.7.2 Compatibility 加 llvmpipe 实测不显示，XML 也写明不支持。通用写法是平放的 Sprite3D：
+`Decal` 需要 Forward+ 或 Mobile，4.7.2 Compatibility 加 llvmpipe 实测不显示，Forward+ 加 lavapipe 实测显示，XML 也写明 Compatibility 不支持。通用写法是平放的 Sprite3D：
 
 ```gdscript
 extends Sprite3D
@@ -214,7 +214,7 @@ SubViewport 贴图、世界内 UI、Label3D、屏幕叠加 HUD 见 references/su
 - 图片被 3D 使用后被自动改成 VRAM Compressed，像素图出块。关掉 Detect 3D 的压缩。
 - `Decal` 在 Compatibility 4.7 不可用，用平放 Sprite3D 替代。
 - 手算透视缩放伪 3D 时每帧维护位置、缩放、排序与光照，需求里出现旋转镜头、动态光影或景深就改真 3D。
-- 本页没有在 Forward+ 与 Mobile 上渲染验证的条目：HASH 在 Forward+ 的表现、glow、SSAO、体积雾、景深、HDR 2D 的 SubViewport 色彩。
+- 本页没有在 Mobile 上渲染验证的条目，HDR 2D 的 SubViewport 色彩在两个渲染器上都没验证。
 
 ## 参考
 
