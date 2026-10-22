@@ -173,7 +173,7 @@ func _use_tile_data_runtime_update(coords: Vector2i) -> bool:
 	return _flash.has(coords)
 
 
-func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
+func _tile_data_runtime_update(_coords: Vector2i, tile_data: TileData) -> void:
 	tile_data.modulate = Color(1.0, 0.5, 0.5)
 
 
@@ -212,16 +212,16 @@ extends SceneTree
 
 const SCENE_PATH := "res://level.tscn"
 
-func _init() -> void:
-	var root := (load(SCENE_PATH) as PackedScene).instantiate()
-	var ground := root.get_node("Ground") as TileMapLayer
+func _initialize() -> void:
+	var level := (load(SCENE_PATH) as PackedScene).instantiate()
+	var ground := level.get_node("Ground") as TileMapLayer
 	ground.clear()
 	for x in range(-2, 10):
 		ground.set_cell(Vector2i(x, 5), 0, Vector2i(0, 0))
 	var packed := PackedScene.new()
-	packed.pack(root)
+	packed.pack(level)
 	ResourceSaver.save(packed, SCENE_PATH)
-	root.free()
+	level.free()
 	quit()
 ```
 
