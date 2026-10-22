@@ -48,6 +48,7 @@ func _ready() -> void:
 ```
 
 - `:=` 从右值推断，右值是 Variant 时是错误 `inference_on_variant`。无类型 Dictionary 取值、`call()` 返回值都是 Variant，写 `var v: int = raw["k"]`
+- 全局函数 `clamp`、`min`、`max`、`lerp`、`abs`、`sign`、`floor`、`ceil`、`round`、`snapped` 返回 Variant，`var x := max(a, b)` 同样报 `inference_on_variant`。用带类型的 `clampf`、`minf`、`maxf`、`lerpf`、`absf`、`signf`、`floorf`、`ceilf`、`roundf`、`snappedf`，整数版是 `clampi`、`maxi`、`floori` 这一类
 - `load()` 返回 `Resource`，要具体类型写 `var tex: Texture2D = load(path)`。路径是常量字符串时用 `preload()`，它带出具体类型
 - `$Node` 和 `get_node()` 返回 `Node`，写 `@onready var sprite: Sprite2D = $Sprite`，场景里类型不符时加载处立即报错。`as` 失败静默得 `null`，只在就要这个结果时用
 - `Array[T]` 运行时强制元素类型。`map()` 返回无类型 Array，赋给 `Array[T]` 变量报错，用 `typed.assign(untyped)`。`filter()` 保留源数组的元素类型
@@ -224,6 +225,7 @@ match 的绑定与守卫、静态成员、setter、super 的完整写法见 [ref
 - 声明初值不调 setter，类内其他方法里的赋值才调
 - 未使用的参数加下划线前缀 `_delta` 不触发 `unused_parameter`
 - 浮点传给整数参数触发 `narrowing_conversion`，显式 `int()`、`roundi()`、`floori()`
+- 项目运行时已自动调用 `randomize()`，不用再写。固定种子用 `seed()`，之后再调 `randomize()` 会重新打乱
 - 遍历数组时增删元素会跳项。遍历副本 `arr.duplicate()` 或倒序下标
 - `call("do_it")`、`connect("sig", ...)` 的字符串拼写错到运行时才暴露，优先 Callable 引用与信号对象
 - 脚本里定义与引擎原生方法同名的方法触发 `native_method_override`，默认即错误

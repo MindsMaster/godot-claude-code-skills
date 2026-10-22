@@ -7,7 +7,7 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 | 需求 | 写法 |
 |---|---|
 | 基本类型 | `@export var speed: float = 200.0`，类型来自标注或默认值 |
-| 数值范围 | `@export_range(0, 100, 1)`，附加提示 `"or_less"` `"or_greater"` `"exp"` `"hide_slider"`，4.6+ 起同义的 `"hide_control"` 也可用，`"prefer_slider"` `"suffix:m"` `"radians_as_degrees"` `"degrees"` |
+| 数值范围 | `@export_range(0, 100, 1)`，附加提示 `"or_less"` `"or_greater"` `"exp"` `"hide_control"` 4.6+，4.4 与 4.5 写 `"hide_slider"`，它在 4.6+ 是弃用别名，`"prefer_slider"` `"suffix:m"` `"radians_as_degrees"` `"degrees"` |
 | 枚举类型 | `@export var state: State`，存整数 |
 | 整数或字符串枚举 | `@export_enum("Idle", "Run") var mode: int`，类型写 `String` 时存字符串；`"Slow:30"` 指定值 |
 | 位标志 | `@export_flags("Fire", "Water")`，值依次为 1 2 4，`"Self:4"` 指定值，取值 1 到 2**32-1，不承接前一项的值 |
