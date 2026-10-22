@@ -192,7 +192,7 @@ func _exit_tree() -> void:
 ```
 
 - 优先 `WorkerThreadPool`，线程在启动时已创建。自建 `Thread` 创建开销大，在 Windows 上更明显，需要时在加载阶段创建好，且结束时必须 `wait_to_finish()`
-- 每个任务都必须调用 `wait_for_task_completion()` 或 `wait_for_group_task_completion()`，否则资源不释放
+- 每个任务都必须调用 `wait_for_task_completion()` 或 `wait_for_group_task_completion()`，否则资源不释放。上一个任务没回收前不要再 `start()`，任务 ID 被覆盖后旧任务就没人等了
 - 场景树不是线程安全的，线程里只能 `call_deferred()`、`set_deferred()`。不在树里的节点可以在线程里创建和组装，加入场景树用 `add_child.call_deferred(node)`
 - GDScript 的 Array 与 Dictionary 允许多线程读写元素，改变大小要加 `Mutex`
 - 线程里避免需要同步 GPU 的操作，如创建纹理、读取图像数据
