@@ -56,6 +56,7 @@ SKILL.md 控制在 300 行内。细节表、长示例、少用的 API 放 refere
 - GDScript 代码块必须是能独立解析的完整脚本。只写方法片段时在代码块上一行加 `<!-- check: extends Node2D -->` 指定基类
 - C# 代码块写完整类，或只写成员并同样用 `<!-- check: extends CharacterBody2D -->` 指定基类。`if` 等一律带花括号
 - 不能独立编译的示例，如引用了别处定义的类，在上一行加 `<!-- check: skip -->`，尽量少用
+- 改了 GDScript 示例就同步改它的夹具，夹具里用 `expect` 验证正文说的行为
 - 代码注释照 `docs/StylePrompt.md`：默认不写 只写陷阱和外部契约 不超过 15 字
 - 场景文件、项目设置用 `ini` 代码块，着色器用 `glsl` 代码块，这两类不跑检查
 
@@ -65,6 +66,7 @@ GDScript 为主。C# 只在写法和 GDScript 不同或容易写错时给，C# �
 
 ```
 python3 tests/check.py              # lint api gd cs 全跑
+python3 tests/check.py run          # 真跑 GDScript 示例
 python3 tests/check.py lint api     # 不需要 Godot 和 dotnet
 python3 tests/check.py --only godot-2d
 ```
@@ -73,7 +75,8 @@ python3 tests/check.py --only godot-2d
 
 - lint：frontmatter、行数、断链、禁用措辞
 - api：行内代码的类名和成员、代码块里的已弃用类、版本标注
-- gd：每个 GDScript 代码块用 Godot 无头加载，未标类型按错误算
+- gd：每个 GDScript 代码块用 Godot 无头加载，未标类型和引擎默认警告都按错误算
+- run：每个 GDScript 代码块真跑一遍，有错误或警告输出就失败。缺的场景、资源、调用写在 `tests/run/<skill>.md` 夹具里，格式见 `tests/README.md`。render 模式要 `xvfb-run` 和 Vulkan 驱动，没有 GPU 时装 `mesa-vulkan-drivers`
 - cs：所有 C# 代码块用 Godot.NET.Sdk 编译，开 IDE0011
 
 未知类型名报警告。确实不是引擎类的名字，如示例里自定义的 `PlayerStats`，加进 `tests/data/allow_names.txt`。
