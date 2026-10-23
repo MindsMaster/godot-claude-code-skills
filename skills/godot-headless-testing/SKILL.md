@@ -102,7 +102,31 @@ rm override.cfg
 
 - 只有被加载的脚本才报，没挂进场景的脚本逐个 `--check-only`
 - 默认关闭的项如 `untyped_declaration`、`return_value_discarded` 不在其中，要查就在 `override.cfg` 的 `[debug]` 下手写 `gdscript/warnings/名字=2`
-- 项目目录只读时在副本里生成和运行，用完删掉 `override.cfg`，它对所有运行生效
+- `override.cfg` 对之后所有运行生效，用完删掉。项目目录只读时按下一节在副本里生成
+
+## 沙箱与只读目录
+
+Claude Code 沙箱里 HOME 通常不可写，Godot 启动时报 `Could not create directory` 和 `Error attempting to create data dir`，`gdrun` 会判失败。把三个 XDG 目录指到临时目录即可消除。
+
+项目目录也不可写时复制一份再跑。`gdrun` 定义、复制、写测试脚本、运行放在同一条 Bash 命令里，临时目录不保证跨命令保留：
+
+```bash
+T=$(mktemp -d)
+cp -r . "$T/p"
+export XDG_DATA_HOME="$T/d" XDG_CONFIG_HOME="$T/c" XDG_CACHE_HOME="$T/k" GD_PROJECT="$T/p"
+mkdir -p "$T/p/tests"
+cat > "$T/p/tests/warn_as_error.gd" <<'GD'
+# 上一节的脚本全文
+GD
+gdrun --import
+gdrun -s tests/warn_as_error.gd
+gdrun --quit-after 5
+gdrun --check-only -s enemies/slime.gd
+```
+
+- 每次用 `mktemp -d` 建新副本。不要 `rm -rf ./*` 清空旧副本，通配符删除会触发权限确认，不询问模式下直接被拒
+- 修改写回原项目，再重新复制验证，不改副本
+- 副本里的 `override.cfg` 不用删
 
 ## 冒烟脚本的写法
 
