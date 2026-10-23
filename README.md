@@ -157,7 +157,7 @@ GODOT_BIN=/path/to/godot DOTNET_BIN=/path/to/dotnet python3 tests/check.py
 
 MIT，见 `LICENSE`。
 
-横幅使用的第三方素材：
+横幅与图标使用的第三方素材：
 
 - 背景：Godot 示例项目 [tps-demo](https://github.com/godotengine/tps-demo) 截图，作者 Juan Linietsky、Fernando Miguel Calabró，以 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) 授权。已裁切并叠加渐变
 - Godot 标志：作者 Andrea Calabró，以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权

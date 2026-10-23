@@ -1,6 +1,7 @@
 {
   "name": "godot-skills",
-  "description": "Godot 4 最佳实践 skills：优先用引擎内置节点与资源，覆盖 2D、3D、3D 中的 2D 角色、UI、动画、数据、C# 与 GDScript、无头测试",
+  "displayName": "Godot Skills",
+  "description": "Godot 4 skills for Claude Code. Directs it to built-in nodes, resources and project settings across 2D, 3D, UI, audio, shaders, editor tooling and headless testing, in GDScript and C#.",
   "author": {
     "name": "An5w1r",
     "email": "an5w1r@163.com"
@@ -12,5 +13,6 @@
     "csharp",
     "gamedev"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "icon": "./icon.png"
 }

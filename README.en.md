@@ -159,7 +159,7 @@ The suite runs lint, api, gd, run and cs in order. run executes each GDScript ex
 
 MIT. See `LICENSE`.
 
-Third-party material in the banner:
+Third-party material in the banner and icon:
 
 - Background: screenshot of the Godot demo [tps-demo](https://github.com/godotengine/tps-demo) by Juan Linietsky and Fernando Miguel Calabró, licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Cropped, with a gradient overlay
 - Godot logo: by Andrea Calabró, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
