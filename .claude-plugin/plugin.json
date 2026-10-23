@@ -11,5 +11,6 @@
     "gdscript",
     "csharp",
     "gamedev"
-  ]
+  ],
+  "license": "MIT"
 }
