@@ -1,3 +1,5 @@
+![godot-claude-code-skills](.github/banner.jpg)
+
 # godot-claude-code-skills
 
 [中文](README.md) | English
@@ -5,6 +7,7 @@
 [![check](https://github.com/MindsMaster/godot-claude-code-skills/actions/workflows/check.yml/badge.svg)](https://github.com/MindsMaster/godot-claude-code-skills/actions/workflows/check.yml)
 [![Godot](https://img.shields.io/badge/Godot-4.4%20~%204.7.2-478CBF?logo=godotengine&logoColor=white)](https://godotengine.org/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.invite.azuramc.cc/)
 
 A Claude Code plugin for Godot 4 with 16 skills. It directs Claude Code to the nodes, resources and project settings built into the engine and away from common misuse. Covers 2D, 3D, UI, animation, audio, data, shaders, editor extensions and headless testing, in GDScript and C#.
 
@@ -147,6 +150,19 @@ GODOT_BIN=/path/to/godot DOTNET_BIN=/path/to/dotnet python3 tests/check.py
 
 The suite runs lint, api, gd, run and cs in order. run executes each GDScript example; the scenes, resources and calls an example requires are defined in the fixture file `tests/run/<skill>.md`. Error or warning output, failed assertions and timeouts count as failures. Rendering examples require `xvfb-run` and a Vulkan driver; install `mesa-vulkan-drivers` on machines without a GPU. See `tests/README.md` for details.
 
+# Community
+
+- Discord: <https://discord.invite.azuramc.cc/>
+- QQ group: 1046048297
+
 # License
 
 MIT. See `LICENSE`.
+
+Third-party material in the banner:
+
+- Background: screenshot of the Godot demo [tps-demo](https://github.com/godotengine/tps-demo) by Juan Linietsky and Fernando Miguel Calabró, licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Cropped, with a gradient overlay
+- Godot logo: by Andrea Calabró, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- Claude logo: a trademark of Anthropic
+
+This project is not affiliated with Anthropic or the Godot Foundation.

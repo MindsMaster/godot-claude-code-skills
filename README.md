@@ -1,3 +1,5 @@
+![godot-claude-code-skills](.github/banner.jpg)
+
 # godot-claude-code-skills
 
 中文 | [English](README.en.md)
@@ -5,6 +7,7 @@
 [![check](https://github.com/MindsMaster/godot-claude-code-skills/actions/workflows/check.yml/badge.svg)](https://github.com/MindsMaster/godot-claude-code-skills/actions/workflows/check.yml)
 [![Godot](https://img.shields.io/badge/Godot-4.4%20~%204.7.2-478CBF?logo=godotengine&logoColor=white)](https://godotengine.org/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.invite.azuramc.cc/)
 
 面向 Godot 4 的 Claude Code 插件，包含 16 个 skill。引导 Claude Code 优先使用引擎内置的节点、资源与项目设置，并规避常见误用。覆盖 2D、3D、UI、动画、音频、数据、着色器、编辑器扩展与无头测试，支持 GDScript 与 C#。
 
@@ -145,6 +148,19 @@ GODOT_BIN=/path/to/godot DOTNET_BIN=/path/to/dotnet python3 tests/check.py
 
 依次执行 lint、api、gd、run、cs。run 逐个运行 GDScript 示例，示例所需的场景、资源与调用定义在 `tests/run/<skill>.md` 夹具中，输出错误或警告、断言失败、超时均判为失败。渲染相关示例需要 `xvfb-run` 与 Vulkan 驱动，无 GPU 时安装 `mesa-vulkan-drivers`。详见 `tests/README.md`。
 
+# 社区
+
+- Discord：<https://discord.invite.azuramc.cc/>
+- QQ 群：1046048297
+
 # 许可
 
 MIT，见 `LICENSE`。
+
+横幅使用的第三方素材：
+
+- 背景：Godot 示例项目 [tps-demo](https://github.com/godotengine/tps-demo) 截图，作者 Juan Linietsky、Fernando Miguel Calabró，以 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) 授权。已裁切并叠加渐变
+- Godot 标志：作者 Andrea Calabró，以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权
+- Claude 标志：Anthropic 的商标
+
+本项目与 Anthropic 及 Godot 基金会无隶属关系。
