@@ -6,8 +6,6 @@
 
 # 安装
 
-内部使用，不发布到官方目录。仓库是私有的，本机 git 要能无交互拉取：ssh-agent 里有 key，或 `gh auth login` 后 `gh auth setup-git`。
-
 推荐只在 Godot 项目里启用。装在用户级别时，16 个 skill 的 description 共约 7700 字符，会出现在每个项目的每一轮上下文里。正文只在调用时加载，非 Godot 项目里基本不会被调用，但这部分开销照算。
 
 在 Godot 项目目录里装到项目级别：
@@ -85,4 +83,8 @@ GODOT_BIN=/path/to/godot DOTNET_BIN=/path/to/dotnet python3 tests/check.py
 
 依次跑 lint、api、gd、run、cs。run 把每个 GDScript 示例真跑一遍，示例要的场景、资源和调用写在 `tests/run/<skill>.md` 夹具里，有错误或警告输出、断言失败、超时都算失败。真渲染的示例要 `xvfb-run` 和 Vulkan 驱动，没有显卡时装 `mesa-vulkan-drivers`。
 
-细节见 `tests/README.md`，编写规则见 `CLAUDE.md`。
+细节见 `tests/README.md`，编写规则见 `CLAUDE.md`。提 PR 前跑一遍全套测试。
+
+# 许可
+
+MIT，见 `LICENSE`。
