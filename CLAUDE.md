@@ -6,6 +6,8 @@ Claude Code 用的 Godot 4 skills，以插件形式发布。`skills/<name>/SKILL
 
 升级稳定版时：重跑 `tests/build_api_index.py --target <新版本>`，改 `tests/check.py` 的 `--sdk-version` 默认值和 `.github/workflows/check.yml` 的版本号，再跑全套测试。
 
+`plugin.json` 和 `marketplace.json` 不写 `version`，用户按提交 SHA 拿更新。加了却忘改，用户收不到新内容。
+
 # 依据
 
 API 只以引擎源码为准，不凭记忆写。
