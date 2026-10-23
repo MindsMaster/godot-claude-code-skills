@@ -15,7 +15,7 @@ API 只以引擎源码为准，不凭记忆写。
 - 用法和最佳实践：`godot-docs/tutorials/`
 - C# 名字：引擎名转大驼峰，`move_and_slide` 对应 `MoveAndSlide`，`Object` 对应 `GodotObject`
 
-本地参考副本在 `/home/user/ref`，没有就按 `tests/README.md` 拉取。
+本地参考副本放在仓库同级目录 `../ref`，没有就按 `tests/README.md` 拉取。
 
 # SKILL.md 结构
 
