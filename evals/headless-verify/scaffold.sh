@@ -3,7 +3,7 @@ set -e
 bash "$(dirname "$0")/../_fixtures/broken_player.sh"
 # 评测沙箱只能访问工作目录
 mkdir .bin
-cp "${GODOT_BIN:?设 GODOT_BIN 指向 Godot 可执行文件}" .bin/godot
+cp "${GODOT_BIN:-$(command -v godot)}" .bin/godot
 cat >> project.godot <<'P'
 
 [autoload]
