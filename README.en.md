@@ -46,7 +46,7 @@ The skill text is written in Chinese. Claude Code reads it directly and responds
 
 Each case in `evals/` poses a development task and runs with and without the plugin installed. Regex assertions and an LLM judge check whether the built-in solution is used and whether the result holds in the engine. A run passes when every check passes.
 
-October 2026, Claude Code 2.1.309 with its default model, 3 runs per condition:
+October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision:
 
 | Task | With | Without | Reason for failure |
 | --- | --- | --- | --- |
@@ -57,8 +57,8 @@ October 2026, Claude Code 2.1.309 with its default model, 3 runs per condition:
 | Designer data and export | 3/3 | 2/3 | `waves.csv` not switched to the keep importer, so the exported build cannot read it |
 | Tile level and digging | 3/3 | 0/3 | Recomputes neighbors with the ground terrain after digging, so neighboring tiles do not update |
 | HUD and unified font | 3/3 | 0/3 | `.tscn` lacks `node_paths`, so the exported player reference is null at runtime |
-| Headless fixing of script errors and warnings | 1/3 | 1/3 | Not verified by running Godot, or no warnings reported without enabling warning output |
-| Total | 22/24 | 6/24 | |
+| Headless fixing of script errors and warnings | 6/6 | 2/6 | No warnings reported without enabling warning output |
+| Total | 27/27 | 7/27 | |
 
 To reproduce:
 
