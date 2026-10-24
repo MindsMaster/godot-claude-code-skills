@@ -10,8 +10,7 @@
   "plugins": [
     {
       "name": "godot-skills",
-      "source": ".",
-      "description": "Godot 4 最佳实践 skills"
+      "source": "."
     }
   ]
 }
