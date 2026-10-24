@@ -5,7 +5,7 @@ from markdown import frontmatter
 BANNED = ["显著", "大幅", "彻底", "真正", "其实", "确实", "正是", "恰好", "值得注意的是", "换句话说", "顺带", "顺手", "——"]
 NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
 LINK_RE = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
-MAX_SKILL_LINES = 500
+MAX_SKILL_LINES = 300
 WRONG_LANG = {"gd", "py", "python", "c#", "cs"}
 
 
