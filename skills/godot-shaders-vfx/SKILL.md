@@ -208,6 +208,7 @@ func _ready() -> void:
 - `COLOR = texture(TEXTURE, UV)` 丢掉 `modulate`。`fragment()` 里的 `COLOR` 本来就是纹理乘顶点色，直接改它
 - 浮点 GDScript 参数是 64 位，shader 是 32 位。类型不对不报错，表现未定义，`hint_enum` 要传整数不传字符串
 - 参数名要和 shader 完全一致，区分大小写
+- shader 的标识符只认 ASCII，`group_uniforms` 分组名也算。写中文报 `Tokenizer: Unknown character`，整个 shader 编译失败，中文只能放注释
 - `ShaderMaterial` 共享于场景的所有实例。给一个实例改参数会连带所有实例。用 instance uniform 或 `resource_local_to_scene`
 - 不要每次受击 `duplicate()` 或 `new` 材质，会造成内存开销和材质管理混乱
 - 没调用过 `set_shader_parameter()` 的 uniform 在 `ShaderMaterial` 上读出 `null`，shader 里的默认值不会回填。对它 `tween_property` 报 `does not exist`，tween 里没有 tweener，`await tween.finished` 永远不返回。先写初值再 tween，有无渲染都一样（实测 4.7.2 的 headless 与 Compatibility）

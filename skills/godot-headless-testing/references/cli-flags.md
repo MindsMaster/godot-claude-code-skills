@@ -104,7 +104,7 @@ gdscript/warnings/untyped_declaration=2
 gdscript/warnings/unused_variable=2
 ```
 
-实测 `--check-only -s w.gd` 输出 `Parse Error: Function "f()" has no static return type. (Warning treated as error.)` 并退出码 1。用完删掉 `override.cfg`，它对所有运行生效。
+实测 `--check-only -s w.gd` 输出 `Parse Error: Function "f()" has no static return type. (Warning treated as error.)` 并退出码 1。用完删掉 `override.cfg`，它对所有运行生效。工程开了 `application/config/disable_project_settings_override` 时引擎跳过 `override.cfg`，这个办法不生效，只能临时改 `project.godot`。
 
 ## 渲染
 

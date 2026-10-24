@@ -216,7 +216,7 @@ JSON 表格导出文件放进工程自动变成 `Resource`：`EditorImportPlugin
 - 颜色写死，换亮色主题后看不见
 - 用 `_process` 轮询文件变化，空耗 CPU 且有延迟
 - 用 JSON 加 `_get_property_list` 伪装 Inspector，撤销和存盘全要自己做。数据改成 `Resource`
-- `EditorInterface` 引用泄漏进游戏脚本，导出后解析失败
+- `EditorInterface` 这类编辑器类只在编辑器版注册，游戏脚本里直接写，导出后解析失败。编辑器预览要用时写 `Engine.get_singleton(&"EditorInterface")` 并用 `Engine.is_editor_hint()` 挡住。C# 的编辑器程序集只在 Debug 配置引用，导出配置不定义 `TOOLS`，用 `#if TOOLS` 包住
 - 在 `_init` 里读 `@export` 值得到默认值，改到 `_ready` 或 setter 里
 
 ## 参考
