@@ -222,7 +222,7 @@ node.damage = 5
 expect(node.damage == 5, "damage 可改")
 ```
 
-## SKILL.md `enum State { IDLE, RUN, JUMP }`
+## references/enum-state.md `enum State { IDLE, RUN, JUMP }`
 
 <!-- check: setup -->
 ```gdscript

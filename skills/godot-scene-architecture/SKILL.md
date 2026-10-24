@@ -226,45 +226,9 @@ extends Area2D
 
 | 状态数与转移 | 用法 |
 |---|---|
-| 2 到 5 个，转移简单 | `enum State` + `match` |
+| 2 到 5 个，转移简单 | `enum State` + `match`，见 [references/enum-state.md](references/enum-state.md) |
 | 每个状态有自己的进出逻辑和数据 | 每个状态一个子节点，见 [references/state-machine.md](references/state-machine.md) |
 | 状态对应动画，转移由动画条件驱动 | `AnimationTree` 的 `AnimationNodeStateMachine` |
-
-```gdscript
-extends CharacterBody2D
-
-enum State { IDLE, RUN, JUMP }
-
-const SPEED := 200.0
-const JUMP_VELOCITY := -400.0
-
-var state: State = State.IDLE
-
-func _physics_process(delta: float) -> void:
-	var axis := Input.get_axis("move_left", "move_right")
-	match state:
-		State.IDLE, State.RUN:
-			if Input.is_action_just_pressed("jump") and is_on_floor():
-				_set_state(State.JUMP)
-			elif axis != 0.0:
-				_set_state(State.RUN)
-			else:
-				_set_state(State.IDLE)
-		State.JUMP:
-			if is_on_floor():
-				_set_state(State.IDLE)
-	if not is_on_floor():
-		velocity += get_gravity() * delta
-	velocity.x = axis * SPEED
-	move_and_slide()
-
-func _set_state(next: State) -> void:
-	if next == state:
-		return
-	state = next
-	if next == State.JUMP:
-		velocity.y = JUMP_VELOCITY
-```
 
 - 所有转移走一个入口函数，进入和退出的一次性逻辑放在里面
 
@@ -307,5 +271,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 - [references/lifecycle.md](references/lifecycle.md)：`_enter_tree` `_ready` `_exit_tree` 的选择，`owner` 规则，手写 `.tscn` 的 `node_paths`，`call_deferred` 必须用的场合，释放与失效引用
 - [references/scene-switching.md](references/scene-switching.md)：`change_scene_to_*` 的行为，自己做切换的场合，带加载界面的切换
+- [references/enum-state.md](references/enum-state.md)：`enum` 加 `match` 的完整示例
 - [references/state-machine.md](references/state-machine.md)：状态子节点模板，`AnimationTree` 状态机用法
 - 官方文档：https://docs.godotengine.org/en/stable/tutorials/best_practices/index.html
