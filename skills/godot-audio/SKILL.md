@@ -1,6 +1,6 @@
 ---
 name: godot-audio
-description: Godot 4 音频，Audio bus 布局 default_bus_layout Music SFX Voice 总线，设置菜单音量 AudioServer.set_bus_volume_db linear_to_db，AudioStreamPlayer bus 属性，AudioStreamRandomizer 随机音效，max_polyphony 与 AudioStreamPolyphonic 代替播放器池，AudioStreamInteractive Playlist Synchronized 动态音乐，导入设置里设循环，节奏游戏对时 get_playback_position，2D 3D 空间音频，AudioEffectHardLimiter。在写音效 音乐 音量设置 脚步声 受击音 战斗音乐切换 节奏同步 时用。audio bus volume music sfx randomizer polyphony.
+description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏同步时用。Audio bus 布局 Music SFX Voice、滑条调音量 linear_to_db、说话时侧链压低音乐、AudioStreamRandomizer 随机音效、max_polyphony 代替播放器池、AudioStreamInteractive 动态音乐、2D 3D 空间音频。audio bus volume music sfx.
 ---
 
 # Godot 音频

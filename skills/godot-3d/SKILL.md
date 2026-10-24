@@ -1,6 +1,6 @@
 ---
 name: godot-3d
-description: Godot 3D 场景搭建与选型 用于 CharacterBody3D 角色移动 floor slope 参数, Jolt 与 GodotPhysics3D 物理引擎选择, 碰撞层规划, RayCast3D ShapeCast3D 与 PhysicsDirectSpaceState3D 查询, SpringArm3D 第三人称相机 第一人称 FPS 鼠标视角 RigidBody3D 可推物体, Forward+ Mobile Compatibility 渲染器选择, 光照与全局光照选型 SDFGI VoxelGI LightmapGI ReflectionProbe, WorldEnvironment Environment CameraAttributes, 阴影参数, glTF 场景导入与 -col -rigid 后缀, GridMap MeshLibrary, CSG 原型, mesh LOD visibility_range OccluderInstance3D 遮挡剔除, MultiMeshInstance3D, Decal, NavigationAgent3D 寻路, LookAtModifier3D SpringBoneSimulator3D TwoBoneIK3D 骨骼修改器. Use when building or debugging 3D scenes, character controllers, lighting, level import, culling and 3D navigation.
+description: 搭建或调试 Godot 4 的 3D 场景时用。CharacterBody3D 角色移动、第一 第三人称相机 SpringArm3D、Jolt 物理与碰撞层、RayCast3D 查询、渲染器与光照 GI 选型 SDFGI VoxelGI LightmapGI、阴影、glTF 导入、GridMap、CSG、LOD 与遮挡剔除、MultiMesh、NavigationAgent3D、骨骼修改器 IK。3D scenes, character controllers, lighting, level import.
 ---
 
 # Godot 3D

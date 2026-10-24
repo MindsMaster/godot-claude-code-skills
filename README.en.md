@@ -94,7 +94,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 
 # Installation
 
-Enabling the plugin per Godot project is recommended. At user scope, the 16 skill descriptions, about 7700 characters in total, enter the context of every turn in every project. Skill bodies load only when invoked.
+Enabling the plugin per Godot project is recommended. At user scope, the 16 skill descriptions, about 3400 characters in total, enter the context of every turn in every project. Skill bodies load only when invoked.
 
 Install at project scope from the Godot project directory:
 

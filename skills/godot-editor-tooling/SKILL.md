@@ -1,6 +1,6 @@
 ---
 name: godot-editor-tooling
-description: Godot 4 编辑器扩展与工具脚本，用于项目内数据编辑、Inspector 定制、编辑器插件、导入插件。Use when writing @tool scripts, Engine.is_editor_hint(), @export_tool_button, EditorPlugin / plugin.cfg, EditorInspectorPlugin / EditorProperty, EditorImportPlugin, EditorScenePostImport, EditorScript batch scripts, EditorUndoRedoManager, EditorDock / add_control_to_dock, EditorFileSystem signals, add_autoload_singleton / _enable_plugin, main screen plugin (_has_main_screen), editor theme colors (get_editor_theme), Shortcut, _get_property_list / _validate_property dynamic properties, _get_configuration_warnings, @export_group annotations, C# [Tool] hot reload pitfalls. 编辑器插件 工具脚本 数据编辑器 Inspector 导入器 撤销重做 停靠面板 主屏幕 插件 Autoload 热重载。
+description: 写 Godot 4 编辑器扩展时用。@tool 工具脚本、@export_tool_button、EditorPlugin 与 plugin.cfg、EditorInspectorPlugin 定制 Inspector、EditorImportPlugin 导入插件、EditorScript 批处理、撤销重做、停靠面板、主屏幕插件、_get_property_list 动态属性、配置警告。editor plugin, tool script, inspector, importer.
 ---
 
 # Godot 编辑器工具

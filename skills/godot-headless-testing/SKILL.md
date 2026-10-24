@@ -1,6 +1,6 @@
 ---
 name: godot-headless-testing
-description: 在终端里验证 Godot 4 改动，看不到编辑器时自己跑通。无头运行 headless、命令行参数 command line、--headless --import --check-only --quit-after --script、SceneTree 脚本、冒烟测试 smoke test、退出码 exit code、从输出判失败 SCRIPT ERROR Parse Error、模拟输入 Input.parse_input_event action_press、截图 screenshot xvfb、--write-movie 录帧、GUT gdUnit4、CI 下载 Godot 二进制、导出 --export-pack、查 API ClassDB doctool、C# dotnet build 后再跑。修完脚本报错要确认整个项目没有脚本错误、没有 GDScript 警告 warning、改完 GDScript、场景、C# 后想自己验证、写自动化测试、配 CI 时用
+description: 在终端里验证 Godot 4 改动时用，看不到编辑器也能自己跑通。修完脚本报错要确认整个项目没有脚本错误和 GDScript 警告，改完 GDScript 场景 C# 想自己验证，写冒烟测试 自动化测试，配 CI。--headless --import --check-only --script、退出码、从输出判 SCRIPT ERROR、模拟输入、截图、GUT gdUnit4。headless smoke test.
 ---
 
 # Godot 无头测试与命令行验证

@@ -92,7 +92,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 
 # 安装
 
-建议仅在 Godot 项目中启用。用户级安装时，16 个 skill 的 description 共约 7700 字符，会进入所有项目每一轮对话的上下文。skill 正文仅在调用时加载。
+建议仅在 Godot 项目中启用。用户级安装时，16 个 skill 的 description 共约 3400 字符，会进入所有项目每一轮对话的上下文。skill 正文仅在调用时加载。
 
 在 Godot 项目目录中按项目级安装：
 

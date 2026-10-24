@@ -1,6 +1,6 @@
 ---
 name: godot-ui
-description: Godot 4 UI 与 HUD 做法，Control 布局 Container anchors size_flags，项目级 Theme 与 theme type variation，StyleBox，血条 ProgressBar TextureProgressBar，RichTextLabel BBCode，多分辨率 stretch mode aspect，本地化 tr() CSV PO TranslationServer，按键提示 InputMap，手柄焦点导航 focus_neighbor grab_focus，mouse_filter 吃点击，_gui_input，CanvasLayer 固定 HUD，AcceptDialog ConfirmationDialog 弹窗，拖放 tooltip。在写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用。UI layout theme localization health bar focus navigation dialog drag and drop.
+description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用。Control 布局 Container anchors、项目级 Theme 统一字体、StyleBox、ProgressBar 血条、RichTextLabel、多分辨率 stretch aspect、tr() 本地化、手柄焦点导航、mouse_filter 吃点击、CanvasLayer HUD、弹窗 拖放。UI layout, theme, localization.
 ---
 
 # Godot UI

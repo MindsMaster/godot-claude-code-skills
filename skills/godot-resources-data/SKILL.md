@@ -1,6 +1,6 @@
 ---
 name: godot-resources-data
-description: Godot 4 数据与资源管理，用于游戏数据表、配置、存档、资源加载与缓存。Use when defining game data as custom Resource (class_name + @export, .tres, C# [GlobalClass]), deciding JSON vs Resource, converting JSON/CSV to Resource at import time, Resource sharing / duplicate / duplicate_deep / local_to_scene, ResourceLoader cache and CacheMode, load vs preload, load_threaded_request with progress bar, ResourceSaver, save games in user:// (JSON, ConfigFile, store_var), untrusted .tres security, uid:// references, DirAccess on res:// after export, ResourceLoader.list_directory, Curve / Gradient / CurveTexture / Animation instead of custom curve classes, texture cache Dictionary. 数据表 自定义资源 存档 异步加载 加载界面 资源缓存 导出后目录扫描 导出后读不到 CSV include_filter importer keep。
+description: 定义游戏数据表 配置 存档 资源加载时用。自定义 Resource class_name @export .tres 与 C# [GlobalClass]、JSON 与 Resource 怎么选、导入时把 JSON CSV 转成 Resource、资源共享与 duplicate local_to_scene、load preload 与线程加载进度条、user:// 存档、导出后读不到 res:// 目录。game data, custom resource, save game.
 ---
 
 # Godot 资源与数据

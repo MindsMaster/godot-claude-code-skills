@@ -1,6 +1,6 @@
 ---
 name: godot-builtin-first
-description: 在 Godot 4 项目里动手写任何功能之前先用，project.godot 存在，或即将自己写相机 动画 缓动 状态机 UI 布局 JSON 解析 加载器 输入映射 音频池 粒子 寻路 存档 场景切换 本地化 编辑器工具时。先查引擎有没有现成的节点 资源 项目设置 编辑器功能，再按需求指向细分 skill。Use before implementing any feature in a Godot 4 project (GDScript or C#) - custom camera, tween, state machine, UI layout, JSON loader, input remap, audio pool, particles, navigation, save game, scene switching, localization, editor tool. Triggers on Godot, .tscn, .gd, project.godot, Node2D, Node3D, scene tree, 造轮子, 最佳实践.
+description: 在 Godot 4 项目里动手写任何功能之前先用，看到 project.godot .tscn .gd，或要自己写相机 缓动 状态机 UI 布局 JSON 加载 输入映射 音频池 存档 场景切换 编辑器工具时。先查引擎有没有现成的节点 资源 项目设置，再指向细分 skill。Use before implementing any feature in a Godot 4 project, GDScript or C#.
 ---
 
 # 先用内置

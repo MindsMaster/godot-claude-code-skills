@@ -1,6 +1,6 @@
 ---
 name: godot-shaders-vfx
-description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GDScript 与 C# 改 .gdshader 的 shader 参数 SetInstanceShaderParameter set_shader_parameter 时先用，多个敌人共用一份材质各自闪白也归这里。先用内置材质 StandardMaterial3D CanvasItemMaterial 再写 shader 的判断, shader_type 与 render_mode, uniform instance uniform global uniform 的选择, hint_screen_texture hint_depth_texture 屏幕与深度纹理, VisualShader 何时用, shader include gdshaderinc, GPUParticles2D GPUParticles3D 与 CPUParticles 选择, ParticleProcessMaterial 子发射器 拖尾 碰撞, 后处理顺序 Environment glow tonemap fog 再 CompositorEffect 再全屏 shader, 2D glow 与 HDR 2D, StringName 缓存, local_to_scene 材质共享问题. Use when writing shaders, hit flash, tuning materials, building particle effects or post-processing.
+description: 做受击闪白 受伤变白 命中闪烁 溶解 描边，或从 GDScript 与 C# 改 .gdshader 的 shader 参数 SetInstanceShaderParameter set_shader_parameter 时先用，多个敌人共用一份材质各自闪白也归这里。也管内置材质与 shader 的取舍、instance uniform、屏幕与深度纹理、GPUParticles 粒子、后处理顺序。shaders, hit flash, particles, post-processing.
 ---
 
 # Godot 着色器与特效

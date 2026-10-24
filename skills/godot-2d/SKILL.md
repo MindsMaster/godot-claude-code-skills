@@ -1,6 +1,6 @@
 ---
 name: godot-2d
-description: Godot 4 的 2D 游戏用内置节点怎么搭 CharacterBody2D move_and_slide 角色移动 单向平台 one_way_collision RigidBody2D 可推物体 碰撞层与 mask 规划 Area2D 触发区 TileMapLayer TileSet 瓦片地图 地形 自定义数据层 Camera2D limit 平滑 drag zoom 震屏 Parallax2D 视差背景 y_sort_enabled z_index 绘制顺序 CanvasLayer HUD 像素风 pixel art stretch viewport integer scale snap_2d_transforms_to_pixel PointLight2D CanvasModulate 2D 光照 VisibleOnScreenNotifier2D VisibleOnScreenEnabler2D 离屏暂停 NavigationAgent2D 寻路 RayCast2D ShapeCast2D 射线检测 intersect_ray intersect_shape intersect_point direct_space_state 物理查询 Line2D Polygon2D _draw 自绘 2D HDR glow 泛光。用于写 2D 场景、做 2D 相机或地图、查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
+description: 写 Godot 4 的 2D 场景时用。CharacterBody2D 角色移动与平台跳跃、碰撞层、Area2D、TileMapLayer 瓦片地图与地形自动接边、Camera2D 跟随 平滑 limit 震屏、Parallax2D、y_sort 绘制顺序、像素风缩放、2D 光照、寻路、射线与物理查询、_draw 自绘。也用于查某个 2D 需求有没有内置节点。3D 里放 2D 角色见 godot-2d-in-3d。
 ---
 
 # Godot 2D

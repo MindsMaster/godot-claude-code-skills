@@ -1,6 +1,6 @@
 ---
 name: godot-gdscript
-description: 写或改 GDScript 时用。静态类型 :=、Array[T]、Dictionary[K, V]、class_name、preload、@export 系列、@onready、signal connect emit bind lambda、await 协程、match、static var、StringName、is_instance_valid、setter getter、super、assert push_error、call_deferred、项目警告设置 warnings。GDScript typing, annotations, signals, coroutine, warning settings.
+description: 写或改 GDScript 时用。静态类型 := 与 Array[T] Dictionary[K, V]、class_name、@export @onready、信号 connect emit lambda、await 协程、match、setter getter、call_deferred、警告设置。GDScript typing, signals, coroutine, warnings.
 ---
 
 # GDScript 写法

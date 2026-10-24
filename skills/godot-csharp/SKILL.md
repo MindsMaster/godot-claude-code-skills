@@ -1,6 +1,6 @@
 ---
 name: godot-csharp
-description: 在 Godot 里写 C# 时用。partial class、源码生成器、[Export] [Signal] [GlobalClass] [Tool]、EmitSignal SignalName、事件 += 连接与断开、PropertyName MethodName SignalName、StringName 每帧分配、Variant 与 Godot.Collections、GodotObject 生命周期 IsInstanceValid、async await ToSignal、Callable.From、热重载、_Process 里的 LINQ 与分配、nullable、GDScript 与 C# 对照。C# scripting in Godot, source generators, signals, allocation.
+description: 在 Godot 里写 C# 时用。partial class 与源码生成器、[Export] [Signal] [GlobalClass] [Tool]、信号连接与断开、SignalName PropertyName 与 StringName 缓存、Variant 与 Godot.Collections、IsInstanceValid、async ToSignal、每帧分配。C# scripting in Godot.
 ---
 
 # Godot C# 写法

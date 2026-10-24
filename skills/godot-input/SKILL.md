@@ -1,6 +1,6 @@
 ---
 name: godot-input
-description: Godot 4 输入处理，InputMap 动作代替硬编码按键，Input.get_axis get_vector 死区，键盘手柄双绑定，_input _unhandled_input _process 轮询的选择，is_action_just_pressed 与 _physics_process 帧对齐，运行时改键 action_erase_events action_add_event 存档，鼠标捕获 MOUSE_MODE_CAPTURED，输入缓冲，触屏 VirtualJoystick，手柄震动 start_joy_vibration 热插拔 joy_connection_changed。在写移动 跳跃 攻击 视角控制 改键菜单 手柄支持 时用。input map keybinding gamepad remap deadzone.
+description: 写移动 跳跃 攻击 视角控制 改键菜单 手柄支持时用。InputMap 动作代替硬编码按键、get_axis get_vector 死区、键盘手柄双绑定、_unhandled_input 与轮询的选择、运行时改键并存档、鼠标捕获、输入缓冲、手柄震动与热插拔。input map keybinding gamepad.
 ---
 
 # Godot 输入

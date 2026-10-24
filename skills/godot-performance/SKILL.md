@@ -1,6 +1,6 @@
 ---
 name: godot-performance
-description: 排查和优化卡顿掉帧 帧率低 FPS 内存增长 孤儿节点时用。先测再改：Debugger Profiler、Visual Profiler、Monitors、Performance.get_monitor、add_custom_monitor。热点的内置解法：MultiMesh、RenderingServer 与 PhysicsServer 直接调用、对象池、VisibleOnScreenEnabler、set_process(false)、物理插值 physics_interpolation、WorkerThreadPool、ResourceLoader 线程加载、着色器编译卡顿 pipeline ubershader、每帧字符串与分配。Godot performance profiling, stutter, frame drops, optimization.
+description: 排查卡顿 掉帧 帧率低 内存增长 孤儿节点时用。先测再改 Profiler Visual Profiler Monitors 自定义监视。热点的内置解法 MultiMesh、Server 直接调用、对象池、离屏暂停、物理插值、WorkerThreadPool、线程加载、着色器编译卡顿、每帧分配。Godot performance profiling, stutter.
 ---
 
 # Godot 性能

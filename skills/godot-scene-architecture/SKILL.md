@@ -1,6 +1,6 @@
 ---
 name: godot-scene-architecture
-description: Godot 4 场景与节点结构设计，用于拆分场景、复用组件、节点引用、节点间通信、状态机、暂停与场景切换。Use when splitting a scene into reusable PackedScene components, instantiate vs new Node, get_node / @onready / @export node references / %UniqueName, signals vs calls (call down signal up), groups and call_group, autoload vs regular nodes, composition vs inheritance, state machine (enum match / AnimationTree), process_mode and pause, queue_free and is_instance_valid, _ready order, call_deferred, change_scene_to_file / change_scene_to_packed, scene inheritance, scene tree architecture. 场景树 场景组件 节点引用 信号 分组 单例 状态机 暂停 切换场景。
+description: 拆分 Godot 4 场景与组织节点时用。PackedScene 组件复用、节点引用 @onready @export %UniqueName、信号与直接调用的选择、分组 call_group、Autoload 与普通节点、组合与继承、状态机、暂停 process_mode、queue_free 与 is_instance_valid、_ready 顺序、场景切换。scene tree architecture, signals, autoload.
 ---
 
 # Godot 场景架构
