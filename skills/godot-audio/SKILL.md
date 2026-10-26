@@ -1,6 +1,6 @@
 ---
 name: godot-audio
-description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏同步时用。Audio bus 布局 Music SFX Voice、滑条调音量 linear_to_db、说话时侧链压低音乐、AudioStreamRandomizer 随机音效、max_polyphony 代替播放器池、AudioStreamInteractive 动态音乐、2D 3D 空间音频。audio bus volume music sfx.
+description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏同步时用，音效在游戏里发闷 模糊 与原文件听感不一样时也用。Audio bus 布局 Music SFX Voice、滑条调音量 linear_to_db、说话时侧链压低音乐、AudioStreamRandomizer 随机音效、max_polyphony 代替播放器池、AudioStreamInteractive 动态音乐、2D 3D 空间音频、3D 距离滤波、WAV 导入压缩。audio bus volume music sfx muffled import.
 ---
 
 # Godot 音频
@@ -21,6 +21,7 @@ description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏�
 | 限制爆音 | Master 上的 AudioEffectHardLimiter | 逐个调低音量 |
 | 说话时压低音乐 | Music 总线加 AudioEffectCompressor，`sidechain` 设为 Voice | 脚本里逐帧调音乐音量 |
 | 循环 | 导入设置里的循环选项 | 运行时改共享 stream 的 `loop` |
+| 3D 音效在游戏里发闷 | 查 `attenuation_filter_cutoff_hz`，见空间音频 | 把 WAV 转成 Ogg 或提高采样率 |
 
 ## 总线布局
 
@@ -130,6 +131,18 @@ func play_sfx(sound: AudioStream, gain_db: float = 0.0) -> int:
 
 切换片段用 `set(&"parameters/switch_to_clip", &"Combat")`。转场表、拍点对齐和分层音量见 `references/dynamic-music.md`。
 
+## 导入格式
+
+| 素材 | 格式 | 导入设置 |
+|---|---|---|
+| 短音效 | WAV | `compress/mode` 默认 Quite OK Audio（4.3+），有损但接近原声，体积约 PCM 的 1/5。要逐位无损选 PCM |
+| 音乐 长环境声 | Ogg Vorbis 或 MP3 | 动态音乐的 `bpm` `beat_count` 只有这两种有 |
+| 3D 定位音源 | 单声道 WAV | `force/mono` 打开，或出素材时就导单声道 |
+
+- 游戏里比原文件闷，先查播放器和总线，不是格式问题。WAV 转 Ogg 只会多一层有损压缩
+- 96 kHz 24 bit 素材播放时按混音率重采样，多出的部分只占体积。打开 `force/max_rate` 并把 `force/max_rate_hz` 设为 48000，或出素材时导 48 kHz 16 bit
+- 立体声素材在 3D 播放器里左右声道分别乘左右增益，声像宽度保留，定位不如单声道准
+
 ## 循环
 
 - 在导入设置里设。WAV 用 `edit/loop_mode` `edit/loop_begin` `edit/loop_end`，单位是采样数，`loop_end` 为 -1 取文件末尾，`loop_mode` 默认 Detect From WAV 跟随文件元数据。Ogg Vorbis 与 MP3 用 `loop` 与 `loop_offset`，单位是秒。改完点 Reimport
@@ -159,9 +172,24 @@ func song_time() -> float:
 - 2D 与 3D 播放器都有 `max_distance` `panning_strength` `area_mask`。衰减 2D 用 `attenuation` 指数，默认 1.0，3D 用 `attenuation_model` 加 `unit_size`。多普勒只有 3D 的 `doppler_tracking`
 - 3D 听者是当前 Camera3D，2D 没有 AudioListener2D 时以视口中心为听点。要把听者放在别处，用 AudioListener2D 或 AudioListener3D 的 `make_current()`
 - 全局声像强度见项目设置 `audio/general/2d_panning_strength` 与 `audio/general/3d_panning_strength`
+- AudioStreamPlayer3D 默认带距离高频衰减，`attenuation_filter_cutoff_hz` 5000，`attenuation_filter_db` -24。强度按衰减后的音量算，`volume_db` 也计入，低于 0 dB 越多 5 kHz 以上压得越狠。俯视角、镜头距离固定、不需要空气吸收的游戏，把 `attenuation_filter_cutoff_hz` 设为 20500 关掉，类参考给的就是这个值。2D 播放器没有这个滤波
+
+<!-- check: extends Node3D -->
+```gdscript
+@onready var _gun: AudioStreamPlayer3D = $Gun
+
+func _ready() -> void:
+	_gun.unit_size = 15.0
+	_gun.volume_db = -8.0
+	_gun.attenuation_filter_cutoff_hz = 20500.0
+```
+
+- 要保留远处发闷又想单独调小某个音效，别用 `volume_db` 调，改素材增益或给它单独一条总线调音量，总线音量不参与滤波计算
 
 ## 陷阱
 
+- 3D 播放器写 `volume_db = -8` 调小音量，近处听也发闷。4.7.2 实测镜头 14 m、`unit_size` 15 时 8 kHz 以上被压约 24 dB。滤波按 `volume_db` 加距离衰减后的总量算，见空间音频
+- AudioStreamPlayer3D 的 `volume_db` 加到距离衰减之后才被 `max_db` 截断。听者贴近声源时距离衰减有十几 dB 正值，`volume_db` 调低几 dB 听不出变化
 - 每个播放器写 `volume_db = -6` 当音量设置，玩家无法分开调音乐与音效，改用总线
 - 在会 `queue_free()` 的节点上播收尾音效，节点出树时声音被暂停，释放时被停止，播不完。交给关卡里常驻的播放器，如 AudioStreamPolyphonic 的 `play_stream()`
 - `get_tree().paused = true` 时，`process_mode` 为默认的播放器会自动 `stream_paused`。暂停菜单的点击音，和暂停时要继续的音乐，把播放器的 `process_mode` 设为 `Node.PROCESS_MODE_ALWAYS`

@@ -32,6 +32,7 @@ Other cases:
 | Health bar and HUD | `ProgressBar`, Container layout, project-wide `Theme` |
 | 2D characters in a 3D scene | `Sprite3D` billboard with `alpha_cut` shadows |
 | Ducking music under dialogue | `AudioEffectCompressor` on the bus with `sidechain` set to Voice |
+| 3D sound effect muffled in game | Set `attenuation_filter_cutoff_hz` to 20500 instead of converting formats |
 | Per-enemy hit flash on a shared material | `instance uniform` with `Tween` |
 
 # Verification
@@ -61,7 +62,8 @@ October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; 
 | Tile level and digging | 3/3 | 0/3 | Recomputes neighbors with the ground terrain after digging, so neighboring tiles do not update |
 | HUD and unified font | 3/3 | 0/3 | `.tscn` lacks `node_paths`, so the exported player reference is null at runtime |
 | Headless fixing of script errors and warnings | 6/6 | 2/6 | No warnings reported without enabling warning output |
-| Total | 27/27 | 7/27 | |
+| 3D gunshot muffled up close, distance muffling kept far away | 3/3 | 0/3 | Unaware that `volume_db` feeds the distance filter strength; disables or raises the filter so distant shots are no longer muffled, or moves the listener onto the character and the sound is still filtered |
+| Total | 30/30 | 7/30 | |
 
 To reproduce:
 
@@ -85,7 +87,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 | `godot-ui` | Container layout, Theme, health bars, RichTextLabel, stretch modes, localization |
 | `godot-animation` | AnimationPlayer, AnimationTree, Tween, SpriteFrames, deterministic playback |
 | `godot-input` | InputMap actions, gamepads, deadzones, persisting rebinds |
-| `godot-audio` | Bus layout, volume settings, AudioStreamRandomizer, polyphony, dynamic music |
+| `godot-audio` | Bus layout, volume settings, AudioStreamRandomizer, polyphony, dynamic music, import formats, 3D distance filter |
 | `godot-resources-data` | Custom Resources, threaded loading, save data, import-time baking, built-in curve resources |
 | `godot-shaders-vfx` | Shader parameters, instance uniforms, particles, Environment, post-processing, CompositorEffect |
 | `godot-editor-tooling` | @tool, EditorPlugin, Inspector plugins, import plugins, undo, shortcuts |

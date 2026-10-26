@@ -32,6 +32,7 @@
 | 血条与 HUD | `ProgressBar`、Container 布局、项目级 `Theme` |
 | 3D 场景中的 2D 角色 | `Sprite3D` billboard 与 `alpha_cut` 投影 |
 | 对白时压低音乐 | 总线上的 `AudioEffectCompressor`，`sidechain` 指向 Voice |
+| 3D 音效进游戏发闷 | `attenuation_filter_cutoff_hz` 设为 20500，不转换格式 |
 | 大量敌人共用材质并各自闪白 | `instance uniform` 与 `Tween` |
 
 # 验证
@@ -59,7 +60,8 @@
 | 瓦片关卡与挖地 | 3/3 | 0/3 | 挖地后以地面 terrain 重算邻格，邻格瓦片不更新 |
 | HUD 与统一字体 | 3/3 | 0/3 | `.tscn` 缺少 `node_paths`，导出的玩家引用在运行时为空 |
 | 无头运行修复脚本错误与警告 | 6/6 | 2/6 | 未开启警告输出即判定无警告 |
-| 合计 | 27/27 | 7/27 | |
+| 3D 枪声近处发闷 远处保留距离感 | 3/3 | 0/3 | 不知道 `volume_db` 计入距离滤波强度，关掉或调高滤波使远处也不闷，或把听者移到角色身上后仍被滤波 |
+| 合计 | 30/30 | 7/30 | |
 
 复现：
 
@@ -83,7 +85,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 | `godot-ui` | Container 布局、Theme、血条、RichTextLabel、拉伸模式、本地化 |
 | `godot-animation` | AnimationPlayer、AnimationTree、Tween、SpriteFrames、确定性回放 |
 | `godot-input` | InputMap 动作、手柄、死区、改键存档 |
-| `godot-audio` | 总线布局、音量设置、AudioStreamRandomizer、复音、动态音乐 |
+| `godot-audio` | 总线布局、音量设置、AudioStreamRandomizer、复音、动态音乐、导入格式、3D 距离滤波 |
 | `godot-resources-data` | 自定义 Resource、线程加载、存档、导入期烘焙、内置曲线资源 |
 | `godot-shaders-vfx` | shader 参数、instance uniform、粒子、Environment、后处理、CompositorEffect |
 | `godot-editor-tooling` | @tool、EditorPlugin、Inspector 插件、导入插件、撤销、快捷键 |

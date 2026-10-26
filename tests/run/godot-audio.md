@@ -114,3 +114,52 @@ node.set_intensity(true)
 expect(is_zero_approx((node.stream as AudioStreamSynchronized).get_sync_stream_volume(1)), "鼓点层打开")
 await frames(5)
 ```
+
+## SKILL.md `_gun.attenuation_filter_cutoff_hz = 20500.0`
+
+<!-- check: setup -->
+```gdscript
+var noise := AudioStreamWAV.new()
+noise.format = AudioStreamWAV.FORMAT_16_BITS
+noise.mix_rate = 44100
+noise.loop_mode = AudioStreamWAV.LOOP_FORWARD
+noise.loop_end = 44100
+var data := PackedByteArray()
+data.resize(44100 * 2)
+var rng := RandomNumberGenerator.new()
+rng.seed = 7
+for i in range(0, data.size(), 2):
+	data.encode_s16(i, rng.randi_range(-12000, 12000))
+noise.data = data
+AudioServer.add_bus()
+var probe := AudioServer.bus_count - 1
+AudioServer.set_bus_name(probe, "Probe")
+AudioServer.add_bus_effect(probe, AudioEffectSpectrumAnalyzer.new())
+var gun := node.get_node("Gun") as AudioStreamPlayer3D
+gun.stream = noise
+gun.bus = &"Probe"
+var camera := Camera3D.new()
+camera.position = Vector3(0, 0, 14)
+camera.current = true
+node.add_child(camera)
+```
+
+```gdscript
+var gun := node.get_node("Gun") as AudioStreamPlayer3D
+var spectrum := AudioServer.get_bus_effect_instance(AudioServer.get_bus_index("Probe"), 0) as AudioEffectSpectrumAnalyzerInstance
+gun.play()
+await wait_real(0.5)
+var high_off := spectrum.get_magnitude_for_frequency_range(8000, 16000).length()
+var low_off := spectrum.get_magnitude_for_frequency_range(200, 1000).length()
+gun.attenuation_filter_cutoff_hz = 5000.0
+await wait_real(0.5)
+var high_on := spectrum.get_magnitude_for_frequency_range(8000, 16000).length()
+var low_on := spectrum.get_magnitude_for_frequency_range(200, 1000).length()
+print("high off %.5f on %.5f low off %.5f on %.5f" % [high_off, high_on, low_off, low_on])
+expect(high_off > 0.0 and high_on < high_off * 0.1, "volume_db -8 时默认滤波把 8 kHz 以上压掉 20 dB 以上")
+expect(low_on > low_off * 0.7, "低频基本不受影响")
+gun.volume_db = 0.0
+await wait_real(0.5)
+var high_full := spectrum.get_magnitude_for_frequency_range(8000, 16000).length()
+expect(high_full > high_on * 5.0, "volume_db 回到 0 dB 滤波基本不生效")
+```
