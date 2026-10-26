@@ -163,3 +163,59 @@ await wait_real(0.5)
 var high_full := spectrum.get_magnitude_for_frequency_range(8000, 16000).length()
 expect(high_full > high_on * 5.0, "volume_db 回到 0 dB 滤波基本不生效")
 ```
+
+## SKILL.md `duck.sidechain = &"Voice"`
+
+<!-- check: setup -->
+```gdscript
+for bus_name: String in ["Music", "Voice"]:
+	AudioServer.add_bus()
+	AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
+```
+
+```gdscript
+var music := AudioServer.get_bus_index(&"Music")
+var music_player := AudioStreamPlayer.new()
+music_player.bus = &"Music"
+music_player.stream = make_tone(4.0)
+node.add_child(music_player)
+music_player.play()
+await wait_real(0.5)
+var alone := AudioServer.get_bus_peak_volume_left_db(music, 0)
+var voice := AudioStreamPlayer.new()
+voice.bus = &"Voice"
+voice.stream = make_tone(3.0)
+node.add_child(voice)
+voice.play()
+await wait_real(0.6)
+var ducked := AudioServer.get_bus_peak_volume_left_db(music, 0)
+var compressor := AudioServer.get_bus_effect(music, 0) as AudioEffectCompressor
+compressor.threshold = 0.0
+await wait_real(0.8)
+var default_threshold := AudioServer.get_bus_peak_volume_left_db(music, 0)
+print("alone %.1f ducked %.1f default threshold %.1f" % [alone, ducked, default_threshold])
+expect(alone - ducked > 2.5 and alone - ducked < 6.0, "-12 dBFS 的语音把音乐压低约 4 dB")
+expect(absf(alone - default_threshold) < 0.5, "threshold 0 dB 时完全不压")
+```
+
+## references/mixing.md `func _process`
+
+<!-- check: setup -->
+```gdscript
+for bus_name: String in ["Music", "MonsterAttack"]:
+	AudioServer.add_bus()
+	AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
+```
+
+```gdscript
+var duck := AudioServer.get_bus_effect(AudioServer.get_bus_index(&"Music"), 0) as AudioEffectAmplify
+var attack := AudioStreamPlayer.new()
+attack.bus = &"MonsterAttack"
+attack.stream = make_tone(0.6)
+node.add_child(attack)
+attack.play()
+await wait_real(0.4)
+expect(is_equal_approx(duck.volume_db, -3.0), "出招时压到 -3 dB")
+await wait_real(1.2)
+expect(is_zero_approx(duck.volume_db), "出招结束后放回 0 dB")
+```

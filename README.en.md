@@ -50,12 +50,12 @@ The skill text is written in Chinese. Claude Code reads it directly and responds
 
 Each case in `evals/` poses a development task and runs with and without the plugin installed. Regex assertions and an LLM judge check whether the built-in solution is used and whether the result holds in the engine. A run passes when every check passes.
 
-October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision, and the thread pool case ran 6 times:
+October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision, the thread pool case ran 6 times, and the three audio cases were rerun on 2.1.310 after a skill revision:
 
 | Task | With | Without | Reason for failure |
 | --- | --- | --- | --- |
 | Follow camera and respawn | 3/3 | 0/3 | Infers teleports by comparing camera displacement every frame instead of calling `reset_smoothing()` at respawn |
-| Volume settings and ducking music under dialogue | 3/3 | 1/3 | Polls the Voice bus peak every frame and adjusts music volume from script |
+| Volume settings and ducking music under dialogue | 3/3 | 0/3 | Polls the Voice bus peak every frame and adjusts music volume from script |
 | C# hit flash on a shared material | 3/3 | 1/3 | Shader resamples `TEXTURE` instead of using `COLOR`, which already includes modulate |
 | Pixel-art character in a 3D scene | 3/3 | 1/3 | Texture pixels not read; the character's feet float 1 pixel above the ground |
 | Designer data and export | 3/3 | 2/3 | `waves.csv` not switched to the keep importer, so the exported build cannot read it |
@@ -63,8 +63,9 @@ October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; 
 | HUD and unified font | 3/3 | 0/3 | `.tscn` lacks `node_paths`, so the exported player reference is null at runtime |
 | Headless fixing of script errors and warnings | 6/6 | 2/6 | No warnings reported without enabling warning output |
 | 3D gunshot muffled up close, distance muffling kept far away | 3/3 | 0/3 | Unaware that `volume_db` feeds the distance filter strength; disables or raises the filter so distant shots are no longer muffled, or moves the listener onto the character and the sound is still filtered |
+| Category mix buses and sidechain ducking on monster attacks | 3/3 | 0/3 | Sets `threshold` and `ratio` from the usual compressor formula; Godot's reduction is about twice that, so a 3 to 4 dB duck comes out at 6 to 8 dB |
 | Thread pool keeps only two cores busy, count and results unchanged | 5/6 | 0/6 | Unaware that low-priority tasks get only 30% of the threads, or submits one task per element without chunking; with the plugin, 1 run did not load the skill |
-| Total | 35/36 | 7/36 | |
+| Total | 38/39 | 6/39 | |
 
 To reproduce:
 
@@ -88,7 +89,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 | `godot-ui` | Container layout, Theme, health bars, RichTextLabel, stretch modes, localization |
 | `godot-animation` | AnimationPlayer, AnimationTree, Tween, SpriteFrames, deterministic playback |
 | `godot-input` | InputMap actions, gamepads, deadzones, persisting rebinds |
-| `godot-audio` | Bus layout, volume settings, AudioStreamRandomizer, polyphony, dynamic music, import formats, 3D distance filter |
+| `godot-audio` | Bus layout, volume settings, category mixing and loudness, sidechain ducking, AudioStreamRandomizer, polyphony, dynamic music, import formats, 3D distance filter |
 | `godot-resources-data` | Custom Resources, threaded loading, save data, import-time baking, built-in curve resources |
 | `godot-shaders-vfx` | Shader parameters, instance uniforms, particles, Environment, post-processing, CompositorEffect |
 | `godot-editor-tooling` | @tool, EditorPlugin, Inspector plugins, import plugins, undo, shortcuts |

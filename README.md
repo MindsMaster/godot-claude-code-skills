@@ -48,12 +48,12 @@
 
 `evals/` 中每个用例给出一项开发需求，在安装与未安装插件两种条件下分别运行。由正则断言与 LLM 评审判定是否采用内置方案、结果在引擎中是否成立，全部判定项通过记为通过。
 
-2026 年 10 月，Claude Code 2.1.309 默认模型。每种条件各运行 3 次，无头运行用例在 skill 修订后重跑 6 次，线程池用例运行 6 次：
+2026 年 10 月，Claude Code 2.1.309 默认模型。每种条件各运行 3 次，无头运行用例在 skill 修订后重跑 6 次，线程池用例运行 6 次，三个音频用例在 skill 修订后以 2.1.310 重跑：
 
 | 需求 | 安装 | 未安装 | 未通过的原因 |
 | --- | --- | --- | --- |
 | 跟随相机与复活 | 3/3 | 0/3 | 每帧比较相机位移推测传送，未在复活处调用 `reset_smoothing()` |
-| 音量设置与对白时压低音乐 | 3/3 | 1/3 | 逐帧读取 Voice 总线峰值，以脚本调整音乐音量 |
+| 音量设置与对白时压低音乐 | 3/3 | 0/3 | 逐帧读取 Voice 总线峰值，以脚本调整音乐音量 |
 | C# 共用材质的受击闪白 | 3/3 | 1/3 | 着色器重新采样 `TEXTURE`，未使用已含 modulate 的 `COLOR` |
 | 3D 场景中的像素角色 | 3/3 | 1/3 | 未读取贴图像素，角色脚底悬空 1 像素 |
 | 策划数据与导出 | 3/3 | 2/3 | `waves.csv` 未改为 keep 导入，导出包中读不到 |
@@ -61,8 +61,9 @@
 | HUD 与统一字体 | 3/3 | 0/3 | `.tscn` 缺少 `node_paths`，导出的玩家引用在运行时为空 |
 | 无头运行修复脚本错误与警告 | 6/6 | 2/6 | 未开启警告输出即判定无警告 |
 | 3D 枪声近处发闷 远处保留距离感 | 3/3 | 0/3 | 不知道 `volume_db` 计入距离滤波强度，关掉或调高滤波使远处也不闷，或把听者移到角色身上后仍被滤波 |
+| 分类混音总线与怪物出招时侧链压低 | 3/3 | 0/3 | 按常见压缩器公式定 `threshold` 与 `ratio`，Godot 实际压低量约为两倍，要 3 到 4 dB 压出 6 到 8 dB |
 | 线程池只用上两个核 数量与结果不变 | 5/6 | 0/6 | 不知道低优先级任务只占 30% 线程，或逐元素提交任务未分块；安装时 1 次未加载 skill |
-| 合计 | 35/36 | 7/36 | |
+| 合计 | 38/39 | 6/39 | |
 
 复现：
 
@@ -86,7 +87,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 | `godot-ui` | Container 布局、Theme、血条、RichTextLabel、拉伸模式、本地化 |
 | `godot-animation` | AnimationPlayer、AnimationTree、Tween、SpriteFrames、确定性回放 |
 | `godot-input` | InputMap 动作、手柄、死区、改键存档 |
-| `godot-audio` | 总线布局、音量设置、AudioStreamRandomizer、复音、动态音乐、导入格式、3D 距离滤波 |
+| `godot-audio` | 总线布局、音量设置、分类混音与响度、侧链压低、AudioStreamRandomizer、复音、动态音乐、导入格式、3D 距离滤波 |
 | `godot-resources-data` | 自定义 Resource、线程加载、存档、导入期烘焙、内置曲线资源 |
 | `godot-shaders-vfx` | shader 参数、instance uniform、粒子、Environment、后处理、CompositorEffect |
 | `godot-editor-tooling` | @tool、EditorPlugin、Inspector 插件、导入插件、撤销、快捷键 |

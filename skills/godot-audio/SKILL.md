@@ -1,6 +1,6 @@
 ---
 name: godot-audio
-description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏同步时用，音效在游戏里发闷 模糊 与原文件听感不一样时也用。Audio bus 布局 Music SFX Voice、滑条调音量 linear_to_db、说话时侧链压低音乐、AudioStreamRandomizer 随机音效、max_polyphony 代替播放器池、AudioStreamInteractive 动态音乐、2D 3D 空间音频、3D 距离滤波、WAV 导入压缩。audio bus volume music sfx muffled import.
+description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏同步时用，音效在游戏里发闷 模糊 与原文件听感不一样时也用。Audio bus 布局 Music SFX Voice、滑条调音量 linear_to_db、说话时侧链压低音乐、AudioStreamRandomizer 随机音效、max_polyphony 代替播放器池、AudioStreamInteractive 动态音乐、2D 3D 空间音频、3D 距离滤波、WAV 导入压缩、多类音效同时响的混音 分类子总线 响度 LUFS 并发上限 怪物出招压低枪声与音乐。audio bus volume music sfx muffled import mix loudness ducking.
 ---
 
 # Godot 音频
@@ -19,7 +19,8 @@ description: 写音效 音乐 音量设置 脚步声 战斗音乐切换 节奏�
 | 战斗与探索音乐切换 分层配器 曲目列表 | AudioStreamInteractive Synchronized Playlist | 多个播放器手动淡入淡出和对时间 |
 | 节奏游戏的歌曲时间 | `get_playback_position()` 加 `AudioServer.get_time_since_last_mix()` 减输出延迟 | 用 `_process` 的 delta 累加当歌曲时间 |
 | 限制爆音 | Master 上的 AudioEffectHardLimiter | 逐个调低音量 |
-| 说话时压低音乐 | Music 总线加 AudioEffectCompressor，`sidechain` 设为 Voice | 脚本里逐帧调音乐音量 |
+| 说话时压低音乐 | Music 总线加 AudioEffectCompressor，`sidechain` 设为 Voice，`threshold` 调到触发声峰值以下，见混音 | 脚本里逐帧调音乐音量 |
+| 多类音效同时响 分开调比例 | SFX 下按类别建子总线，见混音 | 所有音效挤在一条 SFX 总线 |
 | 循环 | 导入设置里的循环选项 | 运行时改共享 stream 的 `loop` |
 | 3D 音效在游戏里发闷 | 查 `attenuation_filter_cutoff_hz`，见空间音频 | 把 WAV 转成 Ogg 或提高采样率 |
 
@@ -71,6 +72,34 @@ func _on_value_changed(linear: float) -> void:
 - 滑块用线性 0 到 1，设置时转 dB，直接当 `volume_db` 听感不均匀
 - `AudioServer.set_bus_volume_linear` 与 `get_bus_volume_linear` 4.4+，内部做 `linear_to_db`。4.3 及以前用 `set_bus_volume_db(bus, linear_to_db(linear))`
 - 0 对应负无穷 dB，同时 `set_bus_mute`
+
+## 混音
+
+枪声、怪物出招、命中、UI 会同时响的游戏：
+
+- 每个类别一条子总线，`send` 指向 SFX，策划在子总线上调比例。玩家只给总音量、音乐、音效、环境四个滑块，挂在 Master Music SFX Ambience 上
+- 子总线在布局里排在 SFX 之后，发送只能指向序号更小的总线
+- 素材进库先统一响度，短音效按最大瞬时响度 -19 LUFS-M，真峰值不超过 -1 dBTP。类别间的差值写在播放器或子总线的音量里，换素材不用重调
+- 高射速武器每发比单发武器轻 2 到 4 dB，几发叠起来总响度会上去
+- 同类声音限并发，枪 `max_polyphony` 4 到 8，命中反馈 4 左右
+- Master 末尾放 AudioEffectHardLimiter
+
+用压缩器侧链压低，参数要自己给：
+
+<!-- check: extends Node -->
+```gdscript
+func _ready() -> void:
+	var duck := AudioEffectCompressor.new()
+	duck.sidechain = &"Voice"
+	duck.threshold = -18.0
+	duck.ratio = 1.5
+	duck.release_ms = 400.0
+	AudioServer.add_bus_effect(AudioServer.get_bus_index(&"Music"), duck)
+```
+
+- `threshold` 默认 0 dB，触发声峰值不到 0 dBFS 就完全不压
+- 压低量约为 2.08 乘触发峰值超出 `threshold` 的 dB 数，再乘 1 减 1/`ratio`，是常见压缩器公式的两倍。4.7.2 实测触发峰值 -6 dBFS：-12 与 2 压 5 dB，-20 与 1.2 压 4 dB，-30 与 4 压 37 dB
+- 压低量跟着触发声响度变。策划要写死 -4 dB 这种固定量，或一个类别同时压好几条总线，用电平加 AudioEffectAmplify，见 `references/mixing.md`
 
 ## 随机音效
 
@@ -193,9 +222,14 @@ func _ready() -> void:
 - 每个播放器写 `volume_db = -6` 当音量设置，玩家无法分开调音乐与音效，改用总线
 - 在会 `queue_free()` 的节点上播收尾音效，节点出树时声音被暂停，释放时被停止，播不完。交给关卡里常驻的播放器，如 AudioStreamPolyphonic 的 `play_stream()`
 - `get_tree().paused = true` 时，`process_mode` 为默认的播放器会自动 `stream_paused`。暂停菜单的点击音，和暂停时要继续的音乐，把播放器的 `process_mode` 设为 `Node.PROCESS_MODE_ALWAYS`
+- 压缩器侧链照默认参数写，`threshold` 0 dB 时一点都不压，调低后压低量又是公式的两倍左右，参数见混音
+- 手写布局时子总线排在父总线前面，`send` 指向序号不小于自己的总线，引擎静默改发 Master，父总线的滑块管不到它
+- 场景里的播放器 `bus` 留空就走 Master，音效和环境滑块都管不到。每个 `.tscn` 里的播放器都写 `bus`
+- `AudioServer.get_bus_peak_volume_left_db` 读到的是推子和静音之后的电平，触发总线排在被压总线之后时侧链也一样。玩家调小语音，压缩器跟着少压，静音后不压，一般正合适。`threshold` 按默认音量调，不用为此另建总线
 - 网页导出默认按 sample 方式播放，AudioEffect、多普勒、3D 混响总线、程序生成音频都不生效，空间音频也可能不正常。需要这些的播放器把 `playback_type` 设为 `AudioServer.PLAYBACK_TYPE_STREAM`，或改 `audio/general/default_playback_type.web`。代价是延迟更高，没开线程支持的导出更明显，可能爆音
 
 ## 参考
 
 - [音频总线](https://docs.godotengine.org/en/stable/tutorials/audio/audio_buses.html)
 - `references/dynamic-music.md`
+- `references/mixing.md`：分类总线布局、响度测量与目标表、并发规则、固定量压低的写法、混音自查清单
