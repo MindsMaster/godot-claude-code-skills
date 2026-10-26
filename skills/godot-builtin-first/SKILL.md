@@ -59,7 +59,7 @@ ls *.csproj *.sln 2>/dev/null
 | 辉光 雾 色调映射 | `Environment`，2D 另需 `rendering/viewport/hdr_2d` | godot-shaders-vfx godot-2d |
 | 描边 溶解 闪白 | 先看 `StandardMaterial3D`、`CanvasItemMaterial` 的属性，再写 shader | godot-shaders-vfx |
 | 编辑数据的工具 | `@tool`、`EditorPlugin`、Inspector 编辑 Resource | godot-editor-tooling |
-| 大量同类物体 线程 卡顿 | `MultiMeshInstance2D`/`3D`、`WorkerThreadPool`、Profiler | godot-performance |
+| 大量同类物体 线程 卡顿 | 管理器统一驱动、`MultiMeshInstance2D`/`3D`、`WorkerThreadPool` 分块、Profiler，不降画面与数量 | godot-performance |
 | 延时 周期 数值靠近目标 | `Timer`、`create_timer`、`move_toward`、`lerp` | godot-gdscript |
 | 改完自己验证 | `godot --headless` 加载与冒烟场景 | godot-headless-testing |
 | GDScript 写法 | 静态类型 信号 await | godot-gdscript |

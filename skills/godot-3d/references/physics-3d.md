@@ -6,7 +6,7 @@ SKILL.md 里的角色移动与查询的补充：形状选择，Jolt 差异，C# 
 
 | 物体 | 形状 | 备注 |
 |---|---|---|
-| 角色 刚体 | `CapsuleShape3D` `BoxShape3D` `SphereShape3D` `CylinderShape3D` | 行为最稳 性能最好 |
+| 角色 刚体 | `CapsuleShape3D` `BoxShape3D` `SphereShape3D` `CylinderShape3D` | 行为最稳 性能最好。大量角色挤在一起时圆柱最贵，见 godot-performance 的 crowd-characters.md |
 | 简单动态物体 | `ConvexPolygonShape3D` | 编辑器 Mesh 菜单生成 单个用 Quickhull 多个用 V-HACD |
 | 静态关卡 | `ConcavePolygonShape3D` | 只能放 `StaticBody3D` 或 `AnimatableBody3D` 没有体积 内外都能放东西 |
 | 地形 | `HeightMapShape3D` | |
@@ -26,7 +26,7 @@ Jolt 通过 `physics/3d/physics_engine` 选择，值为 `Jolt Physics`。`DEFAUL
 - 冻结为 kinematic 的 `RigidBody3D` 默认不报与其他 kinematic 和静态体的接触，开 `physics/jolt_physics_3d/simulation/generate_all_kinematic_contacts`，大量或大形状叠在复杂静态几何上时开销大
 - `PhysicsDirectBodyState3D.get_contact_impulse()` 是预估值，只在两个物体不与别的物体接触时准确
 - 休眠：`physics/jolt_physics_3d/simulation/allow_sleep`
-- 线程：`physics/3d/run_on_separate_thread` 在 Jolt 下有线程安全 但标为实验性，开启后错误信息里的节点显示为 `<unknown>`
+- 线程：`physics/3d/run_on_separate_thread` 在 Jolt 下有线程安全 但标为实验性，开启后错误信息里的节点显示为 `<unknown>`。它只把物理步挪走，`move_and_slide()` 与空间查询仍只能在主线程调，大量角色拥挤见 godot-performance 的 crowd-characters.md
 - 旧 Godot Jolt 扩展的设置路径已搬家 `physics/jolt_physics_3d/` 下，扩展里的 Jolt 关节节点没有进入内置版本
 
 ## C# 查询

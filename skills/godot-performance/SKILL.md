@@ -1,6 +1,6 @@
 ---
 name: godot-performance
-description: 排查卡顿 掉帧 帧率低 内存增长 孤儿节点时用。先测再改 Profiler Visual Profiler Monitors 自定义监视。热点的内置解法 MultiMesh、Server 直接调用、对象池、离屏暂停、物理插值、WorkerThreadPool、线程加载、着色器编译卡顿、每帧分配。Godot performance profiling, stutter.
+description: 排查卡顿 掉帧 帧率低 内存增长时用，也用于几百个怪物 子弹同屏、CharacterBody 拥挤变慢、每帧重建网格、线程池只用上两三个核、C# 跨界开销。先测再改 Profiler Monitors。不降画面与数量的内置解法 管理器统一驱动、MultiMesh、Server、对象池、空间哈希、WorkerThreadPool 分块、网格局部更新、物理插值、线程加载、着色器编译卡顿、每帧分配。Godot performance, stutter, many entities.
 ---
 
 # Godot 性能
@@ -8,6 +8,10 @@ description: 排查卡顿 掉帧 帧率低 内存增长 孤儿节点时用。先
 先测再改：定位瓶颈，选内置方案，再测一次确认。不管具体渲染特效，也不管 GDScript 与 C# 的语法写法，着色器去 godot-shaders-vfx，3D 剔除与 LOD 去 godot-3d，语法去 godot-gdscript 与 godot-csharp。
 
 目标 4.7，最低 4.4。
+
+## 不降效果
+
+默认只做同画面、同数量、同更新频率下的优化：合批调度、纯计算并行、只更新变化的部分、去掉重复查询。下面这些会降画面或改行为，用户没点名就不提出：隔帧更新或按距离降频、屏幕外的东西停止运动、降 `physics_ticks_per_second`、调小 `max_slides` 或物理迭代、压缩顶点精度、关阴影、减数量。屏幕外停用（下文 `VisibleOnScreenEnabler2D`）只用于看不见时停了也不影响结果的东西。
 
 ## 先查内置
 
@@ -19,7 +23,11 @@ description: 排查卡顿 掉帧 帧率低 内存增长 孤儿节点时用。先
 | 只用于事件响应的节点 | 去掉空的 `_process`，`set_process(false)` | 空 `_process` 留着 |
 | 周期逻辑 | `Timer` 节点 | `_process` 里累加计时 |
 | 移动抖动 | 物理插值 | 在 `_process` 里手动推进物理体 |
-| 大批量计算 | `WorkerThreadPool.add_group_task()` | 自建 `Thread` 池 |
+| 大批量计算 | `WorkerThreadPool.add_group_task()` 按块分，传 `high_priority` | 自建 `Thread` 池 |
+| 几百个同类实体各自 `_physics_process` | 一个管理器循环处理全部，见 [many-entities.md](references/many-entities.md) | 每个实体一个回调 |
+| 大量 `CharacterBody3D` 挤在一起变慢 | 收紧碰撞掩码、胶囊形状、静止跳过，见 [crowd-characters.md](references/crowd-characters.md) | 降 tick 率、调小 `max_slides` |
+| 每帧形状都变的网格 | 预分配加 `ArrayMesh.surface_update_vertex_region()` 加 `custom_aabb`，见 [render-submission.md](references/render-submission.md) | 每帧 `clear_surfaces()` 重建 |
+| 脚本里逐点变换、多边形运算、拼字符串 | `Transform2D` 乘 `PackedVector2Array`、`Geometry2D`、`PackedStringArray` 的 `join`，见 [engine-fast-paths.md](references/engine-fast-paths.md) | 手写循环 |
 | 远处网格太多 | `visibility_range` 与 `OccluderInstance3D`，见 godot-3d | 脚本逐帧算距离 |
 | 进关卡或换场景卡顿 | `ResourceLoader.load_threaded_request()` 加轮询 | 玩法中途同步 `load()` |
 | 特效第一次出现卡一下 | 预热场景，看 Pipeline 监视器 | 运行时第一次才实例化特效 |
@@ -90,7 +98,7 @@ func _physics_process(delta: float) -> void:
 - 定义了 `_process` 或 `_physics_process` 的节点默认开启回调，`_ready()` 里按需关闭
 - `hide()` 只停绘制，回调仍在跑。要停整棵子树用 `process_mode = Node.PROCESS_MODE_DISABLED`
 - 区域或关卡整体不用时，`remove_child()` 摘出场景树，有时比暂停或隐藏省得多，需要时再 `add_child()`。摘出的节点要自己保存引用并在不再需要时 `free()`
-- 大量互不依赖的节点处理可把根节点的 `process_thread_group` 设为 `PROCESS_THREAD_GROUP_SUB_THREAD`，子线程处理期间不能访问组外节点，跨组用 `call_deferred()` 或 `call_deferred_thread_group()`
+- 大量互不依赖的节点处理可把根节点的 `process_thread_group` 设为 `PROCESS_THREAD_GROUP_SUB_THREAD`，子线程处理期间不能访问组外节点，跨组用 `call_deferred()` 或 `call_deferred_thread_group()`。动画与纯计算可以放进去，物理查询与 `move_and_slide()` 不行，引擎只允许主线程调
 
 ### 屏幕外自动停用
 
@@ -135,15 +143,10 @@ func show_count(count: int) -> void:
 
 ## 直接用 Server
 
-数千个每帧都要处理的对象，场景树的节点开销成为瓶颈时，绕过节点直接调服务器。完整示例与对象池见 [references/hotspots.md](references/hotspots.md)。
+数千个每帧都要处理的对象，场景树的节点开销成为瓶颈时，绕过节点直接调 `RenderingServer` 与 `PhysicsServer2D`。先试管理器加紧凑数组、MultiMesh 与对象池，见 [many-entities.md](references/many-entities.md)，它们够用就不要上服务器。完整示例与对象池见 [references/hotspots.md](references/hotspots.md)。
 
-- `RenderingServer.canvas_item_create()` 加 `canvas_item_add_texture_rect()` 画 2D 精灵，`canvas_item_set_transform()` 每帧更新位置。碰撞用 `PhysicsServer2D.body_create()` 加 `body_add_shape()` 加 `body_set_space()`，`body_set_state()` 设位置。官方示例是 Bullet Shower 演示项目，用 body 加一个节点的 `_draw()` 画全部子弹
 - 服务器对象用 `RID` 引用，没有引用计数，必须 `free_rid()`，漏掉就是泄漏
-- 开了物理插值时，服务器创建的 canvas item 摆好位置后调 `RenderingServer.canvas_item_reset_physics_interpolation()`，否则出现时有瞬移
-- 服务器可在线程里调用。`PhysicsServer2D` 与 `PhysicsServer3D` 要开 `physics/2d/run_on_separate_thread` 或 `physics/3d/run_on_separate_thread`，开启后 API 只能在物理处理期间访问。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe，Separate 标为实验性
-- 状态存进 `PackedVector2Array` 等紧凑数组，不为每个对象建 `RefCounted`
-- 先试 MultiMesh 与对象池，它们够用就不要上服务器
-- 对象池：节点用完 `remove_child()` 放进数组，复用时重置状态再 `add_child()`，池里的节点是孤儿，退出时手动 `free()`
+- 服务器的设置类调用可在线程里调，排进命令队列。物理查询不行：`PhysicsServer3D.body_test_motion()` 与 `space_get_direct_state()` 只认主线程，2D 同样，开不开 `physics/3d/run_on_separate_thread` 都一样
 
 ## 物理 tick 与插值
 
@@ -154,7 +157,7 @@ common/physics_ticks_per_second=30
 common/physics_interpolation=true
 ```
 
-- `physics/common/physics_ticks_per_second` 默认 60，降低能直接减少物理与 `_physics_process` 的 CPU，有的游戏可以降到 30 甚至 20，代价是模拟更粗、输入延迟更大。官方建议有实时玩家移动的游戏保持 60
+- `physics/common/physics_ticks_per_second` 默认 60，降低能直接减少物理与 `_physics_process` 的 CPU，有的游戏可以降到 30 甚至 20，代价是模拟更粗、输入延迟更大，属于降效果，用户同意才改。官方建议有实时玩家移动的游戏保持 60
 - 开启 `physics/common/physics_interpolation`（默认 `false`）后渲染在物理帧之间插值，低 tick 率也平滑。2D 自 4.3，3D 自 4.4
 - 移动和游戏逻辑放 `_physics_process()`，在 `_process()` 里移动会抖，间接移动也算，如移动父节点、Tween、AnimationPlayer。Tween 用 `set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)`，AnimationPlayer 设 `callback_mode_process` 为 `ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS`，二者默认都跟随 idle。必须在 `_process()` 里动的节点把 `physics_interpolation_mode` 设为 `PHYSICS_INTERPOLATION_MODE_OFF`
 - 摆放或瞬移后先设变换，再 `reset_physics_interpolation()`，顺序反了会拖尾
@@ -169,15 +172,18 @@ common/physics_interpolation=true
 ```gdscript
 extends Node
 
+const CHUNK := 256
 var _results: Array[float] = []
 var _task_id: int = -1
 
 func start(count: int) -> void:
 	_results.resize(count)
-	_task_id = WorkerThreadPool.add_group_task(_compute, count, -1, false, "compute")
+	var chunks := ceili(count / float(CHUNK))
+	_task_id = WorkerThreadPool.add_group_task(_compute_chunk, chunks, -1, true, "compute")
 
-func _compute(index: int) -> void:
-	_results[index] = sqrt(float(index))
+func _compute_chunk(chunk: int) -> void:
+	for i in range(chunk * CHUNK, mini((chunk + 1) * CHUNK, _results.size())):
+		_results[i] = sqrt(float(i))
 
 func _process(_delta: float) -> void:
 	if _task_id != -1 and WorkerThreadPool.is_group_task_completed(_task_id):
@@ -190,9 +196,12 @@ func _exit_tree() -> void:
 		WorkerThreadPool.wait_for_group_task_completion(_task_id)
 ```
 
+- `add_group_task()` 每个元素调一次 `Callable`，不会自动分块。元素传块数，每块处理一段下标，调度开销从每元素一次降到每块一次
+- `high_priority` 默认 `false`。低优先级任务同时最多占 `threading/worker_pool/low_priority_thread_ratio` 比例的线程，默认 0.3，8 线程的机器只用 2 个。每帧要等结果的计算传 `true`，后台慢慢做的才用默认
 - 优先 `WorkerThreadPool`，线程在启动时已创建。自建 `Thread` 创建开销大，在 Windows 上更明显，需要时在加载阶段创建好，且结束时必须 `wait_to_finish()`
 - 每个任务都必须调用 `wait_for_task_completion()` 或 `wait_for_group_task_completion()`，否则资源不释放。上一个任务没回收前不要再 `start()`，任务 ID 被覆盖后旧任务就没人等了
 - 场景树不是线程安全的，线程里只能 `call_deferred()`、`set_deferred()`。不在树里的节点可以在线程里创建和组装，加入场景树用 `add_child.call_deferred(node)`
+- 拆法：纯计算进线程，结果写进各自独立的下标，主线程等完成后统一提交给引擎，如上传网格、`move_and_slide()`、设变换
 - GDScript 的 Array 与 Dictionary 允许多线程读写元素，改变大小要加 `Mutex`
 - 线程里避免需要同步 GPU 的操作，如创建纹理、读取图像数据
 - 任务内容太轻，线程调度开销大于收益。先用 Profiler 确认是计算量大
@@ -271,6 +280,10 @@ Forward+ 与 Mobile 渲染器自 4.4 起用 ubershader 与加载时预编译管�
 ## 参考
 
 - [references/profiling.md](references/profiling.md) 监视器清单、Profiler 用法、CPU 与 GPU 判断、命令行选项
+- [references/many-entities.md](references/many-entities.md) 几百上千个同类实体：分层选择、管理器统一驱动、紧凑数组与 swap-remove、空间哈希、对象池上限与预热
+- [references/crowd-characters.md](references/crowd-characters.md) 大量 CharacterBody 拥挤：`move_and_slide()` 的开销构成、不改行为的省法、为什么不能并行、避让路线
+- [references/render-submission.md](references/render-submission.md) 引擎已自动做的渲染缓存、动态网格局部更新、共用蒙皮、`custom_aabb`、2D 断批、动画放子线程组
+- [references/engine-fast-paths.md](references/engine-fast-paths.md) 替代脚本循环的内置批量操作、GDScript 写法快慢
 - [通用优化](https://docs.godotengine.org/en/stable/tutorials/performance/general_optimization.html)
 - [CPU 优化](https://docs.godotengine.org/en/stable/tutorials/performance/cpu_optimization.html)
 - [GPU 优化](https://docs.godotengine.org/en/stable/tutorials/performance/gpu_optimization.html)

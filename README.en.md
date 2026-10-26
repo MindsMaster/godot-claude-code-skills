@@ -50,7 +50,7 @@ The skill text is written in Chinese. Claude Code reads it directly and responds
 
 Each case in `evals/` poses a development task and runs with and without the plugin installed. Regex assertions and an LLM judge check whether the built-in solution is used and whether the result holds in the engine. A run passes when every check passes.
 
-October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision:
+October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision, and the thread pool case ran 6 times:
 
 | Task | With | Without | Reason for failure |
 | --- | --- | --- | --- |
@@ -63,7 +63,8 @@ October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; 
 | HUD and unified font | 3/3 | 0/3 | `.tscn` lacks `node_paths`, so the exported player reference is null at runtime |
 | Headless fixing of script errors and warnings | 6/6 | 2/6 | No warnings reported without enabling warning output |
 | 3D gunshot muffled up close, distance muffling kept far away | 3/3 | 0/3 | Unaware that `volume_db` feeds the distance filter strength; disables or raises the filter so distant shots are no longer muffled, or moves the listener onto the character and the sound is still filtered |
-| Total | 30/30 | 7/30 | |
+| Thread pool keeps only two cores busy, count and results unchanged | 5/6 | 0/6 | Unaware that low-priority tasks get only 30% of the threads, or submits one task per element without chunking; with the plugin, 1 run did not load the skill |
+| Total | 35/36 | 7/36 | |
 
 To reproduce:
 

@@ -34,7 +34,7 @@ func _exit_tree() -> void:
 - 服务器对象用 `RID` 引用，没有引用计数，必须 `free_rid()`，漏掉就是泄漏
 - 碰撞用 `PhysicsServer2D.body_create()` 加 `body_add_shape()` 加 `body_set_space()`，`body_set_state()` 设位置。只要进出事件时用 `area_create()` 加 `area_set_monitor_callback()`。官方示例是 Bullet Shower 演示项目，用 body 加一个节点的 `_draw()` 画全部子弹
 - 开了物理插值时，新建 canvas item 摆好位置后调 `RenderingServer.canvas_item_reset_physics_interpolation()`，否则出现时有瞬移
-- 服务器可在线程里调用。`PhysicsServer2D` 与 `PhysicsServer3D` 要开 `physics/2d/run_on_separate_thread` 或 `physics/3d/run_on_separate_thread`，开启后 API 只能在物理处理期间访问。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe
+- 服务器的设置类调用可在线程里调，排进命令队列。物理查询 `PhysicsServer2D.body_test_motion()` 与 `space_get_direct_state()` 只认主线程。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe
 - 状态存进 `PackedVector2Array` 等紧凑数组，不为每个对象建 `RefCounted`
 - 先试 MultiMesh 与对象池，它们够用就不要上服务器
 

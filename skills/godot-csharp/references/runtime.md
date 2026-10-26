@@ -1,6 +1,6 @@
 # C# 运行时细节
 
-输入事件匹配、热重载与程序集卸载、线程、调试。
+输入事件匹配、热重载与程序集卸载、线程、跨界开销、调试。
 
 ## 输入事件模式匹配
 
@@ -82,12 +82,14 @@ using Godot;
 
 public partial class Crowd : Node
 {
-    private readonly float[] _results = new float[256];
+    private const int Chunk = 256;
+    private readonly float[] _results = new float[4096];
     private long _taskId;
 
     public override void _Ready()
     {
-        _taskId = WorkerThreadPool.AddGroupTask(Callable.From<int>(Compute), _results.Length);
+        int chunks = (_results.Length + Chunk - 1) / Chunk;
+        _taskId = WorkerThreadPool.AddGroupTask(Callable.From<int>(ComputeChunk), chunks, -1, true);
     }
 
     public override void _ExitTree()
@@ -95,22 +97,56 @@ public partial class Crowd : Node
         WorkerThreadPool.WaitForGroupTaskCompletion(_taskId);
     }
 
-    private void Compute(int index)
+    private void ComputeChunk(int chunk)
     {
-        _results[index] = Mathf.Sqrt(index);
+        int end = Mathf.Min((chunk + 1) * Chunk, _results.Length);
+        for (int i = chunk * Chunk; i < end; i++)
+        {
+            _results[i] = Mathf.Sqrt(i);
+        }
     }
 }
 ```
 
+- `AddGroupTask()` 每个元素调一次 `Callable`，元素传块数，每块处理一段下标，省掉逐元素的跨界调用。纯 C# 计算也可以用 `Parallel.For` 配 `Partitioner.Create(0, n, chunk)`
+- `highPriority` 默认 `false`，低优先级任务同时最多占 `threading/worker_pool/low_priority_thread_ratio` 比例的线程，默认 0.3。每帧要等结果的任务传 `true`
 - 每个 `AddTask()` 或 `AddGroupTask()` 都必须配对调用 `WaitForTaskCompletion()` 或 `WaitForGroupTaskCompletion()`，否则任务占用的资源不释放
 - 任务里不碰场景树，不改共享的资源。结果写进各自独立的下标，主线程等完成后再读
 - `WorkerThreadPool` 的任务不会自动回主线程，结果用 `CallDeferred()` 交回。在主线程发起的 `await Task.Run(...)` 的 continuation 下一帧回主线程，规则见 SKILL.md 的 async 一节
-- 场景树只在主线程操作，线程里用 `CallDeferred()`。服务器 API（`RenderingServer`、`PhysicsServer2D` 等）可在线程里用，渲染要把 `rendering/driver/threads/thread_model` 设为 Separate（引擎标注实验性，有崩溃问题），物理要开 `physics/2d/run_on_separate_thread` 或 `physics/3d/run_on_separate_thread`
+- 场景树只在主线程操作，线程里用 `CallDeferred()`。`RenderingServer` 与物理服务器的设置类调用可在线程里调，会排进命令队列。物理查询不行：`PhysicsServer3D.body_test_motion()` 与 `space_get_direct_state()` 只认主线程，所以射线、形状查询、`MoveAndSlide()` 都要留在主线程，开不开 `physics/3d/run_on_separate_thread` 都一样
 - 在线程里构造不在树里的节点并组装是安全的，加入场景树用 `CallDeferred(Node.MethodName.AddChild, node)`
 - `AStar2D`、`AStar3D`、`AStarGrid2D` 不是线程安全的，同一个实例只给一个线程用
 
+## 跨界开销
+
+普通引擎方法与属性走缓存好的方法指针直接调用，不经 Variant。下面这些多付一次分配、拷贝或按名查找：
+
+```csharp
+using Godot;
+
+public partial class Trail : Line2D
+{
+    private readonly Vector2[] _points = new Vector2[32];
+
+    public void Push(Vector2 head)
+    {
+        System.Array.Copy(_points, 0, _points, 1, _points.Length - 1);
+        _points[0] = head;
+        Points = _points;
+    }
+}
+```
+
+- Packed 数组属性每次读都在原生侧和托管侧各复制一整份。循环里写 `Points[i]` 每次迭代复制整个数组。自己持有托管数组，改完整体赋回一次
+- 4.7.2 的绑定给 Packed 数组参数生成了 ReadOnlySpan 重载，传切片不分配托管数组，原生侧仍复制一次
+- `Get("position")` 与 `Set()` 先进引擎，再回调 C# 脚本实例找脚本属性，再按名沿继承链查原生属性。类型已知就直接读写属性，如 `Node2D.position` 对应的 C# 属性
+- 引擎按方法名逐个节点分派 `_Process` 和 `_PhysicsProcess`，每次一个跨界。空的覆写删掉。几百个同类节点由一个管理器统一驱动，见 godot-performance 的 many-entities.md
+- `GD.Print()` 分配 `object[]`、装箱、拼接再转码成引擎字符串，调试构建里默认每行刷新标准输出
+- 可变参数方法 `Call()`、`CallDeferred()`、`EmitSignal()`、`Rpc()` 把全部参数转成 Variant，热路径用生成的事件或直接方法调用
+- 单次普通跨界调用很便宜，先测再改。一个项目里 dotnet-trace 显示每帧沿父链找节点、四叉树重复读全局位置 合计占主线程 6%，改掉后基准只快 2% 以内，在噪声范围里。采样器偏向在跨界返回点取样，小调用会显得很贵
+
 ## 调试
 
-- 内置 Profiler 不支持 C# 脚本，函数耗时用 `Time.GetTicksUsec()` 前后相减，或外部工具如 JetBrains Rider 与 dotTrace
+- 内置 Profiler 不支持 C# 脚本，函数耗时用 `Time.GetTicksUsec()` 前后相减，或外部工具如 JetBrains Rider、dotTrace、`dotnet-trace collect -p <pid> --format Speedscope`。采样结果只用来找方向，改完用固定场景的基准前后对比
 - 断点与单步在 IDE 里建调试配置，启动项目的 Godot 可执行文件，配置示例见官方 C# 基础文档
 - 输出用 `GD.Print`，发布版剥离调试输出用 `OS.IsDebugBuild()` 判断

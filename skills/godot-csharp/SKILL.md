@@ -286,12 +286,12 @@ public partial class Door : Node3D
 - 静态字段持有 `GodotObject`，节点释放后字段指向已释放对象，热重载后静态字段回到初始值。静态 `Action` 保存实例方法同理。静态字段只放纯 C# 数据与 `StringName`
 - 运行中的后台 `Task` 和 `Thread`、字段里存着的 `Callable` 可能让程序集卸载失败，在 `_ExitTree()` 里取消或清理
 - `EditorInterface` 在 C# 里不是静态类，访问它的 Singleton 属性
-- 输入事件模式匹配、热重载细节、线程在 [references/runtime.md](references/runtime.md)
+- 输入事件模式匹配、热重载细节、线程、Packed 数组属性每次读都复制等跨界开销在 [references/runtime.md](references/runtime.md)
 
 ## 参考
 
 - [references/gdscript-csharp.md](references/gdscript-csharp.md) GDScript 与 C# 常用写法对照
-- [references/runtime.md](references/runtime.md) 输入事件、热重载、线程
+- [references/runtime.md](references/runtime.md) 输入事件、热重载、线程分块、跨界开销
 - [C# 基础](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html)
 - [API 差异](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_differences.html)
 - [信号](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_signals.html)

@@ -223,3 +223,141 @@ var per_call := node.measure(func() -> void: OS.delay_usec(1000), 20)
 expect(per_call >= 1000.0 and per_call < 20000.0, "单次约 1000 微秒")
 expect(node.measure(func() -> void: pass) >= 0.0, "默认 1000 次")
 ```
+
+## references/many-entities.md `_members`
+
+```gdscript
+var a := Node2D.new()
+var b := Node2D.new()
+root.add_child(a)
+root.add_child(b)
+node.register(a)
+node.register(b)
+await frames(10)
+expect(not a.is_physics_processing(), "实体自己的回调关掉")
+expect(a.position.x > 5.0 and is_equal_approx(a.position.x, b.position.x), "管理器每帧推进全部实体")
+b.free()
+await frames(2)
+expect(node._members.size() == 1, "离树时从列表移除")
+a.free()
+```
+
+## references/many-entities.md `func _flush_doomed`
+
+<!-- run: mode render -->
+
+```gdscript
+node.spawn(Vector2(0.0, 0.0), Vector2.ZERO)
+node.spawn(Vector2(10.0, 0.0), Vector2(0.0, -100000.0))
+node.spawn(Vector2(20.0, 0.0), Vector2.ZERO)
+await frames(2)
+expect(node._count == 2, "飞出界的那个被删")
+expect(node._positions[1].is_equal_approx(Vector2(20.0, 0.0)), "末尾元素搬进空位")
+expect(node.multimesh.visible_instance_count == 2, "visible_instance_count 跟着活跃数")
+expect(node.multimesh.get_instance_transform_2d(1).origin.is_equal_approx(Vector2(20.0, 0.0)), "实例按新下标写")
+node.kill(0)
+node.kill(0)
+node._flush_doomed()
+expect(node._count == 1 and node._positions[0].is_equal_approx(Vector2(20.0, 0.0)), "重复登记只删一次")
+for i in node.CAPACITY:
+	node.spawn(Vector2.ZERO, Vector2.ZERO)
+expect(node._count == node.CAPACITY and not node.spawn(Vector2.ZERO, Vector2.ZERO), "满了拒绝")
+```
+
+## references/many-entities.md `func query`
+
+```gdscript
+var points := PackedVector2Array([Vector2(10.0, 10.0), Vector2(70.0, 10.0), Vector2(300.0, 300.0), Vector2(-20.0, 5.0)])
+node.rebuild(points, 4)
+expect(node._cells.size() == 4, "四个点落在四格")
+var near: PackedInt32Array = node.query(Vector2(20.0, 10.0), 60.0, points)
+near.sort()
+expect(near == PackedInt32Array([0, 1, 3]), "半径内跨格的邻居都找到")
+expect(node.query(Vector2(1000.0, 1000.0), 10.0, points).is_empty(), "空格子直接跳过")
+node.rebuild(points, 2)
+expect(node.query(Vector2(300.0, 300.0), 10.0, points).is_empty(), "只登记前 count 个")
+```
+
+## references/crowd-characters.md `desired_direction`
+
+<!-- check: setup -->
+```gdscript
+var capsule := CollisionShape3D.new()
+var shape := CapsuleShape3D.new()
+shape.radius = 0.4
+shape.height = 1.8
+capsule.shape = shape
+node.add_child(capsule)
+node.position = Vector3(0.0, 1.0, 0.0)
+var floor_body := StaticBody3D.new()
+var floor_shape := CollisionShape3D.new()
+var box := BoxShape3D.new()
+box.size = Vector3(40.0, 1.0, 40.0)
+floor_shape.shape = box
+floor_body.add_child(floor_shape)
+floor_body.position = Vector3(0.0, -0.5, 0.0)
+root.add_child(floor_body)
+```
+
+```gdscript
+await frames(60)
+expect(node.is_on_floor(), "落地")
+var rest := node.position
+await frames(10)
+expect(node.position.is_equal_approx(rest) and node.is_on_floor(), "静止跳过时位置与地面状态不变")
+node.desired_direction = Vector3(1.0, 0.0, 0.0)
+await frames(15)
+expect(node.position.x > rest.x + 0.5 and node.is_on_floor(), "有速度时照常移动")
+node.desired_direction = Vector3.ZERO
+await frames(5)
+var stop := node.position
+await frames(5)
+expect(node.position.is_equal_approx(stop) and node.is_on_floor(), "停下后又跳过")
+```
+
+## references/crowd-characters.md `velocity_computed`
+
+```gdscript
+await frames(2)
+expect(node._agent.avoidance_enabled and is_equal_approx(node._agent.neighbor_distance, 4.0), "_ready 里开了避让")
+node.desired_velocity = Vector3(2.0, 0.0, 0.0)
+await frames(20)
+expect(node.velocity.is_equal_approx(Vector3(2.0, 0.0, 0.0)), "没有邻居时安全速度等于期望速度")
+expect(node.position.x > 0.3, "回调里 move_and_slide 推进")
+var agent := NavigationAgent3D.new()
+expect(is_equal_approx(agent.neighbor_distance, 50.0) and agent.max_neighbors == 10 and not agent.use_3d_avoidance, "默认值")
+agent.free()
+```
+
+## references/render-submission.md `func upload`
+
+<!-- run: mode render -->
+
+```gdscript
+await frames(2)
+expect(RenderingServer.mesh_surface_get_format_vertex_stride(node._mesh.surface_get_format(0), node.MAX_VERTS) == node.VERTEX_BYTES, "只有位置时每顶点 12 字节")
+var tri := PackedVector3Array([Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), Vector3(1.0, 1.0, 0.0), Vector3(2.0, 1.0, 0.0), Vector3(1.0, 2.0, 0.0)])
+node.upload(tri)
+await frames(1)
+var verts: PackedVector3Array = node._mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+expect(verts.size() == node.MAX_VERTS, "容量不变")
+expect(verts[4].is_equal_approx(Vector3(2.0, 1.0, 0.0)), "局部写入生效")
+node.upload(tri.slice(0, 3))
+await frames(1)
+verts = node._mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+expect(verts[1].is_equal_approx(Vector3(1.0, 0.0, 0.0)) and verts[4].is_zero_approx(), "变少时尾部清零")
+expect(RenderingServer.mesh_get_custom_aabb(node._mesh.get_rid()).is_equal_approx(node._mesh.custom_aabb), "custom_aabb 交给了渲染服务器")
+```
+
+## references/engine-fast-paths.md `func world_outline`
+
+```gdscript
+node.position = Vector2(10.0, 0.0)
+node.rotation = PI / 2.0
+await frames(1)
+var out: PackedVector2Array = node.world_outline(PackedVector2Array([Vector2(1.0, 0.0)]))
+expect(out[0].is_equal_approx(Vector2(10.0, 1.0)), "整组乘全局变换")
+var back := PackedVector2Array([Vector2(10.0, 1.0)]) * node.global_transform
+expect(back[0].is_equal_approx(Vector2(1.0, 0.0)), "数组在左是逆变换")
+expect(node.joined(PackedStringArray(["a", "b", "c"])) == "a, b, c", "join 一次拼好")
+```
