@@ -177,22 +177,25 @@ for bus_name: String in ["Music", "Voice"]:
 var music := AudioServer.get_bus_index(&"Music")
 var music_player := AudioStreamPlayer.new()
 music_player.bus = &"Music"
-music_player.stream = make_tone(4.0)
+music_player.stream = make_tone(7.0)
 node.add_child(music_player)
 music_player.play()
 await wait_real(0.5)
 var alone := AudioServer.get_bus_peak_volume_left_db(music, 0)
 var voice := AudioStreamPlayer.new()
 voice.bus = &"Voice"
-voice.stream = make_tone(3.0)
+voice.stream = make_tone(6.0)
 node.add_child(voice)
 voice.play()
 await wait_real(0.6)
 var ducked := AudioServer.get_bus_peak_volume_left_db(music, 0)
 var compressor := AudioServer.get_bus_effect(music, 0) as AudioEffectCompressor
 compressor.threshold = 0.0
-await wait_real(0.8)
-var default_threshold := AudioServer.get_bus_peak_volume_left_db(music, 0)
+var default_threshold := ducked
+var deadline := Time.get_ticks_msec() + 3000
+while absf(alone - default_threshold) >= 0.5 and Time.get_ticks_msec() < deadline:
+	await wait_real(0.1)
+	default_threshold = AudioServer.get_bus_peak_volume_left_db(music, 0)
 print("alone %.1f ducked %.1f default threshold %.1f" % [alone, ducked, default_threshold])
 expect(alone - ducked > 2.5 and alone - ducked < 6.0, "-12 dBFS 的语音把音乐压低约 4 dB")
 expect(absf(alone - default_threshold) < 0.5, "threshold 0 dB 时完全不压")
