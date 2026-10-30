@@ -34,7 +34,7 @@ def parse_tags(raw: str) -> dict:
 
 
 def parse_doc(path: Path) -> Doc:
-    where = str(path.relative_to(ROOT))
+    where = path.relative_to(ROOT).as_posix()
     text = path.read_text(encoding="utf-8")
     lines = text.split("\n")
     prose = []
