@@ -93,6 +93,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 | `godot-resources-data` | Custom Resources, threaded loading, save data, import-time baking, built-in curve resources |
 | `godot-shaders-vfx` | Shader parameters, instance uniforms, particles, Environment, post-processing, CompositorEffect |
 | `godot-editor-tooling` | @tool, EditorPlugin, Inspector plugins, import plugins, undo, shortcuts |
+| `godot-multiplayer` | ENet connections, RPC, Spawner and Synchronizer, late join, custom transports, prediction and correction, two-process acceptance |
 | `godot-headless-testing` | Headless command line, smoke scenes, exit codes, CI, GUT, gdUnit4 |
 | `godot-performance` | Profiler and Monitors, MultiMesh, physics interpolation, WorkerThreadPool, shader compilation stutter |
 

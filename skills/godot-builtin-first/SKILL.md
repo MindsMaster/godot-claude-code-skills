@@ -61,6 +61,7 @@ ls *.csproj *.sln 2>/dev/null
 | 编辑数据的工具 | `@tool`、`EditorPlugin`、Inspector 编辑 Resource | godot-editor-tooling |
 | 大量同类物体 线程 卡顿 | 管理器统一驱动、`MultiMeshInstance2D`/`3D`、`WorkerThreadPool` 分块、Profiler，不降画面与数量 | godot-performance |
 | 延时 周期 数值靠近目标 | `Timer`、`create_timer`、`move_toward`、`lerp` | godot-gdscript |
+| 联机 同步 后加入 | `ENetMultiplayerPeer`、`@rpc`、`MultiplayerSpawner`、`MultiplayerSynchronizer` | godot-multiplayer |
 | 改完自己验证 | `godot --headless` 加载与冒烟场景 | godot-headless-testing |
 | GDScript 写法 | 静态类型 信号 await | godot-gdscript |
 | C# 写法 | 源码生成器 `StringName` 缓存 生命周期 | godot-csharp |

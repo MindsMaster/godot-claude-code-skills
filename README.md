@@ -91,6 +91,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 | `godot-resources-data` | 自定义 Resource、线程加载、存档、导入期烘焙、内置曲线资源 |
 | `godot-shaders-vfx` | shader 参数、instance uniform、粒子、Environment、后处理、CompositorEffect |
 | `godot-editor-tooling` | @tool、EditorPlugin、Inspector 插件、导入插件、撤销、快捷键 |
+| `godot-multiplayer` | ENet 建连、RPC、Spawner 与 Synchronizer、后加入、自建传输、预测与校正、两进程验收 |
 | `godot-headless-testing` | 无头命令行、冒烟场景、退出码、CI、GUT、gdUnit4 |
 | `godot-performance` | Profiler 与 Monitor、MultiMesh、物理插值、WorkerThreadPool、shader 编译卡顿 |
 
