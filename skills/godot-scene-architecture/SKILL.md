@@ -254,6 +254,7 @@ func _unhandled_input(event: InputEvent) -> void:
 - `PROCESS_MODE_DISABLED` 只停回调和输入，连接的信号照常调用。在 `node_added` 这类信号里往队列加、在 `_process` 里清空的写法，禁用期间队列只增不减。在对应的 `node_removed` 里同步删，队列只留还在树里的节点
 - `Node.set_process(false)` 只关 `_process`，不影响 `_physics_process` 和输入
 - `SceneTree.paused` 同时停物理。`create_timer` 的 `process_always` 默认 `true`，暂停时也走
+- 失焦自动暂停接 `NOTIFICATION_APPLICATION_FOCUS_OUT`，不在回到前台时自动继续。联机只开菜单不暂停，做法见 godot-ui 的 references/settings-menu.md
 
 ## 陷阱
 
