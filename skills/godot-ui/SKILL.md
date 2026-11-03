@@ -294,7 +294,7 @@ UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_inpu
 
 - `references/localization.md`：CSV 与 PO 导入，注册翻译，复数与上下文，TranslationServer，伪本地化，字体回退
 - `references/richtext.md`：BBCode 标签速查，自定义 RichTextEffect，打字机
-- `references/settings-menu.md`：设置改值即生效与写盘时机，窗口模式与尺寸点应用后确认倒计时和还原，全屏与窗口尺寸陷阱，启动参数恢复入口，失焦暂停
+- `references/settings-menu.md`：设置即时生效，离开即保存与按应用保存两种做法，底栏与未保存状态显示，窗口模式与尺寸点应用后确认倒计时和还原，全屏与窗口尺寸陷阱，启动参数恢复入口，失焦暂停
 - [GUI 文档](https://docs.godotengine.org/en/stable/tutorials/ui/index.html)
 - [本地化](https://docs.godotengine.org/en/stable/tutorials/i18n/index.html)
 - [键盘与手柄导航](https://docs.godotengine.org/en/stable/tutorials/ui/gui_navigation.html)

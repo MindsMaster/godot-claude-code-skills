@@ -1,31 +1,39 @@
 # 设置界面
 
-SKILL.md 讲界面怎么搭。本文讲设置什么时候生效、什么时候写盘，窗口模式与尺寸怎么确认和还原，以及失焦时自动暂停。音量换算见 godot-audio，键位重绑见 godot-input，`ConfigFile` 读写见 godot-resources-data。
+SKILL.md 讲界面怎么搭。本文讲设置的生效与保存时机，窗口模式与尺寸怎么确认和还原，以及失焦时自动暂停。音量换算见 godot-audio，键位重绑见 godot-input，`ConfigFile` 读写见 godot-resources-data。
 
-## 生效与写盘的时机
+## 生效与保存
 
-| 类别 | 生效 | 写盘 |
-|---|---|---|
-| 音量 亮度 对比度 语言 键位 帧率上限 垂直同步 抗锯齿 渲染倍率 | 改值当下 | 离开设置界面时一次 |
-| 窗口模式 窗口尺寸 | 点应用后，同时弹确认框倒计时 | 只写已确认的值 |
+改值当下就生效，玩家才能边听边调音量、边看边调亮度。什么时候写盘有两种常见做法，各有取舍，没有哪种在所有游戏里都对。按平台和玩家习惯选一种，整个设置界面保持一致。
 
-- 改值当下生效，玩家才能边听边调音量、边看边调亮度。改完要点保存才生效的界面没法预览
-- 写盘放在界面隐藏和退出场景树时。返回键、Esc、宿主隐藏父节点走隐藏，`queue_free`、切场景、退出程序只走退出场景树，不发 `NOTIFICATION_VISIBILITY_CHANGED`。不要每拖一格滑块写一次文件
-- 打开时留一份原值给撤销更改用，恢复默认只重置当前分页
+| 做法 | 写盘 | 离开设置 | 取舍 |
+|---|---|---|---|
+| 离开即保存 | 离开设置界面时 | 直接离开 | 操作最少。改错了只能手动改回或恢复默认 |
+| 按应用保存 | 点应用时 | 有未保存的改动时问应用、放弃、取消 | 试完可以整体放弃。多一个按钮和一个弹框 |
+
+两种做法共同的部分：
+
+- 窗口模式和窗口尺寸不随改值切换，点应用后才切换并倒计时确认，见下一节
+- 保存或放弃放在界面隐藏和退出场景树时。返回键、Esc、宿主隐藏父节点走隐藏，`queue_free`、切场景、退出程序只走退出场景树，不发 `NOTIFICATION_VISIBILITY_CHANGED`。不要每拖一格滑块写一次文件
 - 每次改值都调同一个 apply 时，键位和窗口按上次应用的值比对，变了才重设。否则拖音量滑块也会重建 InputMap，还会把玩家手动拖过的窗口尺寸拉回去
+- 恢复默认只重置当前分页，按下先弹确认框，默认焦点放在取消上
+
+下面是按应用保存的面板。`back()` 遇到未保存的改动时发 `leave_blocked`，由宿主弹框，应用选 `apply()` 再 `hide()`，放弃选 `discard()` 再 `hide()`。改成离开即保存时，把 `_notification` 里的 `discard()` 换成 `_save(draft)`，`back()` 直接 `hide()`。
 
 ```gdscript
 extends Control
 
+signal leave_blocked
+
 const SETTINGS_PATH := "user://settings.cfg"
 
 var draft: Dictionary = {}
-var _opened: Dictionary = {}
+var _saved: Dictionary = {}
 var _editing := false
 
 
 func open(current: Dictionary) -> void:
-	_opened = current.duplicate(true)
+	_saved = current.duplicate(true)
 	draft = current.duplicate(true)
 	_editing = true
 	show()
@@ -36,16 +44,33 @@ func set_value(key: String, value: Variant) -> void:
 	_apply(draft)
 
 
-func revert() -> void:
-	draft = _opened.duplicate(true)
+func has_unsaved() -> bool:
+	return draft != _saved
+
+
+func apply() -> void:
+	_save(draft)
+	_saved = draft.duplicate(true)
+
+
+func discard() -> void:
+	draft = _saved.duplicate(true)
 	_apply(draft)
+
+
+func back() -> void:
+	if has_unsaved():
+		leave_blocked.emit()
+		return
+	hide()
 
 
 func _notification(what: int) -> void:
 	var closing := what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree()
 	if (closing or what == NOTIFICATION_EXIT_TREE) and _editing:
 		_editing = false
-		_save(draft)
+		if has_unsaved():
+			discard()
 
 
 func _apply(values: Dictionary) -> void:
@@ -62,6 +87,22 @@ func _save(values: Dictionary) -> void:
 	config.save(SETTINGS_PATH)
 ```
 
+- `Dictionary` 的 `==` 和 `!=` 逐项比较内容，嵌套的字典和数组也比较到底，判断有没有未保存的改动不用自己遍历
+- 宿主强制关闭设置时按放弃处理，玩家没点应用的改动不落盘
+
+## 底栏与状态显示
+
+下面是一套常见的约定，供参考。项目已有自己的界面规范时以项目为准。
+
+- 底栏按钮常驻，暂时不可用的置灰，不随状态出现或消失。按钮出现或消失会让相邻按钮跟着移位
+- 主按钮同一时刻只有一个。按应用保存时应用是主按钮，没有改动时置灰
+- 恢复默认这类会丢掉自定义的操作放在离主按钮最远的一侧
+- 和已保存值不同的选项改文字颜色，所在分类的标签同样变色。选中状态用底色或边框表示，两种状态各用一个通道，可以同时出现。不插图标或文字，行高不变
+- 底栏按钮写上手柄键位，焦点停在哪一行都能直接触发，不用把焦点移到底栏。不要占用游戏里的暂停键，暂停键在设置界面里一般等同返回
+- 返回键在选项列表里也直接离开设置。先退回分类栏再离开要按两次，第一次看起来像没生效。分类切换交给肩键或扳机
+- 键位提示条不重复底栏按钮已经标出的操作
+- 说明栏只放当前焦点选项的说明，没有就留空，不写操作引导
+
 ## 窗口模式确认与还原
 
 做法同操作系统的显示设置：窗口模式和尺寸改值时只记下，不动窗口。玩家点应用后才切换并弹确认框，倒计时内不点保留就回到上次确认的值。
@@ -72,7 +113,7 @@ func _save(values: Dictionary) -> void:
 - 确认前的值只在内存里，写盘只写已确认的值。倒计时期间崩溃或被结束进程，下次启动用的仍是能用的设置
 - 倒计时用 `create_timer(15.0, true, false, true)`，暂停时照走，第 4 个参数让它不受 `Engine.time_scale` 影响
 - 失焦时也要继续倒计时，玩家看不见画面时只能靠超时还原
-- 设置界面被强制关闭时丢掉未应用的值，倒计时中的按还原处理，再写盘
+- 设置界面被强制关闭时丢掉未应用的窗口值，倒计时中的按还原处理
 - 方向键导航在最近的根 Control 下按距离找下一个焦点。父节点不是 Control 或设了 `top_level` 的 Control 自成一个根。确认框作为设置面板的子节点时，焦点会跳到框外的面板上。4.5+ 给背后的面板设 `focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED` 与 `mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED`，关框时改回 `FOCUS_BEHAVIOR_INHERITED` 与 `MOUSE_BEHAVIOR_INHERITED`。4.4 给框内按钮写 `focus_neighbor_*` 指向框内。确认框加到 `get_tree().root` 下自成一个根，没有这个问题
 - 设置界面放在 CanvasLayer 里时，加到 `get_tree().root` 下的确认框画在它下面，鼠标也先点到设置界面。把确认框加到同一个 CanvasLayer 或层级更高的 CanvasLayer
 
