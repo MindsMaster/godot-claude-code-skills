@@ -1,6 +1,6 @@
 ---
 name: godot-ui
-description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用。Control 布局 Container anchors、项目级 Theme 统一字体、StyleBox、ProgressBar 血条、RichTextLabel、多分辨率 stretch aspect、tr() 本地化、手柄焦点导航、mouse_filter 吃点击、CanvasLayer HUD、弹窗 拖放。UI layout, theme, localization.
+description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用，做设置即时生效 窗口模式 全屏 窗口尺寸确认还原 失焦暂停时也用。Control 布局 Container anchors、项目级 Theme 统一字体、StyleBox、ProgressBar 血条、RichTextLabel、多分辨率 stretch aspect、tr() 本地化、手柄焦点导航、mouse_filter 吃点击、CanvasLayer HUD、弹窗 拖放。UI layout, theme, localization, settings menu, fullscreen, pause on focus loss.
 ---
 
 # Godot UI
@@ -288,13 +288,13 @@ UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_inpu
 - 每关 `new Theme()` 或到处 `add_theme_*_override`：改一个字号要翻遍代码。用项目级 Theme 与 type variation
 - 改 `get_theme_stylebox()` 的返回值前不 `duplicate()`，会改到共享样式
 - 显示玩家名的 Label 没关 `auto_translate_mode`，名字与翻译键同名时会被替换
-- 手柄菜单不给初始焦点，或隐藏再显示后不重新 `grab_focus()`
 - 用 `ui_accept` 之类内置动作做玩法，菜单打开时会重复触发
 
 ## 参考
 
 - `references/localization.md`：CSV 与 PO 导入，注册翻译，复数与上下文，TranslationServer，伪本地化，字体回退
 - `references/richtext.md`：BBCode 标签速查，自定义 RichTextEffect，打字机
+- `references/settings-menu.md`：设置改值即生效与写盘时机，窗口模式与尺寸点应用后确认倒计时和还原，全屏与窗口尺寸陷阱，启动参数恢复入口，失焦暂停
 - [GUI 文档](https://docs.godotengine.org/en/stable/tutorials/ui/index.html)
 - [本地化](https://docs.godotengine.org/en/stable/tutorials/i18n/index.html)
 - [键盘与手柄导航](https://docs.godotengine.org/en/stable/tutorials/ui/gui_navigation.html)

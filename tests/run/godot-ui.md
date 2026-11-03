@@ -617,3 +617,108 @@ expect(second.get_parsed_text() == "text", "custom_effects 数组注册")
 second.free()
 label.free()
 ```
+
+## references/settings-menu.md `func set_value`
+
+```gdscript
+if FileAccess.file_exists("user://settings.cfg"):
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://settings.cfg"))
+var bus := AudioServer.get_bus_index("Master")
+node.open({"master_volume": 1.0})
+node.set_value("master_volume", 0.0)
+expect(AudioServer.is_bus_mute(bus), "改为 0 当下静音")
+expect(not FileAccess.file_exists("user://settings.cfg"), "改值不写盘")
+node.revert()
+expect(not AudioServer.is_bus_mute(bus) and is_equal_approx(AudioServer.get_bus_volume_linear(bus), 1.0), "撤销回到打开时的值")
+node.set_value("master_volume", 0.5)
+node.hide()
+var config := ConfigFile.new()
+expect(config.load("user://settings.cfg") == OK, "隐藏时写盘")
+expect(is_equal_approx(float(config.get_value("settings", "master_volume")), 0.5), "写入的是当前值")
+node.show()
+node.open({"master_volume": 1.0})
+node.set_value("master_volume", 0.25)
+var parent := node.get_parent()
+parent.remove_child(node)
+config = ConfigFile.new()
+config.load("user://settings.cfg")
+expect(is_equal_approx(float(config.get_value("settings", "master_volume")), 0.25), "移出场景树时也写盘")
+parent.add_child(node)
+DirAccess.remove_absolute(ProjectSettings.globalize_path("user://settings.cfg"))
+```
+
+## references/settings-menu.md `class_name DisplayConfirmDialog`
+
+```gdscript
+var results: Array[bool] = []
+node.resolved.connect(func(keep: bool) -> void: results.append(keep))
+expect(node.process_mode == Node.PROCESS_MODE_ALWAYS, "暂停时照常倒数")
+expect(node.get_node("%KeepButton").has_focus(), "保留按钮拿到焦点")
+var cancel := InputEventAction.new()
+cancel.action = &"ui_cancel"
+cancel.pressed = true
+Input.parse_input_event(cancel)
+await frames(2)
+expect(results.size() == 1 and not results[0], "Esc 按还原结算")
+expect(not is_instance_valid(node) or node.is_queued_for_deletion(), "结算后释放")
+```
+
+## references/settings-menu.md `func apply_pending`
+
+<!-- check: setup -->
+```gdscript
+var dialog := DisplayConfirmDialog.new()
+var countdown := Label.new()
+countdown.name = "Countdown"
+countdown.unique_name_in_owner = true
+dialog.add_child(countdown)
+var keep := Button.new()
+keep.name = "KeepButton"
+keep.unique_name_in_owner = true
+dialog.add_child(keep)
+node.confirm_scene = make_scene(dialog)
+```
+
+```gdscript
+var sizes: Array[Vector2i] = node.windowed_sizes()
+expect(sizes.size() == 1 and sizes[0] == Vector2i(1280, 720), "无头没有屏幕 只剩兜底一档")
+node.pending_mode = DisplayServer.WINDOW_MODE_FULLSCREEN
+node.pending_size = Vector2i(1600, 900)
+expect(node.has_pending(), "改值记为待应用")
+node.discard_pending()
+expect(not node.has_pending(), "放弃退回已确认的值")
+node.pending_mode = DisplayServer.WINDOW_MODE_FULLSCREEN
+node.pending_size = Vector2i(1600, 900)
+node.apply_pending()
+await frames(2)
+var cancel := InputEventAction.new()
+cancel.action = &"ui_cancel"
+cancel.pressed = true
+Input.parse_input_event(cancel)
+await frames(2)
+expect(node.confirmed_mode == DisplayServer.WINDOW_MODE_WINDOWED and not node.has_pending(), "取消后回到上次确认的模式")
+node.pending_mode = DisplayServer.WINDOW_MODE_FULLSCREEN
+node.pending_size = Vector2i(1600, 900)
+node.apply_pending()
+await frames(2)
+var dialog: Node = null
+for child in root.get_children():
+	if child is DisplayConfirmDialog and not child.is_queued_for_deletion():
+		dialog = child
+expect(dialog != null, "应用后弹出确认框")
+(dialog.get_node("KeepButton") as Button).pressed.emit()
+expect(node.confirmed_mode == DisplayServer.WINDOW_MODE_FULLSCREEN and node.confirmed_size == Vector2i(1600, 900), "保留后记为已确认")
+node.apply_window(DisplayServer.WINDOW_MODE_WINDOWED, Vector2i(1280, 720))
+```
+
+## references/settings-menu.md `_paused_by_menu`
+
+```gdscript
+var tree := root.get_tree()
+tree.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+expect(node.visible and tree.paused, "失焦打开菜单并暂停")
+tree.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+expect(node.visible and tree.paused, "回到前台不自动继续")
+node.close()
+expect(not node.visible and not tree.paused, "关闭菜单恢复")
+```
