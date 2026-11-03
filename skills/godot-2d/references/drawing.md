@@ -39,6 +39,7 @@ func _draw() -> void:
 - `draw_line` 等的 `width` 为负时画细线，缩放后不变粗。想随缩放变粗传正数。
 - `draw_multimesh` 的纹理不能只存在局部变量里，GDScript 里函数结束后变量先销毁，绘制在之后才发生，存成成员。
 - 位图字体与光栅化字体用 `draw_string` 时受缩放影响变糊，同 Camera2D 的 zoom 说明。
+- `draw_colored_polygon` 和 `draw_polygon` 每次绘制都三角剖分，判定用相邻两边叉积与 1e-5 比较，按局部坐标算，与屏幕像素无关。多边形很小时凸多边形也会失败，报 `Invalid polygon data, triangulation failed` 并且不画。实测五边形与五角星在半径 0.003 到 0.01 之间失败，更小反而可能成功，没有固定阈值。尺寸会缩到接近 0 的形状设一个下限，低于下限不画。圆用 `draw_circle`，不走三角剖分。自己能算出三角形时用 `RenderingServer.canvas_item_add_triangle_array` 传索引，也不走三角剖分。
 
 ## Line2D
 
