@@ -101,6 +101,9 @@ func measure(action: Callable, runs: int = 1000) -> float:
 - ObjectDB Profiler 4.6+：Debugger 面板里对 ObjectDB 拍快照，比较两张快照的差异
 - Video RAM 页按资源路径列出显存占用，查大纹理
 - 对象快照不含引擎内部不暴露给脚本的类
+- `OBJECT_COUNT` 一直涨而 `OBJECT_ORPHAN_NODE_COUNT` 为 0，泄漏的不是孤儿节点，查脚本里长期持有的引用。C# 见 godot-csharp 的 runtime.md
+- `RenderingServer` 直接创建的 RID 不随节点释放，在 `_exit_tree()` 里自己 `free_rid()`。同一段清理还要访问别人持有的对象时，那个对象可能已先释放，访问前查 `is_instance_valid()`。C# 把释放 RID 的调用放进 `finally`，前面一步抛异常也不会漏掉 RID
+- `rendering/rendering_device/driver.windows` 设为 `d3d12` 时，材质的 uniform set 占用资源描述符堆，大小由 `rendering/rendering_device/d3d12/max_resource_descriptors` 决定，默认 65536。材质或 RID 泄漏把堆用满后报 `Cannot create uniform set because there's not enough room in the RESOURCES descriptor heap`，之后绘制报 `Uniforms were never supplied for set`，画面出错。先查泄漏，再考虑调大
 
 ## 命令行选项
 
