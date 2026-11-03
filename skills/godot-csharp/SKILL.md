@@ -230,7 +230,7 @@ public static class Actions
 - 节点用 `QueueFree()` 或 `Free()` 释放，不调 `Dispose()`。`Dispose()` 只放掉托管侧，原生节点不会释放，退出时报 ObjectDB 泄漏
 - 已释放对象的托管引用不变 `null`，访问成员和 `ToString()` 都抛 `ObjectDisposedException`。判断用 `GodotObject.IsInstanceValid(obj)`，不用 `obj != null`。`QueueFree()` 之后到实际释放之前 `IsInstanceValid()` 仍为 `true`，要排除待删除对象再查 `IsQueuedForDeletion()`
 - `RefCounted` 与 `Resource` 派生类如 `Image`、`FileAccess` 靠 GC 终结器释放原生引用，时机不定，大对象用 `using` 提前释放
-- 持有可能被释放的对象用 `GodotObject.WeakRef(obj)`
+- 持有可能被释放的对象用 `GodotObject.WeakRef(obj)` 或存 `GetInstanceId()`。集合里存着已释放的节点会连带留住它字段里的资源，共享资源调 `Dispose()` 会让所有持有者失效，见 [references/runtime.md](references/runtime.md)
 
 ## async 与线程
 
@@ -291,7 +291,7 @@ public partial class Door : Node3D
 ## 参考
 
 - [references/gdscript-csharp.md](references/gdscript-csharp.md) GDScript 与 C# 常用写法对照
-- [references/runtime.md](references/runtime.md) 输入事件、热重载、线程分块、跨界开销
+- [references/runtime.md](references/runtime.md) 输入事件、热重载、线程分块、跨界开销、已释放对象、托管泄漏排查
 - [C# 基础](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html)
 - [API 差异](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_differences.html)
 - [信号](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_signals.html)

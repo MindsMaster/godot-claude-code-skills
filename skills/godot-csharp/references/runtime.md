@@ -1,6 +1,6 @@
 # C# 运行时细节
 
-输入事件匹配、热重载与程序集卸载、线程、跨界开销、调试。
+输入事件匹配、热重载与程序集卸载、线程、跨界开销、已释放对象、调试。
 
 ## 输入事件模式匹配
 
@@ -145,8 +145,65 @@ public partial class Trail : Line2D
 - 可变参数方法 `Call()`、`CallDeferred()`、`EmitSignal()`、`Rpc()` 把全部参数转成 Variant，热路径用生成的事件或直接方法调用
 - 单次普通跨界调用很便宜，先测再改。一个项目里 dotnet-trace 显示每帧沿父链找节点、四叉树重复读全局位置 合计占主线程 6%，改掉后基准只快 2% 以内，在噪声范围里。采样器偏向在跨界返回点取样，小调用会显得很贵
 
+## 已释放对象与包装对象
+
+一个原生对象只有一个托管包装对象，所有 C# 引用都指向它。
+
+- 带 C# 脚本的节点被释放时，引擎对它的托管对象调 `Dispose()`，只清掉原生指针，托管对象和字段原样保留。C# 集合还存着它，它字段里的材质、纹理这些 `RefCounted` 包装对象也一起留着，每个包装对象占一个原生引用，原生资源一直不释放
+- 对别处还在用的 `Resource` 调 `Dispose()`，原生资源不会释放，但所有持有者手里的引用一起失效，访问抛 `ObjectDisposedException`，`IsInstanceValid()` 返回 `false`。共享资源不调 `Dispose()`，丢掉引用交给 GC
+- 长期存在的集合首选跟着对象的生命周期删：加入时连对方的 `tree_exiting` 信号，在回调里移除。拿不到移除时机，或只是跨帧暂存，存 `GetInstanceId()`，用时 `GodotObject.InstanceFromId()` 取回，已释放时返回 `null`
+- 存 id 也要让集合有上界。下面的例子全局监听新加入的网格，在 `node_removed` 信号里删 id。不能只靠 `_Process` 清空，节点处于 `PROCESS_MODE_DISABLED` 时 `_Process` 不跑，信号照常到
+
+```csharp
+using System.Collections.Generic;
+using Godot;
+
+public partial class MeshWatcher : Node
+{
+    private readonly HashSet<ulong> _pending = [];
+
+    public override void _EnterTree()
+    {
+        GetTree().NodeAdded += OnNodeAdded;
+        GetTree().NodeRemoved += OnNodeRemoved;
+    }
+
+    public override void _ExitTree()
+    {
+        GetTree().NodeAdded -= OnNodeAdded;
+        GetTree().NodeRemoved -= OnNodeRemoved;
+    }
+
+    public override void _Process(double delta)
+    {
+        foreach (ulong id in _pending)
+        {
+            if (InstanceFromId(id) is MeshInstance3D mesh)
+            {
+                mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+            }
+        }
+        _pending.Clear();
+    }
+
+    private void OnNodeAdded(Node node)
+    {
+        if (node is MeshInstance3D)
+        {
+            _pending.Add(node.GetInstanceId());
+        }
+    }
+
+    private void OnNodeRemoved(Node node)
+    {
+        _pending.Remove(node.GetInstanceId());
+    }
+}
+```
+
 ## 调试
 
 - 内置 Profiler 不支持 C# 脚本，函数耗时用 `Time.GetTicksUsec()` 前后相减，或外部工具如 JetBrains Rider、dotTrace、`dotnet-trace collect -p <pid> --format Speedscope`。采样结果只用来找方向，改完用固定场景的基准前后对比
 - 断点与单步在 IDE 里建调试配置，启动项目的 Godot 可执行文件，配置示例见官方 C# 基础文档
 - 输出用 `GD.Print`，发布版剥离调试输出用 `OS.IsDebugBuild()` 判断
+- 托管泄漏用 dotnet-dump 查，`dotnet tool install -g dotnet-dump` 安装。`dotnet-dump collect -p <pid> --type Heap` 抓堆，`dotnet-dump analyze <文件>` 里 `dumpheap -stat` 按类型列实例数，两次抓取对比涨的类型，再对一个实例 `gcroot <地址>` 看谁持有它
