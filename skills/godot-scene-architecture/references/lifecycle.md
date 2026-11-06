@@ -41,7 +41,7 @@ func spawn(parent: Node, label_text: String) -> void:
 
 - 编辑器里摆好的节点，`owner` 是场景根；子场景实例里的节点，`owner` 是那个实例的根
 - 代码 `add_child` 的节点 `owner` 为 `null`，不会被 `PackedScene.pack` 打包，在编辑器里 `@tool` 脚本生成的节点也不会出现在场景面板
-- 要打包或在编辑器显示：`child.owner = root`，`root` 是要保存的那个场景根，不是直接父节点
+- 要打包或出现在场景面板：`child.owner = root`，`root` 是要保存的那个场景根，不是直接父节点
 - `%Name` 查找以调用节点所在的 owner 为范围。`owner` 为 `null` 的节点查不到，设了 `owner` 才生效，与 `unique_name_in_owner` 的设置先后无关
 
 ```gdscript

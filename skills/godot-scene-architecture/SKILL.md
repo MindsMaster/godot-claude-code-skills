@@ -71,7 +71,7 @@ func fire(dir: Vector2) -> void:
 
 不合理：每个子节点都是固定的、有布局的、美术要调的。这类写进 `.tscn`，代码只 `instantiate()` 一次。代码造出来的 UI 和关卡，美术无法在编辑器里看到和调整，也没法用场景继承。
 
-代码造节点并且要存进 `PackedScene` 或在编辑器场景里显示时，每个节点都要设 `owner`，见 [references/lifecycle.md](references/lifecycle.md)。
+代码造节点并且要存进 `PackedScene` 或出现在编辑器场景面板里时，每个节点都要设 `owner`，见 [references/lifecycle.md](references/lifecycle.md)。
 
 ## 节点引用
 
