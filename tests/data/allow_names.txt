@@ -43,3 +43,5 @@ Variant
 internationalization/locale/translation_remaps
 internationalization/locale/translations
 internationalization/locale/translations_pot_files
+FrameStrip
+GroundProp

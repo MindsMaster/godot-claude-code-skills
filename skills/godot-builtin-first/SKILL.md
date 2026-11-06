@@ -23,6 +23,7 @@ ls *.csproj *.sln 2>/dev/null
 | 想做 | 用这个 | 去哪个 skill |
 | --- | --- | --- |
 | 节点树 组件 引用 状态机 | PackedScene、`@export` 节点引用、`%UniqueName`、信号、分组 | godot-scene-architecture |
+| 新做关卡 背景 NPC 道具 UI 自查内容是摆的还是运行时建的 | 节点存进 `.tscn`、`@tool` 自绘节点、预制场景、存盘导出数据 | godot-scene-authoring |
 | 全局状态 跨场景数据 | autoload 只放真全局状态，其余用信号和 `Resource` | godot-scene-architecture godot-resources-data |
 | 暂停菜单 场景切换 | `SceneTree.paused` 加 `Node.process_mode`、`change_scene_to_file`、`change_scene_to_packed` | godot-scene-architecture |
 | 配置数据 角色数值 关卡定义 | 自定义 `Resource` + `.tres` | godot-resources-data |

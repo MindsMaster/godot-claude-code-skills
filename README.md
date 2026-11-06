@@ -9,7 +9,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.invite.azuramc.cc/)
 
-面向 Godot 4 的 Claude Code 插件，包含 16 个 skill。引导 Claude Code 优先使用引擎内置的节点、资源与项目设置，并规避常见误用。覆盖 2D、3D、UI、动画、音频、数据、着色器、编辑器扩展与无头测试，支持 GDScript 与 C#。
+面向 Godot 4 的 Claude Code 插件，包含 18 个 skill。引导 Claude Code 优先使用引擎内置的节点、资源与项目设置，并规避常见误用。覆盖 2D、3D、UI、动画、音频、数据、着色器、编辑器扩展与无头测试，支持 GDScript 与 C#。
 
 # 示例
 
@@ -79,6 +79,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 | --- | --- |
 | `godot-builtin-first` | 总入口，编写功能前检索内置方案并转至细分 skill |
 | `godot-scene-architecture` | 场景组合、节点引用、信号、分组、autoload、状态机、生命周期 |
+| `godot-scene-authoring` | 新做关卡 背景 NPC 道具 UI 时摆进场景、自查项目是摆的还是运行时生成、脚本生成 tscn、@tool 自绘节点、派生属性不存盘、存盘导出给模拟、迁移 |
 | `godot-gdscript` | 静态类型、注解、信号与 await、警告设置 |
 | `godot-csharp` | 命名映射、源码生成器、StringName 缓存、生命周期、热重载 |
 | `godot-2d` | CharacterBody2D、TileMapLayer、Camera2D、Parallax2D、像素风、2D 光照 |
@@ -97,7 +98,7 @@ claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
 
 # 安装
 
-建议仅在 Godot 项目中启用。用户级安装时，16 个 skill 的 description 共约 3400 字符，会进入所有项目每一轮对话的上下文。skill 正文仅在调用时加载。
+建议仅在 Godot 项目中启用。用户级安装时，18 个 skill 的 description 共约 4300 字符，会进入所有项目每一轮对话的上下文。skill 正文仅在调用时加载。
 
 在 Godot 项目目录中按项目级安装：
 

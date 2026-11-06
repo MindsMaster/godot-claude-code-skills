@@ -9,7 +9,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.invite.azuramc.cc/)
 
-A Claude Code plugin for Godot 4 with 16 skills. It directs Claude Code to the nodes, resources and project settings built into the engine and away from common misuse. Covers 2D, 3D, UI, animation, audio, data, shaders, editor extensions and headless testing, in GDScript and C#.
+A Claude Code plugin for Godot 4 with 18 skills. It directs Claude Code to the nodes, resources and project settings built into the engine and away from common misuse. Covers 2D, 3D, UI, animation, audio, data, shaders, editor extensions and headless testing, in GDScript and C#.
 
 # Example
 
@@ -81,6 +81,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 | --- | --- |
 | `godot-builtin-first` | Entry point; looks for a built-in solution before writing a feature and routes to the specific skill |
 | `godot-scene-architecture` | Scene composition, node references, signals, groups, autoloads, state machines, lifecycle |
+| `godot-scene-authoring` | Placing new levels, backdrops, NPCs, props and UI in scenes, auditing whether a project authors content in scenes or builds it at runtime, generating tscn from scripts, self-drawing @tool nodes, keeping derived properties out of saves, exporting data for simulation on save, migration |
 | `godot-gdscript` | Static typing, annotations, signals and await, warning settings |
 | `godot-csharp` | Name mapping, source generators, StringName caching, lifecycle, hot reload |
 | `godot-2d` | CharacterBody2D, TileMapLayer, Camera2D, Parallax2D, pixel art, 2D lighting |
@@ -99,7 +100,7 @@ Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Go
 
 # Installation
 
-Enabling the plugin per Godot project is recommended. At user scope, the 16 skill descriptions, about 3400 characters in total, enter the context of every turn in every project. Skill bodies load only when invoked.
+Enabling the plugin per Godot project is recommended. At user scope, the 18 skill descriptions, about 4300 characters in total, enter the context of every turn in every project. Skill bodies load only when invoked.
 
 Install at project scope from the Godot project directory:
 
