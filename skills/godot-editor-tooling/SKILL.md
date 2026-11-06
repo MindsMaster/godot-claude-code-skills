@@ -208,7 +208,7 @@ JSON 表格导出文件放进工程自动变成 `Resource`：`EditorImportPlugin
 ## 陷阱
 
 - `@tool` 脚本里写了会改节点的游戏逻辑，打开场景就修改并存盘。先 `Engine.is_editor_hint()` 挡住
-- 编辑器里 `add_child` 的节点不设 `owner` 既不显示也不存盘。`owner` 设成当前编辑场景根，用 `EditorInterface.get_edited_scene_root()`
+- 编辑器里 `add_child` 的节点不设 `owner`，视口里照样画，但场景面板看不到、点不中、不存盘。要成为场景内容就把 `owner` 设成 `EditorInterface.get_edited_scene_root()`，节点自己生成的辅助节点见 godot-scene-authoring
 - 不要改场景实例的子节点。重载场景时改动丢失，判断 `node == EditorInterface.get_edited_scene_root()` 或 `node.owner == EditorInterface.get_edited_scene_root()` 再改
 - 导入器和 Inspector 插件用到的 `class_name` 脚本漏了 `@tool`
 - 导入器用 `json` `txt` 这类常见后缀，和内置导入器抢文件。自定义后缀
