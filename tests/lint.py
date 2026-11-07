@@ -27,7 +27,7 @@ def check_bullets(d, skip_section: str = "") -> list:
         if line.startswith("## "):
             section = line[3:].strip()
         elif line.startswith("- ") and section != skip_section:
-            n = len(CODE_SPAN_RE.sub("x", MD_LINK_RE.sub("x", line[2:])))
+            n = len(SKILL_REF_RE.sub("x", CODE_SPAN_RE.sub("x", MD_LINK_RE.sub("x", line[2:]))))
             if n > MAX_BULLET_CHARS:
                 out.append(("WARNING", f"{d.where}:{lineno}", f"列表项 {n} 字 超过 {MAX_BULLET_CHARS} 拆条或改表格"))
     return out
