@@ -52,17 +52,20 @@ func upload(points: PackedVector3Array) -> void:
 	_uploaded = count
 ```
 
-- 局部更新只是一次缓冲写入，不发依赖通知。缓冲不能变大，越界报错，所以按最大顶点数分配
+- 局部更新只是一次缓冲写入，不发依赖通知
+- 缓冲不能变大，越界报错，按最大顶点数分配
 - 用不到的顶点清零，退化成面积为 0 的三角形，不画
-- 顶点缓冲先连续放全部位置，法线与切线在后面另一段。只写位置时偏移从 0 开始，每顶点 12 字节，`ARRAY_FLAG_USE_2D_VERTICES` 时 8 字节。用 `RenderingServer.mesh_surface_get_format_vertex_stride()` 确认
+- 顶点缓冲先放全部位置，法线切线在后面另一段
+- 只写位置时偏移从 0 起，每顶点 12 字节，2D 顶点 8 字节
+- 步长用 `RenderingServer.mesh_surface_get_format_vertex_stride()` 确认
 - UV 与颜色在属性缓冲，变了才用 `surface_update_attribute_region()` 写，步长用 `mesh_surface_get_format_attribute_stride()` 算。不要的法线就别带，带了每帧都要写
 - 局部更新不重算包围盒，必须设 `custom_aabb`，给够大，否则会被错误剔除
-- 索引会变时，按最大索引数分配，用 `RenderingServer.mesh_surface_update_index_region()` 4.5+ 写，多余的索引全指向 0 号顶点。`ArrayMesh` 没有这个方法，用 `_mesh.get_rid()` 调服务器
+- 索引会变：按最大索引数分配，多余索引指向 0 号顶点
+- 用 `RenderingServer.mesh_surface_update_index_region()` 4.5+ 写
+- `ArrayMesh` 没有这个方法，传 `_mesh.get_rid()` 调服务器
 - `ARRAY_FLAG_USE_DYNAMIC_UPDATE` 只在 Compatibility 渲染器有用，Vulkan 下无效
 - `ARRAY_FLAG_COMPRESS_ATTRIBUTES` 把位置压成 16 位，会降精度，动态网格不用
 - 顶点计算本身可以在 `WorkerThreadPool` 里按块并行，上传留在主线程，各个网格依次调
-
-C# 里复用一个托管数组，写好后按字节视图传进去，每帧没有托管分配，只有一次原生拷贝。引擎需是单精度构建：
 
 ```csharp
 using System;
@@ -98,14 +101,19 @@ public partial class DynamicMesh : MeshInstance3D
 }
 ```
 
-- 4.7.2 的 C# 绑定给 Packed 数组参数生成了 ReadOnlySpan 重载，省掉托管侧分配，原生侧照样拷贝一次。老版本没有就复用一个 `byte[]`，用 `MemoryMarshal.Cast<byte, Vector3>` 写进去
+- C# 复用一个托管数组，按字节视图传入，每帧无托管分配
+- 要求引擎是单精度构建
+- 4.7.2 的 C# 绑定给 Packed 数组参数生成 ReadOnlySpan 重载
+- 托管侧不分配，原生侧照样拷贝一次
+- 老版本复用一个 `byte[]`，用 `MemoryMarshal.Cast<byte, Vector3>` 写入
 - 不要每帧新建 `Godot.Collections.Array` 再重建表面
 
 ## 多个网格共用一套骨骼
 
 UE 的 Leader Pose 让模块化角色的多个网格共用一次姿态计算。Godot 里多个 `MeshInstance3D` 的 `skeleton` 指向同一个 `Skeleton3D`，姿态只算一次。
 
-- 还要共用同一个 `Skin` 资源，骨骼矩阵才只上传一份。没设 `skin` 的网格会各自从静止姿态建一个 Skin，各自逐骨骼上传
+- 还要共用同一个 `Skin` 资源，骨骼矩阵才只上传一份
+- 没设 `skin` 的网格各自建 Skin，各自逐骨骼上传
 - 导入的 glTF 同一套蒙皮的网格通常已共用。代码里换装拼装时显式赋同一个 `skin`
 - 不同骨架之间复制姿态用 `RetargetModifier3D` 4.4+
 
@@ -130,8 +138,10 @@ UE 的 Leader Pose 让模块化角色的多个网格共用一次姿态计算。G
 UE 的骨骼网格把各角色的动画评估分到工作线程，最后在游戏线程收结果。Godot 里把角色根节点的 `process_thread_group` 设成 `PROCESS_THREAD_GROUP_SUB_THREAD`，组内的 `AnimationPlayer`、`AnimationTree`、`Skeleton3D` 在工作线程里推进。
 
 - `AnimationMixer`、`Skeleton3D`、`MeshInstance3D` 必须在同一个线程组里
-- 属性轨道写到组外节点会报线程错误。方法轨道走延迟调用，信号回调在工作线程里执行，回调里只碰本组节点
-- 角色的移动仍要在主线程，见 [crowd-characters.md](crowd-characters.md)。动画和移动分开挂：移动体留在主线程组，视觉子树单独设子线程组
+- 属性轨道写到组外节点报线程错误
+- 方法轨道走延迟调用，信号回调在工作线程执行，只碰本组节点
+- 移动体留在主线程组，视觉子树单独设子线程组
+- 移动见 [crowd-characters.md](crowd-characters.md)
 
 ## 顶点动画贴图
 

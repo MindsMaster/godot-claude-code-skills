@@ -1,16 +1,18 @@
 # 性能测量
 
-SKILL.md 给了工具总表，这里是每项的细节：Profiler 读法、监视器清单、CPU 与 GPU 的判断、手动计时、命令行选项。
+Profiler 读法、监视器清单、CPU 与 GPU 的判断、手动计时、命令行选项。
 
 ## Profiler
 
 Debugger 面板的 Profiler 页。运行游戏后切回编辑器点 Start，勾 Autostart 则下次运行自动开始，该勾选不跨编辑器会话保存。
 
-- 主要度量是 Frame Time、Physics Frame、Idle Time、Physics Time。Frame Time 含渲染，脚本和物理都正常却有尖峰时，往往是渲染侧，例如粒子或特效出现
+- 主要度量：Frame Time、Physics Frame、Idle Time、Physics Time
+- Frame Time 含渲染，脚本与物理正常却有尖峰时多在渲染侧
 - Idle 指 `_process()` 与按 Idle 更新的 Timer、相机，Physics 指 `_physics_process()` 与按 Physics 更新的内置节点
-- Measure 下拉可选毫秒或占帧时间的百分比。作用域选 Inclusive 含子调用，选 Self 只算函数体，找耗时的函数用 Self
+- Measure 下拉选毫秒或占帧百分比
+- Inclusive 含子调用，Self 只算函数体，找耗时函数用 Self
 - 列表里除脚本函数还有 Physics 2D、Physics、Audio 等引擎项
-- 平均值是函数被调用多次时的平均，一帧里调用 5 次每次 0.05 ms，平均 0.05 ms 总计 0.25 ms，看总计更直观
+- 平均值是单次调用的平均，一帧调 5 次时看总计
 - Profiler 不支持 C# 脚本
 
 ## Visual Profiler
@@ -51,7 +53,8 @@ Debugger 面板的 Monitors 页，所有监视器一直在记录，没打开页�
 管线编译监视器的含义：
 
 - `CANVAS`：绘制 2D 节点时编译，引擎没有 2D 预编译，首次绘制会卡
-- `MESH`：加载网格时编译，运行中加载网格会卡，线程加载可缓解。节点上的材质覆盖不在这一步编译
+- `MESH`：加载网格时编译，运行中加载会卡，线程加载可缓解
+- 节点上的材质覆盖不在 `MESH` 这一步编译
 - `SURFACE`：场景里 3D 对象首次实例化后、绘制前编译，包括不可见节点
 - `DRAW`：绘制时按需编译，预编译没覆盖到。出现在这里是引擎没覆盖的情况，正常不该有
 - `SPECIALIZATION`：后台优化编译，不会造成卡顿，每帧很多时可能降帧率
@@ -70,10 +73,30 @@ func _process(_delta: float) -> void:
 	text = "%d fps  %.2f ms  %d draws" % [Engine.get_frames_per_second(), frame_ms, draws]
 ```
 
+```csharp
+public partial class StatsOverlay : Label
+{
+    public override void _Ready()
+    {
+        Visible = OS.IsDebugBuild();
+        SetProcess(Visible);
+    }
+
+    public override void _Process(double delta)
+    {
+        double frameMs = Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+        int draws = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
+        Text = $"{Engine.GetFramesPerSecond():0} fps  {frameMs:0.00} ms  {draws} draws";
+    }
+}
+```
+
 ## CPU 还是 GPU
 
-- 关 V-Sync，对比大窗口与小窗口的 FPS。小窗口明显更快，说明受限于像素（填充率）。几乎不变，瓶颈在别处
-- 填充率受限时：简化着色器、减少纹理读取、缩小阴影贴图、减少透明叠加、降低 `Viewport` 分辨率或用 `rendering/scaling_3d/mode` 缩放
+- 关 V-Sync，对比大窗口与小窗口的 FPS
+- 小窗口明显更快是填充率受限，几乎不变则瓶颈在别处
+- 填充率受限：简化着色器、少采样、缩小阴影贴图、少透明叠加
+- 或降 `Viewport` 分辨率、用 `rendering/scaling_3d/mode` 缩放
 - 绘制调用多时：2D 自动合批，3D 复用材质与着色器、预先合并静态网格、用 MultiMesh 画重复物体
 - 用二分法加假设验证：关掉一类节点或一个系统看帧时间变化，比猜更快
 - CPU 在脚本：Profiler 的 Self 排序。CPU 在渲染提交：Visual Profiler 的 CPU 条。GPU：Visual Profiler 的 GPU 条或 `--gpu-profile`
@@ -91,8 +114,23 @@ func measure(action: Callable, runs: int = 1000) -> float:
 	return float(Time.get_ticks_usec() - start) / runs
 ```
 
+```csharp
+public static class Bench
+{
+    public static double Measure(Action action, int runs = 1000)
+    {
+        ulong start = Time.GetTicksUsec();
+        for (int i = 0; i < runs; i++)
+        {
+            action();
+        }
+        return (double)(Time.GetTicksUsec() - start) / runs;
+    }
+}
+```
+
 - 重复 1000 次以上取平均，单次计时精度不够，也受 CPU 缓存影响，第一次通常最慢
-- C# 同理：`Time.GetTicksUsec()` 前后相减
+- C# 也可用 `System.Diagnostics.Stopwatch`
 
 ## 内存与泄漏
 
@@ -102,8 +140,13 @@ func measure(action: Callable, runs: int = 1000) -> float:
 - Video RAM 页按资源路径列出显存占用，查大纹理
 - 对象快照不含引擎内部不暴露给脚本的类
 - `OBJECT_COUNT` 一直涨而 `OBJECT_ORPHAN_NODE_COUNT` 为 0，泄漏的不是孤儿节点，查脚本里长期持有的引用。C# 见 godot-csharp 的 runtime.md
-- `RenderingServer` 直接创建的 RID 不随节点释放，在 `_exit_tree()` 里自己 `free_rid()`。同一段清理还要访问别人持有的对象时，那个对象可能已先释放，访问前查 `is_instance_valid()`。C# 把释放 RID 的调用放进 `finally`，前面一步抛异常也不会漏掉 RID
-- `rendering/rendering_device/driver.windows` 设为 `d3d12` 时，材质的 uniform set 占用资源描述符堆，大小由 `rendering/rendering_device/d3d12/max_resource_descriptors` 决定，默认 65536。材质或 RID 泄漏把堆用满后报 `Cannot create uniform set because there's not enough room in the RESOURCES descriptor heap`，之后绘制报 `Uniforms were never supplied for set`，画面出错。先查泄漏，再考虑调大
+- `RenderingServer` 创建的 RID 不随节点释放，`_exit_tree()` 里 `free_rid()`
+- 清理时访问别人持有的对象，先查 `is_instance_valid()`
+- C# 把释放 RID 放进 `finally`，异常时也不漏
+- D3D12 下材质的 uniform set 占资源描述符堆
+- 堆大小 `rendering/rendering_device/d3d12/max_resource_descriptors`，默认 65536
+- 泄漏用满后报 `Cannot create uniform set because there's not enough room in the RESOURCES descriptor heap`
+- 之后绘制报 `Uniforms were never supplied for set`，先查泄漏再调大
 
 ## 命令行选项
 

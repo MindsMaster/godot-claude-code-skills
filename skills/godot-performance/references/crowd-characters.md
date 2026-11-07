@@ -23,10 +23,12 @@ Jolt 里每次 `body_test_motion` 又分三步：
 
 ## 不改行为能省的
 
-- 收紧碰撞掩码：运动查询的过滤是单向的，自己的 `collision_mask` 与对方的 `collision_layer` 相与，宽相阶段就剔除。只去掉本来就不该挡角色的层，如掉落物、作为物理体的子弹、装饰物
+- 收紧碰撞掩码：自己的 `collision_mask` 与对方 `collision_layer` 相与，宽相即剔除
+- 只去掉本不该挡角色的层，如掉落物、物理体子弹、装饰物
 - 只挂一个形状。多个形状在 Jolt 里组成复合形状，查询要多一层遍历和多次窄相
 - 每帧只调一次 `move_and_slide()`，地面、墙、天花板状态读它的结果，不另做射线或 `test_move()`
-- 视觉节点放浅：模型、血条、特效挂在角色下时层级越少越好。纯视觉且不需要跟随旋转的可以 `top_level`，自己同步位置
+- 视觉节点放浅，角色下的模型、血条、特效层级越少越好
+- 纯视觉且不跟随旋转的可设 `top_level`，自己同步位置
 - 静止跳过，见后面的静止时跳过一节
 
 ## 碰撞形状：圆柱最贵
@@ -42,7 +44,8 @@ Jolt 里每次 `body_test_motion` 又分三步：
 
 - 贵在圆柱之间互相穿插，换掉形状和去掉怪物间碰撞省得一样多
 - 加大圆柱的 `margin` 和 `physics/jolt_physics_3d/collisions/collision_margin_fraction` 没有效果
-- 换形状会改变脚底和外轮廓：盒子对角线方向宽出 41%，胶囊高度不能小于两倍半径，扁平的大怪会变高。属于改手感，要策划确认
+- 换形状改变脚底和外轮廓，属于改手感，要策划确认
+- 盒子对角线方向宽 41%，胶囊高度不小于两倍半径
 - 新角色一开始就用胶囊，不用圆柱
 
 ## 静止时跳过
@@ -62,18 +65,50 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 ```
 
+```csharp
+public partial class CrowdMember : CharacterBody3D
+{
+    [Export] public float Speed { get; set; } = 4.0f;
+
+    public Vector3 DesiredDirection { get; set; } = Vector3.Zero;
+
+    public override void _PhysicsProcess(double delta)
+    {
+        Vector3 v = Velocity;
+        v.X = DesiredDirection.X * Speed;
+        v.Z = DesiredDirection.Z * Speed;
+        if (!IsOnFloor())
+        {
+            v += GetGravity() * (float)delta;
+        }
+        Velocity = v;
+        if (v.IsZeroApprox() && IsOnFloor() && GetPlatformVelocity().IsZeroApprox())
+        {
+            return;
+        }
+        MoveAndSlide();
+    }
+}
+```
+
 - UE 的 CharacterMovementComponent 在 bAlwaysCheckFloor 为 false 且零位移时复用上次地面结果，这里是同一个思路
 - 前提一：重力只在离地时累加，否则速度永远不为 0
 - 前提二：脚下是不动的地面。站在会动的平台上不能跳过，平台开始移动时 `get_platform_velocity()` 还是上次的值
 - 跳过期间 `is_on_floor()`、`get_real_velocity()`、滑动碰撞列表保持上一次的结果
-- 跳过的角色不再自己解穿插，别人走进来时由移动的一方推开自己。挤成一团时手感可能有细微差别，改完对比录像
+- 跳过的角色不自己解穿插，由走进来的一方推开
+- 挤成一团时手感可能有细微差别，改完对比录像
 
 ## 不能把 move_and_slide 分到线程
 
-- `PhysicsServer3D` 外面套着一层多线程包装，Jolt 和 Godot Physics 都有。这层的 `body_test_motion()` 与 `space_get_direct_state()` 一开头检查是否主线程，不是就报错返回
+- `PhysicsServer3D` 外层有多线程包装，Jolt 与 Godot Physics 都有
+- 包装里 `body_test_motion()` 与 `space_get_direct_state()` 非主线程即报错返回
 - 把角色根节点的 `process_thread_group` 设成 `PROCESS_THREAD_GROUP_SUB_THREAD` 后在里面调 `move_and_slide()`，结果是报错且角色原地不动
-- `physics/3d/run_on_separate_thread` 只把物理步挪到另一个线程，与 `_process` 和渲染重叠。`move_and_slide()` 仍在主线程逐个执行，对这个瓶颈帮助很小。上面同一个项目实测开启后每步从 17.2 毫秒变成 20.1 毫秒。开启后在 `_process` 里调物理查询会报物理空间正在步进
-- 可行的拆法：AI、寻路结果处理、期望速度这些纯计算放子线程组或 `WorkerThreadPool`，主线程一个管理器循环里依次 `move_and_slide()`，见 [many-entities.md](many-entities.md) 的统一驱动
+- `physics/3d/run_on_separate_thread` 只把物理步挪到另一线程
+- `move_and_slide()` 仍在主线程逐个执行，对这个瓶颈帮助小
+- 同一项目实测开启后每步从 17.2 毫秒变成 20.1 毫秒
+- 开启后在 `_process` 里调物理查询报物理空间正在步进
+- 可行拆法：AI、寻路处理、期望速度放子线程组或 `WorkerThreadPool`
+- 主线程一个管理器循环里依次 `move_and_slide()`，见 [many-entities.md](many-entities.md)
 
 ## 不建议的调参
 
@@ -117,6 +152,36 @@ func _on_velocity_computed(safe_velocity: Vector3) -> void:
 	move_and_slide()
 ```
 
+```csharp
+public partial class AvoidingMember : CharacterBody3D
+{
+    private NavigationAgent3D _agent;
+
+    public Vector3 DesiredVelocity { get; set; } = Vector3.Zero;
+
+    public override void _Ready()
+    {
+        _agent = GetNode<NavigationAgent3D>("NavigationAgent3D");
+        _agent.AvoidanceEnabled = true;
+        _agent.Radius = 0.5f;
+        _agent.NeighborDistance = 4.0f;
+        _agent.VelocityComputed += OnVelocityComputed;
+        _agent.TargetPosition = GlobalPosition;
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        _agent.Velocity = DesiredVelocity;
+    }
+
+    private void OnVelocityComputed(Vector3 safeVelocity)
+    {
+        Velocity = safeVelocity;
+        MoveAndSlide();
+    }
+}
+```
+
 | 属性 | 默认 | 建议 |
 |---|---|---|
 | `radius` | 0.5 | 等于碰撞胶囊半径 |
@@ -126,8 +191,14 @@ func _on_velocity_computed(safe_velocity: Vector3) -> void:
 | `use_3d_avoidance` | false | 地面角色保持 false |
 | `avoidance_layers` `avoidance_mask` `avoidance_priority` | | 区分怪物与玩家，玩家优先级高 |
 
-- 从没设过 `target_position` 的代理不会把 `velocity` 提交给服务器，回调照常触发但安全速度一直是 0。只用避让不寻路时也先设一次
-- 避让在 `NavigationServer3D` 里算，`navigation/avoidance/thread_model/avoidance_use_multiple_threads` 默认开，各代理分到 `WorkerThreadPool` 并行。时机在节点 `_physics_process` 之后、物理步之前，`velocity_computed` 回调里 `move_and_slide()` 当帧生效
+- 从没设过 `target_position` 的代理不提交 `velocity`，安全速度一直是 0
+- 只用避让不寻路时也先设一次 `target_position`
+- 避让在 `NavigationServer3D` 里算，默认分到 `WorkerThreadPool` 并行
+- 开关：`navigation/avoidance/thread_model/avoidance_use_multiple_threads`
+- 时机在 `_physics_process` 之后、物理步之前
+- `velocity_computed` 回调里 `move_and_slide()` 当帧生效
 - `neighbor_distance` 默认 50 米对地面怪物太大，缩小主要省邻居搜索，结果近似等价，改完要看效果
 - 去掉怪物之间碰撞时：怪物的 `collision_mask` 去掉怪物层，玩家的 `collision_mask` 保留怪物层，玩家仍会被挡住
-- 想在去碰撞后仍不重叠：照 DetourCrowd 在空间哈希上加 4 轮位置推开，每轮推开穿插深度的一部分，系数 0.7。这是纯计算，可以并行，之后再交给 `move_and_slide()` 处理环境阻挡
+- 去碰撞后仍要不重叠：照 DetourCrowd 在空间哈希上做 4 轮推开
+- 每轮推开穿插深度乘 0.7，纯计算可并行
+- 推开后再交给 `move_and_slide()` 处理环境阻挡

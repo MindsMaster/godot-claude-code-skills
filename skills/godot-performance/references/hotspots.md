@@ -1,6 +1,6 @@
 # 热点的内置解法
 
-SKILL.md 讲了选择，这里是 Server 绕过节点与对象池的完整示例，以及 MultiMesh 的补充细节。
+Server 绕过节点、对象池、MultiMesh 一次写入、查找缓存、调试信息的完整示例。
 
 ## 用 Server 画 2D 子弹
 
@@ -31,14 +31,54 @@ func _exit_tree() -> void:
 		RenderingServer.free_rid(item)
 ```
 
+```csharp
+public partial class ServerBullets : Node2D
+{
+    private readonly List<Rid> _items = new();
+    private readonly List<Vector2> _positions = new();
+
+    public void Spawn(Texture2D texture, Vector2 pos)
+    {
+        Rid item = RenderingServer.CanvasItemCreate();
+        Vector2 size = texture.GetSize();
+        RenderingServer.CanvasItemSetParent(item, GetCanvasItem());
+        RenderingServer.CanvasItemAddTextureRect(item, new Rect2(-size * 0.5f, size), texture.GetRid());
+        RenderingServer.CanvasItemSetTransform(item, new Transform2D(0.0f, pos));
+        _items.Add(item);
+        _positions.Add(pos);
+    }
+
+    public override void _Process(double delta)
+    {
+        Vector2 step = new Vector2(0.0f, -300.0f) * (float)delta;
+        for (int i = 0; i < _items.Count; i++)
+        {
+            _positions[i] += step;
+            RenderingServer.CanvasItemSetTransform(_items[i], new Transform2D(0.0f, _positions[i]));
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        foreach (Rid item in _items)
+        {
+            RenderingServer.FreeRid(item);
+        }
+    }
+}
+```
+
 - 服务器对象用 `RID` 引用，没有引用计数，必须 `free_rid()`，漏掉就是泄漏
-- 碰撞用 `PhysicsServer2D.body_create()` 加 `body_add_shape()` 加 `body_set_space()`，`body_set_state()` 设位置。只要进出事件时用 `area_create()` 加 `area_set_monitor_callback()`。官方示例是 Bullet Shower 演示项目，用 body 加一个节点的 `_draw()` 画全部子弹
+- 碰撞：`PhysicsServer2D.body_create()` 加 `body_add_shape()` 与 `body_set_space()`
+- 只要进出事件：`area_create()` 加 `area_set_monitor_callback()`
+- 官方 Bullet Shower 演示用 body 加一个节点的 `_draw()` 画全部
 - 开了物理插值时，新建 canvas item 摆好位置后调 `RenderingServer.canvas_item_reset_physics_interpolation()`，否则出现时有瞬移
-- 服务器的设置类调用可在线程里调，排进命令队列。物理查询 `PhysicsServer2D.body_test_motion()` 与 `space_get_direct_state()` 只认主线程。`RenderingServer` 的 `rendering/driver/threads/thread_model` 默认 Safe
+- 服务器的设置类调用可在线程里调，排进命令队列
+- `PhysicsServer2D.body_test_motion()` 等物理查询只认主线程
 - 状态存进 `PackedVector2Array` 等紧凑数组，不为每个对象建 `RefCounted`
 - 先试 MultiMesh 与对象池，它们够用就不要上服务器
 
-### 对象池
+## 对象池
 
 ```gdscript
 extends Node
@@ -65,10 +105,40 @@ func _exit_tree() -> void:
 	_pool.clear()
 ```
 
+```csharp
+public partial class BulletPool : Node
+{
+    [Export] public PackedScene BulletScene { get; set; }
+
+    private readonly Stack<Node2D> _pool = new();
+
+    public Node2D Acquire()
+    {
+        Node2D bullet = _pool.Count == 0 ? BulletScene.Instantiate<Node2D>() : _pool.Pop();
+        AddChild(bullet);
+        return bullet;
+    }
+
+    public void Release(Node2D bullet)
+    {
+        RemoveChild(bullet);
+        _pool.Push(bullet);
+    }
+
+    public override void _ExitTree()
+    {
+        foreach (Node2D bullet in _pool)
+        {
+            bullet.Free();
+        }
+        _pool.Clear();
+    }
+}
+```
+
 - 池里的节点摘出了场景树，不会随父节点释放，`_exit_tree()` 里手动 `free()`
 - 复用时重置速度、计时器、碰撞状态，旧状态残留是对象池常见 bug
 - 只隐藏不摘出的话，碰撞仍然生效，回调仍在跑
-
 
 ## MultiMesh 一次写入全部实例
 
@@ -92,10 +162,38 @@ func fill(count: int) -> void:
 	multimesh = mm
 ```
 
+```csharp
+public partial class BufferFill : MultiMeshInstance2D
+{
+    public void Fill(int count)
+    {
+        var mm = new MultiMesh
+        {
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform2D,
+            Mesh = new QuadMesh(),
+            InstanceCount = count,
+        };
+        var data = new float[count * 8];
+        for (int i = 0; i < count; i++)
+        {
+            int b = i * 8;
+            data[b] = 1.0f;
+            data[b + 3] = i * 10.0f;
+            data[b + 5] = 1.0f;
+        }
+        mm.Buffer = data;
+        Multimesh = mm;
+    }
+}
+```
+
 - 数组长度必须等于实例数乘每实例 float 数，不符时打印错误且什么都不画
-- 开启物理插值且实例顺序每 tick 会变时，用 `MultiMesh.set_buffer_interpolated()` 同时传当前与上一 tick 的数据。顺序不变时直接设 `buffer` 即可。新摆放的实例调 `MultiMesh.reset_instance_physics_interpolation()`
+- 开物理插值且实例顺序每 tick 会变：用 `MultiMesh.set_buffer_interpolated()`
+- 顺序不变时直接设 `buffer`
+- 新摆放的实例调 `MultiMesh.reset_instance_physics_interpolation()`
 - 逐个 `set_instance_transform_2d()` 每次一次调用，上千个实例每帧更新时改用 `buffer`
-- 位置由 shader 计算的场景（草、鱼群、星空），实例只存起点，时间推进在顶点着色器里，用 `INSTANCE_ID` 与 `INSTANCE_CUSTOM`
+- 草、鱼群、星空：实例只存起点，运动在顶点着色器里算
+- 用 `INSTANCE_ID` 与 `INSTANCE_CUSTOM` 区分实例
 
 ## 查找与缓存
 
@@ -110,6 +208,26 @@ func _ready() -> void:
 func register(enemy: Node2D, id: int) -> void:
 	_enemies_by_id[id] = enemy
 	enemy.tree_exited.connect(func() -> void: _enemies_by_id.erase(id))
+```
+
+```csharp
+public partial class EnemyIndex : Node
+{
+    private readonly Dictionary<int, Node2D> _enemiesById = new();
+
+    private Node2D _boss;
+
+    public override void _Ready()
+    {
+        _boss = GetTree().GetFirstNodeInGroup("boss") as Node2D;
+    }
+
+    public void Register(Node2D enemy, int id)
+    {
+        _enemiesById[id] = enemy;
+        enemy.TreeExited += () => _enemiesById.Remove(id);
+    }
+}
 ```
 
 - `get_first_node_in_group()` 在 `_ready()` 里取一次，不在 `_process()` 里每帧找
@@ -127,6 +245,22 @@ func _process(_delta: float) -> void:
 	if not OS.is_debug_build() or not debug_label.is_visible_in_tree():
 		return
 	debug_label.text = "nodes %d" % get_tree().get_node_count()
+```
+
+```csharp
+public partial class DebugStats : Node
+{
+    [Export] public Label DebugLabel { get; set; }
+
+    public override void _Process(double delta)
+    {
+        if (!OS.IsDebugBuild() || !DebugLabel.IsVisibleInTree())
+        {
+            return;
+        }
+        DebugLabel.Text = $"nodes {GetTree().GetNodeCount()}";
+    }
+}
 ```
 
 - `OS.is_debug_build()` 在编辑器和调试导出模板里为真，release 模板里为假

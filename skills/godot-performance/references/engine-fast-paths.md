@@ -28,15 +28,43 @@ func joined(names: PackedStringArray) -> String:
 	return ", ".join(names)
 ```
 
+```csharp
+public partial class OutlineHelper : Node2D
+{
+    public Vector2[] WorldOutline(Vector2[] localPoints)
+    {
+        return GlobalTransform * localPoints;
+    }
+
+    public string Joined(string[] names)
+    {
+        return string.Join(", ", names);
+    }
+}
+```
+
 ## GDScript 写法快慢
 
 GDScript 编译时知道类型就生成直接调用函数指针的指令，不知道就在运行时查。静态类型的意义主要在这里。
 
-- 调引擎方法走快路径要同时满足：调用对象的类型已知、方法不是可变参数、实参个数等于形参个数、每个实参类型精确匹配。省略默认参数就退回慢路径，`int` 变量传给 `float` 形参也是。热循环里把默认参数写全，类型对齐
-- 数学函数用带类型的版本：`lerpf` `clampf` `absf` `minf` `maxf`，整数用 `clampi` `absi` `mini` `maxi`。`lerp` `clamp` `abs` `min` `max` 的形参是 Variant，走通用路径
-- 脚本自己声明的成员变量是直接地址访问。继承来的引擎属性如 `position` 每次读写都按属性名沿继承链查找再调用 setter，热循环里先读到局部变量，算完写回一次
+| 快路径条件 | 退回慢路径的例子 |
+|---|---|
+| 调用对象类型已知 | 无类型变量 |
+| 方法不是可变参数 | `call()` 等 |
+| 实参个数等于形参个数 | 省略默认参数 |
+| 实参类型精确匹配 | `int` 变量传给 `float` 形参 |
+
+- 热循环里把默认参数写全，类型对齐
+- 数学函数用带类型版本：`lerpf` `clampf` `absf` `minf` `maxf`
+- 整数用 `clampi` `absi` `mini` `maxi`
+- `lerp` `clamp` `abs` `min` `max` 形参是 Variant，走通用路径
+- 脚本自己声明的成员变量是直接地址访问
+- 继承来的 `position` 等属性每次按名字查找再调 setter
+- 热循环里先读到局部变量，算完写回一次
 - `for i in n` 与 `for i in range(a, b)` 直接写在 for 里不分配数组。先 `var r := range(n)` 再遍历会建一个 Array
-- `map()` `filter()` `reduce()` `sort_custom()` 每个元素一次完整的脚本函数调用，不比 for 循环快。写在循环里的 lambda 每次求值都新建 Callable。不带回调的 `sort()` 是纯 C++
+- `map()` `filter()` `reduce()` `sort_custom()` 每个元素一次脚本调用
+- 循环里写的 lambda 每次求值都新建 Callable
+- 不带回调的 `sort()` 是纯 C++
 - 循环里 `s += x` 拼字符串每次复制整个字符串，是 O(n²)。攒进 `PackedStringArray` 再 `"".join()`，一次分配
 - `arr += [x]` 逐元素复制出一个新数组，用 `append()` 或 `append_array()`
 - Dictionary 用 `StringName` 作键时哈希是缓存的，`String` 键每次重算。固定的键写成 `&"name"`
