@@ -402,6 +402,19 @@ expect(node.offset != Vector2.ZERO, "有 trauma 时 offset 抖动")
 expect(absf(node.offset.x) <= node.max_offset and absf(node.offset.y) <= node.max_offset, "偏移不超过 max_offset")
 await frames(90)
 expect(node.offset == Vector2.ZERO, "trauma 衰减完 offset 归零")
+node.limit_left = 0
+node.limit_top = 0
+node.global_position = Vector2(-500, -500)
+node.reset_smoothing()
+await frames(2)
+var inside := true
+node.add_trauma(1.0)
+for i in 20:
+	await frames(1)
+	var c: Vector2 = node.get_screen_center_position()
+	var h: Vector2 = node.get_viewport_rect().size / node.zoom * 0.5
+	inside = inside and c.x - h.x >= -0.01 and c.y - h.y >= -0.01
+expect(inside, "贴边震屏不露出 limit 外")
 ```
 
 ## references/drawing.md `func _draw`

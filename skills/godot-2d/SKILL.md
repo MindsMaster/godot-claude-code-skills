@@ -222,7 +222,8 @@ limit_bottom = 720
 
 - 相机做玩家子节点，跟随、边界、平滑、死区都内置
 - `limit_*` 是整数像素
-- 震屏改 `offset` 不改节点位置，`offset` 可越过 limit，噪声用 `FastNoiseLite`
+- 震屏改 `offset` 不改节点位置，噪声用 `FastNoiseLite`
+- `offset` 在 limit 之后叠加，贴边会露出界外，要夹紧
 - 复活、传送后同一段代码里紧接着调 `reset_smoothing()`
 - 不在相机里比较位移距离猜传送，冲刺会误判
 - 视差背景用 `Parallax2D` 4.3+，`scroll_scale` 小于 1 是远景

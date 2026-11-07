@@ -69,7 +69,7 @@ public partial class LevelLayer : TileMapLayer
 
 ## 震屏
 
-改 `offset`，它可越过 limit，贴边时也能震。不移动相机节点本身，会与跟随打架。
+改 `offset`，不移动相机节点本身，会与跟随打架。`offset` 在 limit 夹紧之后叠加，贴边时会露出 limit 外，要自己夹回边界内。
 
 <!-- check: extends Camera2D -->
 ```gdscript
@@ -94,8 +94,18 @@ func _process(delta: float) -> void:
 		return
 	_t += delta * 80.0
 	var power := _trauma * _trauma * max_offset
-	offset = Vector2(_noise.get_noise_2d(_t, 0.0), _noise.get_noise_2d(_t, 64.0)) * power
+	var shake := Vector2(_noise.get_noise_2d(_t, 0.0), _noise.get_noise_2d(_t, 64.0)) * power
+	offset = _clamp_to_limits(shake)
 	_trauma = maxf(_trauma - decay * delta, 0.0)
+
+
+func _clamp_to_limits(shake: Vector2) -> Vector2:
+	var half := get_viewport_rect().size / zoom * 0.5
+	# 屏幕中心含上一帧 offset
+	var center := get_screen_center_position() - offset
+	var lo := Vector2(limit_left, limit_top) + half - center
+	var hi := Vector2(limit_right, limit_bottom) - half - center
+	return shake.clamp(lo.min(Vector2.ZERO), hi.max(Vector2.ZERO))
 ```
 
 ```csharp
@@ -127,8 +137,18 @@ public partial class ShakeCamera : Camera2D
         }
         _t += (float)delta * 80.0f;
         float power = _trauma * _trauma * MaxOffset;
-        Offset = new Vector2(_noise.GetNoise2D(_t, 0.0f), _noise.GetNoise2D(_t, 64.0f)) * power;
+        Vector2 shake = new Vector2(_noise.GetNoise2D(_t, 0.0f), _noise.GetNoise2D(_t, 64.0f)) * power;
+        Offset = ClampToLimits(shake);
         _trauma = Mathf.Max(_trauma - Decay * (float)delta, 0.0f);
+    }
+
+    private Vector2 ClampToLimits(Vector2 shake)
+    {
+        Vector2 half = GetViewportRect().Size / Zoom * 0.5f;
+        Vector2 center = GetScreenCenterPosition() - Offset;
+        Vector2 lo = new Vector2(LimitLeft, LimitTop) + half - center;
+        Vector2 hi = new Vector2(LimitRight, LimitBottom) - half - center;
+        return shake.Clamp(lo.Min(Vector2.Zero), hi.Max(Vector2.Zero));
     }
 }
 ```
