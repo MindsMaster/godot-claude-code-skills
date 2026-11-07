@@ -1,8 +1,10 @@
 # 骨骼修改器
 
-4.3 起 `SkeletonModifier3D` 是骨骼后处理的统一基类。作为 `Skeleton3D` 的子节点，在 `AnimationPlayer` `AnimationTree` 播放之后运行，多个修改器按子节点顺序依次处理。
+`SkeletonModifier3D` 系列的版本表、通用属性、看向目标、两段 IK、弹簧骨骼。
 
 ## 版本表
+
+`SkeletonModifier3D` 4.3+ 是骨骼后处理的统一基类，作为 `Skeleton3D` 的子节点在动画播放之后运行，多个修改器按子节点顺序处理。
 
 | 类 | 版本 | 用途 |
 |---|---|---|
@@ -27,17 +29,24 @@
 | `BoneTwistDisperser3D` | 4.6+ | 把末端骨骼的扭转分摊到父骨骼 配合 Copy 与 IK |
 | `SkeletonIK3D` | 4.3 到 4.7 的类参考都标为已弃用 | 新项目用 4.6+ 的 IK 系列 |
 
-低于 4.6 的项目没有 IK 系列，自己继承 `SkeletonModifier3D` 实现，或用 `SkeletonIK3D`。
+- 低于 4.6 的项目没有 IK 系列，继承 `SkeletonModifier3D` 自己实现，或用 `SkeletonIK3D`
 
 ## 通用属性
 
-- `active` 开关，`influence` 0 到 1 的权重，用 `Tween` 做淡入淡出
-- 自写修改器重写 `_process_modification_with_delta(delta)`，4.5+。老的 `_process_modification()` 已弃用。不要在里面自己乘 `influence`，`Skeleton3D` 会统一应用
-- `Skeleton3D.modifier_callback_mode_process` 默认空闲帧更新，可选物理帧或手动，手动时用 `Skeleton3D.advance()` 4.5+
+| 属性或方法 | 说明 |
+|---|---|
+| `active` | 开关 |
+| `influence` | 0 到 1 的权重，用 `Tween` 做淡入淡出 |
+| `_process_modification_with_delta(delta)` | 自写修改器重写它，4.5+，旧 `_process_modification()` 已弃用 |
+| `Skeleton3D.modifier_callback_mode_process` | 默认空闲帧，可选物理帧或手动 |
+| `Skeleton3D.advance()` | 手动模式下推进，4.5+ |
+| `setting_count` | IK 与弹簧骨骼每条链一个索引，先设数量再按索引设骨骼 |
+| `mutable_bone_axes` | 默认 true 每帧从姿势取骨轴，false 只用静止姿势，略快 |
+
+- 自写修改器里不乘 `influence`，`Skeleton3D` 统一应用
 - 骨骼名与索引都可设，名字更稳
-- 修改结果只在 `Skeleton3D.skeleton_updated` 或 `SkeletonModifier3D.modification_processed` 发出的那一刻读得到，其余时刻 `get_bone_global_pose()` 返回未修改的姿势。要读修改后的骨骼位置，在这两个信号的回调里读
-- IK 与弹簧骨骼的每条链是一个索引项：先设 `setting_count`，再对每个索引调用 `set_root_bone_name(index, name)` 一类方法
-- `IKModifier3D` 与 `SpringBoneSimulator3D` 的 `mutable_bone_axes` 默认 true，每帧从姿势取骨轴。设 false 只用静止姿势并缓存，略快但忽略之前对位置的改动
+- 修改结果只在 `Skeleton3D.skeleton_updated` 或 `SkeletonModifier3D.modification_processed` 时读得到
+- 其余时刻 `get_bone_global_pose()` 返回未修改的姿势
 
 ## 看向目标
 
@@ -55,12 +64,31 @@ func look_with_head(target: Node3D) -> void:
 	look.duration = 0.2
 ```
 
-- 同时给父骨与子骨加多个 `LookAtModifier3D` 时，父骨的节点要排在上面
+```csharp
+public partial class HeadLook : Skeleton3D
+{
+    public void LookWithHead(Node3D target)
+    {
+        var look = new LookAtModifier3D();
+        AddChild(look);
+        look.BoneName = "Head";
+        look.TargetNode = look.GetPathTo(target);
+        look.ForwardAxis = SkeletonModifier3D.BoneAxis.PlusZ;
+        look.UseAngleLimitation = true;
+        look.PrimaryLimitAngle = Mathf.DegToRad(70.0f);
+        look.Duration = 0.2f;
+    }
+}
+```
+
+- 父骨与子骨各加 `LookAtModifier3D` 时，父骨的节点排在上面
 - `forward_axis` 默认 `BONE_AXIS_PLUS_Z`，模型朝向不同要改
-- `duration` 是时间插值的时长，在更换目标节点或角度限制造成轴翻转时触发，默认 0 即不插值
-- 目标更换时想平滑，设 `duration`。想整体淡出，用 `influence`
+- `duration` 默认 0，更换目标或角度限制翻轴时按它插值
+- 整体淡出用 `influence`
 
 ## 两段 IK
+
+4.6+。目标节点通常是脚下射线命中点的 `Marker3D`，每个物理帧移动它。
 
 ```gdscript
 extends Skeleton3D
@@ -77,23 +105,41 @@ func setup_leg_ik(foot_target: Node3D, knee_pole: Node3D) -> TwoBoneIK3D:
 	return ik
 ```
 
-需要 4.6+。目标节点通常是脚下射线命中点的 `Marker3D`，每个物理帧移动它。中间有多根骨骼时，其旋转被忽略，按根到中间、中间到末端的直线当作虚拟骨骼。
+```csharp
+public partial class LegIk : Skeleton3D
+{
+    public TwoBoneIK3D SetupLegIk(Node3D footTarget, Node3D kneePole)
+    {
+        var ik = new TwoBoneIK3D();
+        AddChild(ik);
+        ik.SettingCount = 1;
+        ik.SetRootBoneName(0, "UpperLeg_L");
+        ik.SetMiddleBoneName(0, "LowerLeg_L");
+        ik.SetEndBoneName(0, "Foot_L");
+        ik.SetTargetNode(0, ik.GetPathTo(footTarget));
+        ik.SetPoleNode(0, ik.GetPathTo(kneePole));
+        return ik;
+    }
+}
+```
+
+- 中间有多根骨骼时其旋转被忽略
+- 按根到中间、中间到末端的直线当作虚拟骨骼
 
 ## 弹簧骨骼
 
-- 设置里给根骨与末骨，一条链一个设置，不支持分叉的 Y 形链
+- 一条链一个设置，给根骨与末骨，不支持 Y 形分叉链
 - 数值可用 `Curve` 沿链分布，或开 individual config 逐关节设 `set_joint_stiffness()` 等
-- 碰撞：把 `SpringBoneCollisionSphere3D` 等放成修改器的子节点，设 `bone_name` 让它跟随骨骼。每条链用 `set_enable_all_child_collisions()` 切换全部子碰撞体生效或手动用 `set_collision_path()` 登记
-- 不要缩放 `SpringBoneSimulator3D` 或其父骨架，缩放后行为不对
+- 碰撞：`SpringBoneCollisionSphere3D` 等放成修改器的子节点，设 `bone_name` 跟随骨骼
+- 每条链用 `set_enable_all_child_collisions()` 切换全部子碰撞体
+- 或用 `set_collision_path()` 手动登记
+- 不缩放 `SpringBoneSimulator3D` 或其父骨架
 - 它会回到原姿势，与 `PhysicalBoneSimulator3D` 的自由物理不同
 
 ## 其他
 
-- 路径 IK 要让路径跟随骨骼时，在 `SplineIK3D` 之前放 `ModifierBoneTarget3D`，把 `Path3D` 作为它的子节点
-- 单纯把节点挂在骨骼上用 `BoneAttachment3D`。要在修改器链里被引用用 `ModifierBoneTarget3D` 4.5+
-- 重定向动画（不同骨架共用动画）先看 `retargeting_3d_skeletons` 的 `BoneMap` 与导入面板，`RetargetModifier3D` 用于运行时
-
-## 参考
-
-- https://docs.godotengine.org/en/stable/classes/class_skeletonmodifier3d.html
-- https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/retargeting_3d_skeletons.html
+- 路径跟随骨骼：`SplineIK3D` 之前放 `ModifierBoneTarget3D`，`Path3D` 作为它的子节点
+- 节点挂在骨骼上用 `BoneAttachment3D`
+- 要在修改器链里被引用用 `ModifierBoneTarget3D` 4.5+
+- 不同骨架共用动画先看导入面板的 `BoneMap` 重定向
+- `RetargetModifier3D` 用于运行时重定向

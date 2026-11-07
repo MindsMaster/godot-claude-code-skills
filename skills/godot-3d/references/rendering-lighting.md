@@ -1,6 +1,6 @@
-# 渲染器 光照 阴影 GI
+# 渲染器、光照、阴影、GI
 
-选型表在 SKILL.md。这里是差异细节、灯与阴影参数、烘焙设置。
+渲染器能力差异、灯与阴影参数、GI 模式与烘焙、环境、相机属性。
 
 ## 渲染器差异
 
@@ -67,7 +67,8 @@
 | 深度精度 | `directional_shadow/16_bits` 与 `positional_shadow/atlas_16_bits` 默认 16 位 32 位贵且差别小 |
 | 定位灯图集 | `positional_shadow/atlas_size` 加四个象限的 `atlas_quadrant_N_subdiv` 默认最多 88 盏有阴影的灯 同尺寸灯多的场景把四个象限设成一样 |
 
-定位灯阴影的画质可在运行时改根视口，方向光阴影质量通过 `RenderingServer` 改。
+- 定位灯阴影画质可在运行时改根视口
+- 方向光阴影质量通过 `RenderingServer` 改
 
 ## GI 与烘焙
 
@@ -119,7 +120,7 @@
 
 ## 环境
 
-`Environment` 资源的生效顺序：`Camera3D.environment`，`WorldEnvironment`，编辑器预览环境（只在编辑器里）。
+`Environment` 生效顺序：`Camera3D.environment`、`WorldEnvironment`、编辑器预览环境。
 
 | 项 | 要点 |
 |---|---|
@@ -132,7 +133,14 @@
 
 ## 相机属性
 
-`CameraAttributesPractical` 用任意单位，含自动曝光与景深。`CameraAttributesPhysical` 用真实单位，焦距毫米，放到相机上时会覆盖 `fov` `near` `far` `keep_aspect`。自动曝光只有 Forward+ 支持。`Camera3D.attributes` 覆盖 `WorldEnvironment` 的设置。放在相机上景深不会在编辑器视口里显示，除非预览该相机。
+| 资源 | 说明 |
+|---|---|
+| `CameraAttributesPractical` | 任意单位，含自动曝光与景深 |
+| `CameraAttributesPhysical` | 真实单位，焦距毫米，放到相机上覆盖 `fov` `near` `far` `keep_aspect` |
+
+- 自动曝光只有 Forward+ 支持
+- `Camera3D.attributes` 覆盖 `WorldEnvironment` 的设置
+- 放在相机上的景深，编辑器视口里只在预览该相机时显示
 
 ## 参考
 

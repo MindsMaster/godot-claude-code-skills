@@ -1,5 +1,7 @@
 # 场景导入与关卡构建
 
+格式选择、导入面板、名字后缀、高级导入设置、继承场景与导入脚本、运行时加载 glTF、GridMap、CSG。
+
 ## 格式
 
 | 格式 | 结论 |
@@ -10,7 +12,11 @@
 | DAE | 老格式 复杂场景和动画用 glTF |
 | OBJ | 没有骨骼 动画 UV2 PBR 材质 默认只导成单个网格资源 |
 
-Blender 导出 glTF 的两个坑：含混合形状的模型要开 Data > Armature > Export Deformation Bones Only，否则着色错误。Blender 材质默认关背面剔除，导出后 Godot 材质剔除为 Disabled，会多画背面，在 Blender 材质页勾 Backface Culling 再导。
+Blender 导出 glTF：
+
+- 含混合形状的模型开 Data > Armature > Export Deformation Bones Only，否则着色错误
+- Blender 材质默认关背面剔除，导出后 Godot 材质剔除为 Disabled
+- 在 Blender 材质页勾 Backface Culling 再导，免得多画背面
 
 ## 导入面板
 
@@ -33,11 +39,15 @@ Blender 导出 glTF 的两个坑：含混合形状的模型要开 Data > Armatur
 | `nodes/use_node_type_suffixes` | 关掉后决定节点类型的后缀失效 `-noimp` `-alpha` `-vcol` `-loop` 仍有效 |
 | `nodes/use_name_suffixes` | 关掉后通用导入代码不再看后缀 glTF 导入器自己检查的 `-loop` 仍可能有效 |
 
-glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extract Textures 抽出成图片可改压缩，Embed as Basis Universal 与 Embed as Uncompressed 保持内嵌。
+| glTF Embedded Texture Handling | 结果 |
+|---|---|
+| Discard All Textures | 丢弃，自己配材质 |
+| Extract Textures | 抽成图片，可改压缩 |
+| Embed as Basis Universal、Embed as Uncompressed | 保持内嵌 |
 
 ## 名字后缀
 
-对象在建模软件里的名字带这些后缀，导入时自动处理。前面的连接符可以是 `-` `$` `_`，大小写不敏感。
+建模软件里的对象名带后缀，导入时自动处理。连接符可以是 `-` `$` `_`，大小写不敏感。
 
 | 后缀 | 作用 |
 |---|---|
@@ -54,20 +64,31 @@ glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extr
 | `-vcol` | 材质用顶点色作反照率 |
 | `loop` `cycle` | 动画名以此词开头或结尾则循环 不需要连接符 |
 
-多个节点引用同一个网格时，碰撞形状按网格共享，4.7.2 实测第一个带碰撞后缀的节点决定全部节点的形状类型，要不同形状就用不同网格。能用少量基本形状就别用三角网或凸包。
+- 多个节点引用同一网格时，碰撞形状按网格共享
+- 第一个带碰撞后缀的节点决定全部节点的形状类型，4.7.2 实测
+- 要不同形状就用不同网格
+- 能用少量基本形状就别用三角网或凸包
 
 ## 高级导入设置
 
 双击场景文件，或导入面板点 Advanced。
 
-- 场景页选中节点：Skip Import，Generate Physics（选 Static Dynamic Area，形状选 Trimesh 仅静态用，动态物体用基本形状或凸分解），Generate NavMesh，Generate Occluder
-- 网格页：Save to File 存成网格资源 推荐 `.res`，用于 `MultiMeshInstance3D` 或粒子，Generate 里的 Shadow Meshes Lightmap UV LODs 逐网格覆盖
-- 材质页：Use External 用外部材质。Actions 里 Extract Materials 一次提取全部，之后场景自动指向外部 `.tres`，源文件重导入不覆盖你改的材质。源文件里材质改名会断开链接
-- 用外部材质后，这个对话框预览仍显示原材质，要在别的场景里看
+| 页 | 可做 |
+|---|---|
+| 场景页选中节点 | Skip Import、Generate Physics、Generate NavMesh、Generate Occluder |
+| 网格页 | Save to File 存成网格资源，推荐 `.res`；逐网格覆盖 Shadow Meshes、Lightmap UV、LODs |
+| 材质页 | Use External；Actions 里 Extract Materials 一次提取全部 |
 
-## 继承场景与实例化
+- Generate Physics 选 Static、Dynamic 或 Area
+- Trimesh 形状只给静态，动态物体用基本形状或凸分解
+- 存成的网格资源可给 `MultiMeshInstance3D` 或粒子用
+- 提取后场景指向外部 `.tres`，重导入不覆盖你改的材质
+- 源文件里材质改名会断开链接
+- 用外部材质后对话框预览仍显示原材质，到别的场景里看
 
-导入的场景不能直接保存修改，重导入会整个覆盖。三种做法：
+## 继承场景与导入脚本
+
+导入的场景不能直接保存修改，重导入会整个覆盖。
 
 | 做法 | 用于 |
 |---|---|
@@ -75,7 +96,9 @@ glTF 的 Embedded Texture Handling：Discard All Textures 自己配材质，Extr
 | 在编辑器里打开导入场景时选新建继承场景 | 给导入模型加脚本 碰撞 粒子 子节点 基础场景的节点不能删 子资源不能直接改 需先存成外部文件 |
 | 导入脚本 `EditorScenePostImport` | 批量规则 例如统一改材质 命名 加碰撞层 |
 
-能在源文件或导入设置里解决的事不要放到导入后处理里。大体量的网格数据（几十万顶点的 JSON 或自定义格式）不要在运行时解析再手建 `ArrayMesh`，在导入阶段烘焙成 `.res` 网格资源，运行时直接 `load()`。
+- 继承场景里基础场景的节点不能删，子资源要先存成外部文件再改
+- 能在源文件或导入设置里解决的不放到导入后处理
+- 几十万顶点的自定义网格数据在导入阶段烘成 `.res`，运行时直接 `load()`
 
 ```gdscript
 @tool
@@ -87,11 +110,29 @@ func _post_import(scene: Node) -> Object:
 	return scene
 ```
 
-脚本不挂在任何节点上，路径填进导入面板 Import Script 的 Path。必须返回场景。
+```csharp
+[Tool]
+public partial class SetBodyLayer : EditorScenePostImport
+{
+    public override GodotObject _PostImport(Node scene)
+    {
+        foreach (Node body in scene.FindChildren("*", "StaticBody3D"))
+        {
+            ((StaticBody3D)body).CollisionLayer = 1u << 1;
+        }
+        return scene;
+    }
+}
+```
+
+- 脚本不挂在节点上，路径填进导入面板 Import Script 的 Path
+- 必须返回场景
 
 ## 动画库导入
 
-导入面板的导入类型改为 Animation Library，glTF 只作为 `AnimationLibrary` 导入，放进 `AnimationPlayer`，一套动作多个角色共用。切换类型要重启编辑器。
+- 导入类型改为 Animation Library，glTF 只作为 `AnimationLibrary` 导入
+- 放进 `AnimationPlayer`，一套动作多个角色共用
+- 切换导入类型要重启编辑器
 
 ## 运行时加载 glTF
 
@@ -106,20 +147,41 @@ func load_model(path: String) -> Node:
 	return document.generate_scene(state)
 ```
 
-用于玩家自带模型或 mod。得到的节点用 `add_child()` 加入场景。编辑器导入设置与后缀行为在运行时加载里不生效。
+```csharp
+public partial class ModelLoader : Node3D
+{
+    public Node LoadModel(string path)
+    {
+        var document = new GltfDocument();
+        var state = new GltfState();
+        if (document.AppendFromFile(path, state) != Error.Ok)
+        {
+            return null;
+        }
+        return document.GenerateScene(state);
+    }
+}
+```
+
+- 用于玩家自带模型或 mod，得到的节点 `add_child()` 加入场景
+- 编辑器导入设置与后缀在运行时加载里不生效
+- C# 类名是 GltfDocument、GltfState
 
 ## GridMap 与 MeshLibrary
 
 MeshLibrary 场景格式：
 
-- 根节点 `Node3D`
-- 每个子节点是一个 `MeshInstance3D`，成为一个库条目
-- 材质放在网格的材质槽里，节点上的材质被忽略
-- 条目下最多一个 `StaticBody3D` 子节点作碰撞，下面放 `CollisionShape3D`
-- 条目下最多一个 `NavigationRegion3D` 子节点作导航，它下面的网格只用于烘焙，不导出为视觉网格
-- 其他节点类型不识别
+| 节点 | 规则 |
+|---|---|
+| 根 | `Node3D` |
+| 每个子节点 | 一个 `MeshInstance3D`，成为一个库条目 |
+| 材质 | 放在网格的材质槽，节点上的材质被忽略 |
+| 碰撞 | 条目下最多一个 `StaticBody3D`，下面放 `CollisionShape3D` |
+| 导航 | 条目下最多一个 `NavigationRegion3D`，其下网格只用于烘焙 |
+| 其他节点 | 不识别 |
 
-菜单 Scene > Export As > MeshLibrary 存成资源，赋给 `GridMap.mesh_library`。`GridMap` 不能放任意节点，只能放网格加碰撞加导航。
+- 菜单 Scene > Export As > MeshLibrary 存成资源，赋给 `GridMap.mesh_library`
+- `GridMap` 只能放网格加碰撞加导航，不能放任意节点
 
 ```gdscript
 extends GridMap
@@ -129,28 +191,41 @@ func place(world_position: Vector3, item: int) -> void:
 	set_cell_item(cell, item)
 ```
 
-- `cell_size` 默认 `Vector3(2, 2, 2)`，`cell_scale` 只缩放格内条目 不改格距
+```csharp
+public partial class LevelGrid : GridMap
+{
+    public void Place(Vector3 worldPosition, int item)
+    {
+        Vector3I cell = LocalToMap(ToLocal(worldPosition));
+        SetCellItem(cell, item);
+    }
+}
+```
+
+| 属性 | 说明 |
+|---|---|
+| `cell_size` | 默认 `Vector3(2, 2, 2)` |
+| `cell_scale` | 只缩放格内条目，不改格距 |
+| `cell_octant_size` | 默认 8，八叉块每轴格数 |
+| `bake_navigation` | 默认关，开了才为每格建导航区域 |
+
 - 空格返回 `GridMap.INVALID_CELL_ITEM`
-- 烘焙光照图前，生成 UV2 的精度要在转 MeshLibrary 之前设好，之后改不影响已有的库。没有 UV2 时烘焙自动生成，精度 0.1
-- 导航网格烘焙的 `cell_size` 要与导航地图一致，否则格子之间的网格接不上
-- 小格距时要调小 `NavigationMesh.agent_radius` 与 `region_min_size`
-- 条目带导航网格时，开 `GridMap.bake_navigation` 才为每格创建导航区域，默认关
-- `cell_octant_size` 默认 8，是八叉块在三个轴向的格数
+- UV2 精度在转 MeshLibrary 之前设好，之后改不影响已有的库
+- 没有 UV2 时烘焙自动生成，精度 0.1
+- 导航烘焙的 `cell_size` 与导航地图一致，否则格子间接不上
+- 小格距时调小 `NavigationMesh.agent_radius` 与 `region_min_size`
 - 导入时 `mesh_library/use_node_names_as_mesh_names` 默认关
 
 ## CSG
 
-CSG 只用于灰盒。节点有 `CSGBox3D` `CSGSphere3D` `CSGCylinder3D` `CSGTorus3D` `CSGPolygon3D` `CSGMesh3D` `CSGCombiner3D`，操作有 Union Intersection Subtraction，没有 UV 编辑。
+只用于灰盒，没有 UV 编辑。节点有 `CSGBox3D` `CSGSphere3D` `CSGCylinder3D` `CSGTorus3D` `CSGPolygon3D` `CSGMesh3D` `CSGCombiner3D`，操作有 Union、Intersection、Subtraction。
 
-- 根 CSG 节点才产生网格和碰撞。`CSGShape3D.use_collision` 默认关，开启后隐藏节点碰撞仍然有效
-- 4.4+ 菜单 CSG 下 Bake Mesh Instance 得到 `MeshInstance3D`，之后才能烘遮挡，烘光照图还要对它执行 Mesh 菜单的 Unwrap UV2。烘完不会自动隐藏原 CSG 节点，要自己隐藏
-- 4.4+ Bake Collision Shape 生成三角网碰撞，必须放在 `StaticBody3D` 或 `AnimatableBody3D` 下才有效
-- 脚本里用 `CSGShape3D.bake_static_mesh()` 与 `CSGShape3D.bake_collision_shape()`，4.4+。CSG 网格延迟一帧更新，在 `_ready()` 里用之前先 `await get_tree().process_frame`
+- 根 CSG 节点才产生网格和碰撞
+- `CSGShape3D.use_collision` 默认关，开启后隐藏节点的碰撞仍有效
+- 4.4+ CSG 菜单 Bake Mesh Instance 得到 `MeshInstance3D`，之后才能烘遮挡
+- 烘光照图还要对它执行 Mesh 菜单的 Unwrap UV2
+- 烘完不自动隐藏原 CSG 节点
+- 4.4+ Bake Collision Shape 生成三角网碰撞，须放在 `StaticBody3D` 或 `AnimatableBody3D` 下
+- 脚本里用 `CSGShape3D.bake_static_mesh()` 与 `CSGShape3D.bake_collision_shape()` 4.4+
+- CSG 网格延迟一帧更新，`_ready()` 里先 `await get_tree().process_frame`
 - 正式关卡用 Blender 建模，或 FuncGodot 一类的关卡插件
-
-## 参考
-
-- https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/index.html
-- https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/node_type_customization.html
-- https://docs.godotengine.org/en/stable/tutorials/3d/using_gridmaps.html
-- https://docs.godotengine.org/en/stable/tutorials/3d/csg_tools.html

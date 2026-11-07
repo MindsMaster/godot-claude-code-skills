@@ -5,7 +5,16 @@ description: 搭建或调试 Godot 4 的 3D 场景时用。CharacterBody3D 角�
 
 # Godot 3D
 
-3D 场景用哪个节点、哪个资源、哪个项目设置，以及照直觉会写错的地方。着色器、粒子、后处理转 `godot-shaders-vfx`。动画状态机转 `godot-animation`。2D 精灵放进 3D 转 `godot-2d-in-3d`。帧率剖析转 `godot-performance`。
+3D 场景用哪个节点、哪个资源、哪个项目设置，以及照直觉会写错的地方。
+
+## 范围
+
+| 不含 | 去哪 |
+|---|---|
+| 着色器、粒子、后处理 | godot-shaders-vfx |
+| 动画状态机、AnimationTree | godot-animation |
+| 2D 精灵放进 3D | godot-2d-in-3d |
+| 帧率剖析、大量实体 | godot-performance |
 
 ## 先查内置
 
@@ -54,29 +63,21 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 ```
 
-`velocity` 是每秒速度，不乘 `delta`。`get_vector` 的长度已限制为 1，不再 `normalized()`，摇杆轻推保持慢速；`is_on_floor()` 读的是上一次 `move_and_slide()` 的结果。相机相对移动时用相机的 yaw 基底代替 `global_basis`。
+- `velocity` 是每秒速度，不乘 `delta`
+- `get_vector` 长度已限制为 1，不再 `normalized()`，摇杆轻推保持慢速
+- `is_on_floor()` 读的是上一次 `move_and_slide()` 的结果
+- 相机相对移动时用相机的 yaw 基底代替 `global_basis`
+- 没有内置台阶，用斜面碰撞体，或 `ShapeCast3D` 自己检测
+- 重力方向不是 Y 时改 `up_direction`
 
-| 属性 | 默认 | 说明 |
-|---|---|---|
-| `floor_max_angle` | 0.7853982 | 弧度 45 度 超过算墙 |
-| `floor_snap_length` | 0.1 | 下坡贴地 上升速度大于 0 时不吸附 |
-| `floor_stop_on_slope` | true | 站着不下滑 |
-| `floor_constant_speed` | false | 上下坡速度一致 需配合 `floor_snap_length` |
-| `floor_block_on_wall` | true | 只在地面上移动 不能爬墙 但会沿墙下滑 |
-| `wall_min_slide_angle` | 0.2617994 | 弧度 15 度 撞墙角度小于此值不滑 Grounded 下需 `floor_block_on_wall` 为 true 才生效 |
-| `max_slides` | 6 | 一次 `move_and_slide()` 最多换向次数 |
-| `safe_margin` | 0.001 | 碰撞恢复余量 大了更稳地识别墙和地面 小了更精确 极小缩放或叠放多个角色时用小值 |
-| `motion_mode` | 0 | `MOTION_MODE_GROUNDED` 平台类 `MOTION_MODE_FLOATING` 太空与俯视 |
-| `platform_on_leave` | 0 | `PLATFORM_ON_LEAVE_ADD_VELOCITY` 离开移动平台时带上平台速度 另有 `ADD_UPWARD_VELOCITY` `DO_NOTHING` |
-
-没有内置台阶。需要上台阶时用斜面碰撞体，或用 `ShapeCast3D` 自己做台阶检测。重力方向不是 Y 轴时改 `up_direction`。
+- 坡度、贴地、撞墙等属性默认值见 [references/physics-3d.md](references/physics-3d.md)
 
 ### 物理引擎
 
 | 引擎 | 状态 |
 |---|---|
-| GodotPhysics3D | 设置值 `DEFAULT` 在 4.7 仍等于它 老项目升级后保持 |
-| Jolt Physics | 4.4 起内置模块 4.6 起新建项目默认选用 通常更快更稳 |
+| Jolt Physics | 4.4+ 内置，4.6 起新建项目默认，通常更快更稳 |
+| GodotPhysics3D | 设置值 `DEFAULT` 在 4.7 仍等于它，老项目升级后保持 |
 
 ```ini
 [physics]
@@ -84,7 +85,8 @@ func _physics_process(delta: float) -> void:
 3d/physics_engine="Jolt Physics"
 ```
 
-新建项目默认就是它。从 4.5 及更早升级的项目手动改，改完重启编辑器。切换后关节软限制属性不支持，只设一个物体的关节默认把它当 `node_b`，射线 `face_index` 默认 -1，其余差异见 [references/physics-3d.md](references/physics-3d.md)。
+- 4.5 及更早升级的项目手动改，改完重启编辑器
+- Jolt 与 GodotPhysics3D 的差异见 [references/physics-3d.md](references/physics-3d.md)
 
 ### 碰撞层
 
@@ -114,7 +116,9 @@ func _ready() -> void:
 	collision_mask = LAYER_WORLD | LAYER_ENEMY
 ```
 
-`collision_layer` 是我在哪层，`collision_mask` 是我扫描哪层，`set_collision_mask_value(n, true)` 按层号开关单层。位掩码第 n 层是 `1 << (n - 1)`。`Area3D` 检测不到谁，先查对方的 layer 是否在自己的 mask 里。
+- `collision_layer` 是我在哪层，`collision_mask` 是我扫描哪层
+- 位掩码第 n 层是 `1 << (n - 1)`，单层开关 `set_collision_mask_value(n, true)`
+- `Area3D` 检测不到谁，先查对方 layer 是否在自己的 mask 里
 
 ### 空间查询
 
@@ -141,15 +145,12 @@ func pick(mouse_position: Vector2) -> Dictionary:
 	return space.intersect_ray(query)
 ```
 
-结果是字典，没命中为空，命中有 `position` `normal` `collider` `rid` `shape`。
-
-C# 版本和 `Dictionary` 取值写法见 [references/physics-3d.md](references/physics-3d.md)。
-
-`direct_space_state` 只能在 `_physics_process()` 里访问，其他时机可能报 space 被锁。在 `_input()` 里记下鼠标位置，下一个物理帧再查询。
+- 结果是字典，没命中为空，有 `position` `normal` `collider` `rid` `shape`
+- `direct_space_state` 只在 `_physics_process()` 里访问，`_input()` 里只记鼠标位置
 
 ### 第三人称相机
 
-节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。第一人称不要弹簧臂，`Camera3D` 放在身体下的 `Node3D` 头节点，yaw 转身体，pitch 转头节点，鼠标写法同下。`spring_length` 默认 1.0，按需要的臂长改。`SpringArm3D.shape` 留空且相机是直接子节点时，用相机近平面做形状；留空但相机不是直接子节点会退成射线，不推荐。给了形状就一直用该形状，球形最顺滑。
+节点结构：`Node3D` 枢轴，下面 `SpringArm3D`，下面 `Camera3D`。
 
 ```gdscript
 extends Node3D
@@ -171,7 +172,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	_arm.rotation.x = clampf(_arm.rotation.x - motion.screen_relative.y * mouse_sensitivity, -1.2, 1.2)
 ```
 
-弹簧臂 `collision_mask` 默认只有第 1 层。玩家碰撞层落在它的 mask 里又没排除时，起点在玩家碰撞体外、朝玩家扫去的弹簧臂会被自己顶短，如枢轴高过头顶再仰视。起点已在碰撞体内的重叠会被忽略。上面的层表里玩家在第 2 层，保持 mask 只勾 world 层也能避开。
+- `shape` 留空且相机是直接子节点时，用相机近平面做形状
+- `collision_mask` 默认第 1 层，玩家层在内又没排除时被自己顶短
+- 第一人称不用弹簧臂，yaw 转身体，pitch 转相机所在的头节点
 
 ### 渲染器
 
@@ -181,9 +184,10 @@ func _unhandled_input(event: InputEvent) -> void:
 | Mobile | 手机 一体机 XR 要 `CompositorEffect` 要光照投影 |
 | Compatibility | 网页 老硬件 简单 3D 与 2D |
 
-能力差异表见 [references/rendering-lighting.md](references/rendering-lighting.md)。导出到网页只能用 Compatibility。切换渲染器后场景和环境要重新调。
+- 导出到网页只能用 Compatibility，切换后场景和环境要重调
+- 能力差异表见 [references/rendering-lighting.md](references/rendering-lighting.md)
 
-### 光照与 GI 选型
+### 光照与 GI
 
 | 技术 | 渲染器 | 实时性 | 动态物体 | 工作量 |
 |---|---|---|---|---|
@@ -194,40 +198,36 @@ func _unhandled_input(event: InputEvent) -> void:
 | SDFGI | 仅 Forward+ | 半实时 | 只接收 | 环境里开关 |
 | SSIL | 仅 Forward+ | 是 | 是 | 环境里开关 只当补充 |
 
-桌面项目先开 SDFGI，不够再换。手机只能 `LightmapGI` 加 `ReflectionProbe`。性能从快到慢：`ReflectionProbe`，`LightmapGI`，`VoxelGI`，SSIL，SDFGI。网格的 `gi_mode` 默认 Static，会参与 SDFGI 与光照图。小型动态物体设 Disabled，大型动态物体如移动的列车设 Dynamic，Dynamic 只对 VoxelGI 有效。灯的烘焙模式细节见参考文件。
+- 桌面项目先开 SDFGI，不够再换
+- 手机只能 `LightmapGI` 加 `ReflectionProbe`
+- 由快到慢：`ReflectionProbe`、`LightmapGI`、`VoxelGI`、SSIL、SDFGI
+
+- 小型动态物体 `gi_mode` 设 Disabled，大型设 Dynamic，只对 VoxelGI 有效
+- `gi_mode`、灯的烘焙模式见 [references/rendering-lighting.md](references/rendering-lighting.md)
 
 ### 环境与相机属性
 
-- `WorldEnvironment` 每个场景树只放一个。`Camera3D.environment` 优先级更高
-- `Environment.tonemap_mode` 默认 Linear，亮部直接截断。换 Filmic 或 ACES，4.4+ 有 AgX。写实场景 `tonemap_white` 至少 6.0，AgX 改用 `tonemap_agx_white`，Mobile 的 `tonemap_white` 要 2.0 以下
-- `Camera3D.attributes` 优先于 `WorldEnvironment` 上的 `CameraAttributes`。拿不准用 `CameraAttributesPractical`，`CameraAttributesPhysical` 会覆盖相机的 `fov` `near` `far` `keep_aspect`
+- `WorldEnvironment` 每个场景树只放一个，`Camera3D.environment` 优先
+- `Environment.tonemap_mode` 默认 Linear，亮部截断，换 Filmic、ACES 或 AgX 4.4+
+- `Camera3D.attributes` 优先于 `WorldEnvironment` 上的 `CameraAttributes`
+- `CameraAttributesPhysical` 覆盖相机 `fov` `near` `far`，拿不准用 `CameraAttributesPractical`
+- `tonemap_white` 取值、泛光阈值见 [references/rendering-lighting.md](references/rendering-lighting.md)
 
-### 场景导入
+### 场景导入与关卡
 
-glTF 2.0 优先，`.glb` 是单文件。`.blend` 直接导入要求每个人装 Blender。OBJ 没有骨骼动画 PBR UV2。
-
-- 在 Blender 里给对象改名带后缀：`-col` 三角网碰撞，`-convcol` 凸包，`-colonly` `-convcolonly` 只留碰撞，`-rigid` 刚体，`-navmesh`，`-occ` `-occonly`，`-noimp` 跳过，完整清单含 `-vehicle` `-wheel` `-alpha` `-vcol`。后缀大小写不敏感，连接符可以是 `-` `$` `_`
-- 动画片段名以 `loop` 或 `cycle` 开头或结尾，导入时自动循环，不需要连接符
-- 改材质：高级导入设置 Actions 里 Extract Materials，之后改外部 `.tres`，重导入不覆盖
-- 加节点：新建继承场景，基础场景的节点不能删。只挂根脚本用导入选项 `nodes/root_script`
-- 要碰撞：优先用后缀，其次高级导入设置的 Generate Physics，静态关卡 Trimesh，动态物体用基本形状
-
-详细流程见 [references/import-and-levels.md](references/import-and-levels.md)。
-
-### 关卡构建
-
-- `GridMap` 需要 `MeshLibrary`。根节点 `Node3D`，每个子节点是 `MeshInstance3D`，材质放在网格里不放在节点上，碰撞放在子 `StaticBody3D`。用 Scene 菜单 Export As MeshLibrary 导出
-- CSG 只做灰盒。要光照图或遮挡烘焙时先转成 `MeshInstance3D`，CSG 菜单里 Bake Mesh Instance，4.4+。`CSGShape3D.use_collision` 默认关
+- 格式优先 glTF 2.0，`.glb` 单文件；OBJ 没有骨骼、动画、PBR、UV2
+- Blender 对象名后缀决定导入结果，如 `-col` `-colonly` `-rigid` `-navmesh`
+- 动画名以 `loop` 或 `cycle` 开头或结尾自动循环
+- 改材质先 Extract Materials，加节点用继承场景
+- 网格拼装用 `GridMap` 加 `MeshLibrary`，CSG 只做灰盒
+- 后缀全表、MeshLibrary、CSG、运行时加载 glTF 见 [references/import-and-levels.md](references/import-and-levels.md)
 
 ### 剔除与 LOD
 
-- 导入的 glTF 默认生成 mesh LOD，OBJ 要先把导入类型改为 Scene
-- 手做的多级模型用 `visibility_range_begin` `visibility_range_end` 与 `visibility_range_end_margin`。`visibility_range_fade_mode` 选 Disabled 性能最好，Self 与 Dependencies 用透明渲染做淡入淡出且只在 Forward+ 有效
-- 遮挡剔除先开 `rendering/occlusion_culling/use_occlusion_culling`（默认关，网页导出模板不支持），加 `OccluderInstance3D` 烘焙。只烘 `MeshInstance3D`，动态物体放到别的可见层并在烘焙剔除掩码里去掉
-- `MultiMeshInstance3D`：`transform_format` `use_colors` `use_custom_data` 必须先于 `instance_count` 设置，整个节点是一个剔除单位，实例散得太开要拆成多个节点
-- `Decal` 的 `size` 里 Y 是投影深度，越短越利于剔除
-
-LOD、遮挡剔除、`MultiMesh`、`Decal` 的完整做法见 [references/culling-and-instancing.md](references/culling-and-instancing.md)。
+- 远处降面：导入的 glTF 默认生成 mesh LOD
+- 手做多级模型：`visibility_range_begin` `visibility_range_end`
+- 室内遮挡：开 `rendering/occlusion_culling/use_occlusion_culling`，加 `OccluderInstance3D` 烘焙
+- 完整做法与 `MultiMesh` 见 [references/culling-and-instancing.md](references/culling-and-instancing.md)
 
 ### 导航
 
@@ -251,50 +251,50 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 ```
 
-场景里放 `NavigationRegion3D`，给它 `NavigationMesh`，下面放参与烘焙的网格，编辑器里点 Bake。`NavigationMesh.cell_size` 要与 `navigation/3d/default_cell_size` 一致。运行时烘焙用 `bake_navigation_mesh(true)`。导航地图默认在后台线程同步，`navigation/world/map_use_async_iterations` 为 true，进场头几帧 `map_get_iteration_id()` 为 0，上面的示例先判断它。`get_next_path_position()` 每物理帧只调一次，到达后不要再调。避让要开 `avoidance_enabled`、连 `velocity_computed`、给 `velocity` 赋值，并且必须设过 `target_position`。
+- 场景放 `NavigationRegion3D` 加 `NavigationMesh`，下面放参与烘焙的网格，点 Bake
+- `NavigationMesh.cell_size` 与 `navigation/3d/default_cell_size` 一致
+- 运行时烘焙用 `bake_navigation_mesh(true)`
+- 地图后台同步，进场头几帧 `map_get_iteration_id()` 为 0，先判断
+- `get_next_path_position()` 每物理帧调一次，到达后不再调
+- 避让：开 `avoidance_enabled`，连 `velocity_computed`，给 `velocity` 赋值，且设过 `target_position`
 
 ### 骨骼修改器
 
 作为 `Skeleton3D` 的子节点，在动画之后运行。`influence` 做淡入淡出，`active` 开关。
 
-| 需求 | 节点 | 版本 |
-|---|---|---|
-| 头 炮塔看向目标 | `LookAtModifier3D` | 4.4+ |
-| 头发 布料 尾巴 | `SpringBoneSimulator3D` 加 `SpringBoneCollision3D` | 4.4+ |
-| 跨骨架重定向 | `RetargetModifier3D` | 4.4+ |
-| 复制 转换 对齐某骨骼 | `CopyTransformModifier3D` `ConvertTransformModifier3D` `AimModifier3D` | 4.5+ |
-| 手臂 腿两段 IK | `TwoBoneIK3D` | 4.6+ |
-| 任意长度链 IK | `FABRIK3D` `CCDIK3D` `JacobianIK3D` | 4.6+ |
-| 沿路径摆骨 | `SplineIK3D` | 4.6+ |
+| 需求 | 节点 |
+|---|---|
+| 头、炮塔看向目标 | `LookAtModifier3D` 4.4+ |
+| 头发、布料、尾巴 | `SpringBoneSimulator3D` 4.4+ |
+| 手臂、腿两段 IK | `TwoBoneIK3D` 4.6+ |
 
-`SkeletonIK3D` 已弃用，新项目用上表。详细见 [references/skeleton-modifiers.md](references/skeleton-modifiers.md)。
+- `SkeletonIK3D` 已弃用
+- 全部修改器与版本见 [references/skeleton-modifiers.md](references/skeleton-modifiers.md)
 
 ## 陷阱
 
-- `RayCast3D` 的 `collision_mask` 默认只有第 1 层，`PhysicsRayQueryParameters3D` 默认全部层
-- 射线默认不打 `Area3D`，要设 `collide_with_areas`。射线从碰撞体内部出发默认不命中该体，要 `hit_from_inside`
-- `RayCast3D` 默认 `exclude_parent` 为 true，会排除父级碰撞体。`PhysicsRayQueryParameters3D` 要自己填 `exclude`
-- 不要平移 旋转 缩放 `CollisionShape3D`，会失去物理引擎的内部优化，改形状本身的尺寸
-- 三角网碰撞 `ConcavePolygonShape3D` 只能用在静态体，角色与刚体用基本形状或凸包
-- `PhysicsBody3D` 只认直接子级的 `CollisionShape3D`
-- `CharacterBody3D` 撞上 `RigidBody3D` 不会推动它，Jolt 与 GodotPhysics3D 实测一致。`move_and_slide()` 之后遍历 `get_slide_collision()`，每个物理帧对 `get_collider()` 得到的刚体调 `apply_central_force`，方向取碰撞法线的反方向
-- 角色在斜坡抖动或飞出：先看 `floor_snap_length`，再看是否在 `_process` 里移动
-- 高刷新率下物理对象的画面抖动：开 `physics/common/physics_interpolation`，瞬移后调 `reset_physics_interpolation()`
-- 阴影缺失或漂浮：`Light3D.shadow_normal_bias` 先于 `shadow_bias` 调。`DirectionalLight3D.directional_shadow_max_distance` 设成场景需要的值，越小越清晰越快
-- 薄面片不投影或漏光：`GeometryInstance3D.cast_shadow` 选双面
-- 灯上不勾 `shadow_enabled` 默认没有阴影。定位灯阴影共用一张图集，数量多时按 `rendering/lights_and_shadows/positional_shadow/atlas_quadrant_0_subdiv` 等分配
-- 光照图烘焙时隐藏灯无效，要把灯的 `light_bake_mode` 设为 Disabled
-- 导入场景用菜单生成的 UV2 会在重载后丢失，在导入面板里设 Light Baking 为 Static Lightmaps
-- SDFGI 对已烘的静态网格修改后要相机走远再走近才刷新
-- `Environment.glow_enabled` 只对亮度超过 `glow_hdr_threshold`（默认 1.0）的像素生效，暗部要加 `glow_bloom`，Mobile 把阈值降到 0.9
-- 在 `_ready()` 里立刻取导航路径可能为空，等地图第一次同步
+| 现象 | 做法 |
+|---|---|
+| `RayCast3D` 打不到其他层 | 节点 `collision_mask` 默认只有第 1 层，查询参数默认全部层 |
+| 射线打不到 `Area3D` | 设 `collide_with_areas` |
+| 射线从碰撞体内部出发不命中该体 | 设 `hit_from_inside` |
+| 查询命中自己 | `PhysicsRayQueryParameters3D` 自己填 `exclude`，只有 `RayCast3D` 有 `exclude_parent` |
+| 物理变慢或不稳 | 不平移旋转缩放 `CollisionShape3D`，改形状尺寸 |
+| 角色或刚体的三角网碰撞不工作 | `ConcavePolygonShape3D` 只用于静态体，改基本形状或凸包 |
+| 碰撞形状不生效 | `PhysicsBody3D` 只认直接子级的 `CollisionShape3D` |
+| `CharacterBody3D` 推不动 `RigidBody3D` | `move_and_slide()` 后对碰到的刚体 `apply_central_force`，方向取法线反向 |
+| 角色在斜坡抖动或飞出 | 先看 `floor_snap_length`，再看是否在 `_process` 里移动 |
+| 开物理插值后瞬移出现拖影 | 瞬移后调 `reset_physics_interpolation()` |
+| 阴影、GI、glow 显示不对 | 见 [references/rendering-lighting.md](references/rendering-lighting.md) 的阴影参数与环境 |
 
 ## 参考
 
-- [references/rendering-lighting.md](references/rendering-lighting.md) 渲染器差异 灯 阴影 GI 烘焙
-- [references/import-and-levels.md](references/import-and-levels.md) 导入 GridMap CSG 继承场景
-- [references/culling-and-instancing.md](references/culling-and-instancing.md) LOD 遮挡 MultiMesh Decal
-- [references/skeleton-modifiers.md](references/skeleton-modifiers.md) 骨骼修改器与版本
+- [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
+- [references/physics-3d.md](references/physics-3d.md)：Jolt 差异、范围查询、ShapeCast3D
+- [references/rendering-lighting.md](references/rendering-lighting.md)：渲染器差异、灯、阴影、GI 烘焙
+- [references/import-and-levels.md](references/import-and-levels.md)：导入、后缀全表、GridMap、CSG、继承场景
+- [references/culling-and-instancing.md](references/culling-and-instancing.md)：LOD、遮挡、MultiMesh、Decal
+- [references/skeleton-modifiers.md](references/skeleton-modifiers.md)：骨骼修改器与版本
 - https://docs.godotengine.org/en/stable/tutorials/3d/index.html
 - https://docs.godotengine.org/en/stable/tutorials/physics/using_jolt_physics.html
 - https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html
