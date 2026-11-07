@@ -1,10 +1,10 @@
 # Tween 食谱
 
-每个例子都是完整脚本，挂在对应节点上直接用。Tween 不复用，下面每个函数都新建。
+常用 Tween 写法，每个示例是完整脚本。Tween 不复用，每个函数都新建。
 
 ## 打断重播
 
-同一属性只留一个 Tween，重播前 `kill()` 旧的：
+同一属性只留一个 Tween，重播前 `kill()` 旧的。
 
 ```gdscript
 extends Sprite2D
@@ -20,7 +20,25 @@ func squash() -> void:
 	_tween.tween_property(self, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 ```
 
-`kill()` 与节点释放都不会发 `finished`，`await tween.finished` 的协程永远不会恢复。需要可靠的收尾，用 `tween_callback()` 放在序列末尾，或给等待加超时。
+```csharp
+public partial class Squash : Sprite2D
+{
+    private Tween _tween;
+
+    public void DoSquash()
+    {
+        _tween?.Kill();
+        Scale = Vector2.One;
+        _tween = CreateTween();
+        _tween.TweenProperty(this, "scale", new Vector2(1.3f, 0.7f), 0.06);
+        _tween.TweenProperty(this, "scale", Vector2.One, 0.2).SetTrans(Tween.TransitionType.Elastic).SetEase(Tween.EaseType.Out);
+    }
+}
+```
+
+- `kill()` 与节点释放都不发 `finished`
+- 等 `finished` 的协程因此永远不恢复
+- 可靠收尾：序列末尾放 `tween_callback()`，或等待加超时
 
 ## 淡出后销毁
 
@@ -33,11 +51,23 @@ func vanish() -> void:
 	tween.tween_callback(queue_free)
 ```
 
-属性路径可以写子分量：`"position:y"` `"modulate:a"` `"scale:x"`。
+```csharp
+public partial class Vanisher : Node2D
+{
+    public void Vanish()
+    {
+        Tween tween = CreateTween();
+        tween.TweenProperty(this, "modulate:a", 0.0f, 0.3);
+        tween.TweenCallback(Callable.From(QueueFree));
+    }
+}
+```
+
+- 属性路径可写子分量：`"position:y"` `"modulate:a"` `"scale:x"`
 
 ## 飘字
 
-多个属性并行，再收尾：
+多个属性并行，再收尾。
 
 ```gdscript
 extends Label
@@ -51,11 +81,27 @@ func pop(amount: int) -> void:
 	tween.chain().tween_callback(queue_free)
 ```
 
-`set_parallel(true)` 之后所有步骤同时开始，`chain()` 让后一步等前面全部结束。
+```csharp
+public partial class DamageNumber : Label
+{
+    public void Pop(int amount)
+    {
+        Text = amount.ToString();
+        Tween tween = CreateTween();
+        tween.SetParallel(true);
+        tween.TweenProperty(this, "position:y", -40.0f, 0.6).AsRelative().SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+        tween.TweenProperty(this, "modulate:a", 0.0f, 0.3).SetDelay(0.3);
+        tween.Chain().TweenCallback(Callable.From(QueueFree));
+    }
+}
+```
+
+- `set_parallel(true)` 之后所有步骤同时开始
+- `chain()` 让后一步等前面全部结束
 
 ## 数字滚动
 
-没有现成属性可动时用 `tween_method`：
+没有现成属性可动时用 `tween_method`。
 
 ```gdscript
 extends Label
@@ -74,7 +120,28 @@ func _show(value: int) -> void:
 	text = str(value)
 ```
 
-`tween_method` 的回调参数类型要和 from/to 的类型一致，这里是 int。
+```csharp
+public partial class ScoreLabel : Label
+{
+    private int _shown;
+    private Tween _tween;
+
+    public void SetScore(int value)
+    {
+        _tween?.Kill();
+        _tween = CreateTween();
+        _tween.TweenMethod(Callable.From<int>(ShowValue), _shown, value, 0.5);
+    }
+
+    private void ShowValue(int value)
+    {
+        _shown = value;
+        Text = value.ToString();
+    }
+}
+```
+
+- 回调参数类型与 from、to 一致，这里是 int
 
 ## 转场
 
@@ -96,7 +163,35 @@ func change_to(path: String) -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 ```
 
-转场层挂成 Autoload 或常驻 CanvasLayer，Tween 绑定在它上面，场景切换不会中断。淡入淡出期间用 `MOUSE_FILTER_STOP` 挡点击，平时 IGNORE。`scene_changed` 4.5+，等它再淡入才能保证新场景已就绪。
+```csharp
+public partial class Transition : CanvasLayer
+{
+    private ColorRect _fade;
+
+    public override void _Ready()
+    {
+        _fade = GetNode<ColorRect>("Fade");
+    }
+
+    public async void ChangeTo(string path)
+    {
+        _fade.MouseFilter = Control.MouseFilterEnum.Stop;
+        Tween tween = CreateTween();
+        tween.TweenProperty(_fade, "modulate:a", 1.0f, 0.3);
+        await ToSignal(tween, Tween.SignalName.Finished);
+        GetTree().ChangeSceneToFile(path);
+        await ToSignal(GetTree(), SceneTree.SignalName.SceneChanged);
+        Tween back = CreateTween();
+        back.TweenProperty(_fade, "modulate:a", 0.0f, 0.3);
+        await ToSignal(back, Tween.SignalName.Finished);
+        _fade.MouseFilter = Control.MouseFilterEnum.Ignore;
+    }
+}
+```
+
+- 转场层做成 Autoload 或常驻 CanvasLayer，场景切换不中断 Tween
+- 淡入淡出期间 `MOUSE_FILTER_STOP` 挡点击，平时 IGNORE
+- `scene_changed` 4.5+，等它再淡入，新场景已就绪
 
 ## 循环往返
 
@@ -109,11 +204,24 @@ func _ready() -> void:
 	tween.tween_property(self, "position:y", 6.0, 0.8).as_relative().set_trans(Tween.TRANS_SINE)
 ```
 
-无限循环要求每圈有非零时长。节点离树时 Tween 暂停，回树继续。
+```csharp
+public partial class Bobber : Sprite2D
+{
+    public override void _Ready()
+    {
+        Tween tween = CreateTween().SetLoops();
+        tween.TweenProperty(this, "position:y", -6.0f, 0.8).AsRelative().SetTrans(Tween.TransitionType.Sine);
+        tween.TweenProperty(this, "position:y", 6.0f, 0.8).AsRelative().SetTrans(Tween.TransitionType.Sine);
+    }
+}
+```
+
+- 无限循环要求每圈有非零时长
+- 节点离树时 Tween 暂停，回树继续
 
 ## Subtween 组合
 
-4.4+。把可复用的片段做成独立 Tween，再拼进主序列。子 Tween 的暂停与处理模式由父 Tween 覆盖，对子 Tween 调 `pause()` 与 `stop()` 或 `set_loops()` 可能让父 Tween 卡在该步骤。
+4.4+。可复用的片段做成独立 Tween，再拼进主序列。
 
 ```gdscript
 extends Node2D
@@ -131,9 +239,33 @@ func respawn() -> void:
 	tween.tween_subtween(_blink())
 ```
 
-## 等信号 AwaitTweener
+```csharp
+public partial class Respawner : Node2D
+{
+    private Tween Blink()
+    {
+        Tween blink = CreateTween();
+        blink.TweenProperty(this, "modulate:a", 0.2f, 0.05);
+        blink.TweenProperty(this, "modulate:a", 1.0f, 0.05);
+        return blink;
+    }
 
-4.7+。序列里等一个信号再继续，目标对象释放时也会继续。`set_timeout()` 给不一定会发的信号兜底。信号必须在 AwaitTweener 开始之后才发出。回调里发信号的情形，把等待和发信号放在同一步：
+    public void Respawn()
+    {
+        Tween tween = CreateTween();
+        tween.TweenProperty(this, "position", Vector2.Zero, 0.4);
+        tween.TweenSubtween(Blink());
+        tween.TweenSubtween(Blink());
+    }
+}
+```
+
+- 子 Tween 的暂停与处理模式由父 Tween 覆盖
+- 对子 Tween 调 `pause()` `stop()` `set_loops()` 可能让父 Tween 卡住
+
+## 等信号
+
+4.7+ AwaitTweener，序列里等一个信号再继续。
 
 ```gdscript
 extends Node2D
@@ -152,6 +284,33 @@ func wait_and_emit() -> void:
 	tween.parallel().tween_callback(dialogue_closed.emit)
 ```
 
+```csharp
+public partial class Asker : Node2D
+{
+    [Signal] public delegate void DialogueClosedEventHandler();
+
+    public void Ask()
+    {
+        Tween tween = CreateTween();
+        tween.TweenProperty(this, "position:x", 400.0f, 1.0);
+        tween.TweenAwait(new Signal(this, SignalName.DialogueClosed)).SetTimeout(30.0);
+        tween.TweenProperty(this, "position:x", 0.0f, 1.0);
+    }
+
+    public void WaitAndEmit()
+    {
+        Tween tween = CreateTween();
+        tween.TweenAwait(new Signal(this, SignalName.DialogueClosed));
+        tween.Parallel().TweenCallback(Callable.From(() => EmitSignal(SignalName.DialogueClosed)));
+    }
+}
+```
+
+- 目标对象释放时也会继续
+- `set_timeout()` 给不一定会发的信号兜底
+- 信号须在 AwaitTweener 开始之后发出
+- 回调里发信号时，等待和发信号放在同一步，如 `wait_and_emit`
+
 ## 暂停菜单里的动画
 
 ```gdscript
@@ -164,7 +323,24 @@ func open() -> void:
 	tween.tween_property(self, "modulate:a", 1.0, 0.15)
 ```
 
-`TWEEN_PAUSE_PROCESS` 让 Tween 在树暂停时照常处理，默认的 `TWEEN_PAUSE_BOUND` 跟随绑定节点的 `process_mode`。`set_ignore_time_scale(true)` 让它不受 `Engine.time_scale` 影响。
+```csharp
+public partial class PauseMenu : Control
+{
+    public void Open()
+    {
+        Modulate = Modulate with { A = 0.0f };
+        Tween tween = CreateTween().SetPauseMode(Tween.TweenPauseMode.Process);
+        tween.SetIgnoreTimeScale(true);
+        tween.TweenProperty(this, "modulate:a", 1.0f, 0.15);
+    }
+}
+```
+
+| 设置 | 效果 |
+|---|---|
+| `Tween.TWEEN_PAUSE_PROCESS` | 树暂停时照常处理 |
+| `Tween.TWEEN_PAUSE_BOUND` 默认 | 跟随绑定节点的 `process_mode` |
+| `set_ignore_time_scale(true)` | 不受 `Engine.time_scale` 影响 |
 
 ## 手动推进
 
@@ -182,4 +358,26 @@ func tick(delta: float) -> void:
 	_tween.custom_step(delta)
 ```
 
-`custom_step()` 只能前进，走完的那次调用仍返回 true，下一次才返回 false，判断结束用 `finished` 信号。要回到更早的时刻，新建 Tween 再用累计时间一次 `custom_step()`。
+```csharp
+public partial class ManualTween : Node2D
+{
+    private Tween _tween;
+
+    public void StartManual()
+    {
+        _tween = CreateTween();
+        _tween.Pause();
+        _tween.TweenProperty(this, "position:x", 100.0f, 1.0);
+    }
+
+    public void Tick(double delta)
+    {
+        _tween.CustomStep(delta);
+    }
+}
+```
+
+- `custom_step()` 只能前进
+- 走完的那次仍返回 true，下一次才返回 false
+- 判断结束用 `finished` 信号
+- 回到更早时刻：新建 Tween，用累计时间一次 `custom_step()`
