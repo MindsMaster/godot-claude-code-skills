@@ -5,7 +5,8 @@
 ## 发送
 
 - `ENetPacketPeer.send` 只入队。实际发出在 `ENetConnection.service` 或 `ENetConnection.flush`
-- 轮询放在帧开头、发送放在帧后面时，每条消息要等到下一次轮询才发出。发完调一次 `ENetConnection.flush` 可以省掉这一拍
+- 轮询在帧开头、发送在帧后面时，消息要等下一次轮询才发出
+- 发完调一次 `ENetConnection.flush` 省掉这一拍
 - `ENetConnection.broadcast` 发给所有已连接对端
 
 ## 超长包
@@ -24,7 +25,8 @@
 ## 顺序
 
 - 同一通道上的不可靠包，比已收到序号旧的直接丢弃
-- 不同通道之间没有顺序。把可靠消息放通道 0、不可靠放通道 1 时，后发的不可靠包可能先到
+- 不同通道之间没有顺序
+- 可靠放通道 0、不可靠放通道 1 时，后发的不可靠包可能先到
 - `ENetPacketPeer.FLAG_UNSEQUENCED` 不排序
 
 ## 超时与断开
