@@ -54,6 +54,55 @@ func make_sparks() -> GPUParticles3D:
 	return particles
 ```
 
+```csharp
+public partial class SparkFactory : Node3D
+{
+    public GpuParticles3D MakeSparks()
+    {
+        var gradient = new Gradient();
+        gradient.SetColor(0, new Color(1.0f, 0.9f, 0.4f, 1.0f));
+        gradient.SetColor(1, new Color(1.0f, 0.2f, 0.0f, 0.0f));
+        var ramp = new GradientTexture1D { Gradient = gradient };
+
+        var process = new ParticleProcessMaterial
+        {
+            Direction = Vector3.Up,
+            Spread = 35.0f,
+            InitialVelocityMin = 4.0f,
+            InitialVelocityMax = 8.0f,
+            Gravity = new Vector3(0.0f, -9.8f, 0.0f),
+            ScaleMin = 0.5f,
+            ScaleMax = 1.0f,
+            ColorRamp = ramp,
+        };
+
+        var draw = new StandardMaterial3D
+        {
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+            BlendMode = BaseMaterial3D.BlendModeEnum.Add,
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            VertexColorUseAsAlbedo = true,
+            BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles,
+            BillboardKeepScale = true,
+        };
+
+        var quad = new QuadMesh { Size = new Vector2(0.1f, 0.1f), Material = draw };
+
+        var particles = new GpuParticles3D
+        {
+            ProcessMaterial = process,
+            DrawPass1 = quad,
+            Amount = 24,
+            Lifetime = 0.6,
+            OneShot = true,
+            Explosiveness = 1.0f,
+        };
+        particles.Finished += particles.QueueFree;
+        return particles;
+    }
+}
+```
+
 必须设 `process_material` 和至少一个绘制通道，否则看不到。最多 4 个通道：`draw_passes` 设数量，`draw_pass_1` 到 `draw_pass_4` 放网格，每个通道有自己的材质，共享同一份运动数据。
 
 ## 生成命中特效
@@ -71,6 +120,24 @@ func spawn_hit(point: Vector3, normal: Vector3) -> void:
 	effect.look_at(point + normal, up)
 	effect.finished.connect(effect.queue_free)
 	effect.restart()
+```
+
+```csharp
+public partial class HitSpawner : Node3D
+{
+    [Export] public PackedScene HitEffect { get; set; }
+
+    public void SpawnHit(Vector3 point, Vector3 normal)
+    {
+        var effect = HitEffect.Instantiate<GpuParticles3D>();
+        GetTree().CurrentScene.AddChild(effect);
+        effect.GlobalPosition = point;
+        Vector3 up = Mathf.Abs(normal.Y) < 0.99f ? Vector3.Up : Vector3.Right;
+        effect.LookAt(point + normal, up);
+        effect.Finished += effect.QueueFree;
+        effect.Restart();
+    }
+}
 ```
 
 特效场景里把 `one_shot` 勾上，`emitting` 可以关掉，再由代码 `restart()`。不需要对象池。

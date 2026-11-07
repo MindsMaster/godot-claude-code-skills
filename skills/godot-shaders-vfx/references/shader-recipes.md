@@ -29,6 +29,23 @@ func hit() -> void:
 	_tween.tween_property(self, "instance_shader_parameters/flash", 0.0, 0.2)
 ```
 
+```csharp
+public partial class MeshHitFlash : MeshInstance3D
+{
+    private static readonly StringName Flash = "flash";
+
+    private Tween _tween;
+
+    public void Hit()
+    {
+        _tween?.Kill();
+        SetInstanceShaderParameter(Flash, 1.0f);
+        _tween = CreateTween();
+        _tween.TweenProperty(this, "instance_shader_parameters/flash", 0.0f, 0.2);
+    }
+}
+```
+
 不想写 shader 时，给 `StandardMaterial3D` 开 `emission_enabled`，再 `tween_property` 它的 `emission_energy_multiplier`。但材质被多个实例共享时会一起亮，要复制材质或开 `resource_local_to_scene`。
 
 ## 溶解
@@ -76,7 +93,8 @@ void fragment() {
 ```
 
 - 描边画在纹理矩形之外的像素被裁掉，图集或精灵边缘要留够透明像素
-- 多个子节点合成的角色，把它们放进 `CanvasGroup`，材质挂在 `CanvasGroup` 上，描边是整体轮廓。`CanvasGroup.fit_margin` 为描边留出空间
+- 多节点角色放进 `CanvasGroup`，材质挂在它上面，描边是整体轮廓
+- `CanvasGroup.fit_margin` 为描边留出空间
 
 ## 屏幕背景模糊
 
@@ -232,6 +250,20 @@ func _ready() -> void:
 	mat.shader = flash_shader
 	material = mat
 	mat.set_shader_parameter(&"flash_color", Color.WHITE)
+```
+
+```csharp
+public partial class FlashMaterial : Sprite2D
+{
+    [Export] public Shader FlashShader { get; set; }
+
+    public override void _Ready()
+    {
+        var mat = new ShaderMaterial { Shader = FlashShader };
+        Material = mat;
+        mat.SetShaderParameter("flash_color", Colors.White);
+    }
+}
 ```
 
 场景里已有的实例共享材质资源，运行时改参数会影响全部。每个实例要独立状态时打开材质的 `resource_local_to_scene`，或用 `instance uniform`。

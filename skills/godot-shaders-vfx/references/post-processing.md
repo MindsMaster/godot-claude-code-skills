@@ -55,6 +55,23 @@ func _ready() -> void:
 	add_child(world_env)
 ```
 
+```csharp
+public partial class CanvasGlow : Node2D
+{
+    public override void _Ready()
+    {
+        var env = new Godot.Environment
+        {
+            BackgroundMode = Godot.Environment.BGMode.Canvas,
+            GlowEnabled = true,
+            GlowHdrThreshold = 0.8f,
+        };
+        var worldEnv = new WorldEnvironment { Environment = env };
+        AddChild(worldEnv);
+    }
+}
+```
+
 1. 必须：`Environment.background_mode` 设为 `BG_CANVAS`。2D 画布并入环境效果的管线靠它。Compatibility 下实测 Clear Color 无 glow，Canvas 有 glow
 2. 路线 A，不开 HDR 2D，所有渲染器可用：2D 是 SDR，把 `glow_hdr_threshold` 降到 1.0 以下，物体靠亮度区分，控制力弱
 3. 路线 B，开 HDR 2D，仅 Forward+ 与 Mobile：`rendering/viewport/hdr_2d`，只在启动时读取，运行时改根视口 `Viewport.use_hdr_2d`。之后用 `modulate` 或 `self_modulate` 的强度大于 1 选择谁发光
@@ -79,6 +96,22 @@ func _ready() -> void:
 	mat.shader = load("res://shaders/post.gdshader") as Shader
 	rect.material = mat
 	add_child(rect)
+```
+
+```csharp
+public partial class PostLayer : CanvasLayer
+{
+    public override void _Ready()
+    {
+        Layer = 10;
+        var rect = new ColorRect();
+        rect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        rect.MouseFilter = Control.MouseFilterEnum.Ignore;
+        var mat = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/post.gdshader") };
+        rect.Material = mat;
+        AddChild(rect);
+    }
+}
 ```
 
 - 铺满的 `ColorRect` 默认 `mouse_filter` 是 `MOUSE_FILTER_STOP`，会吞掉所有点击，必须改 `MOUSE_FILTER_IGNORE`
@@ -170,6 +203,99 @@ func _render_callback(_effect_callback_type: int, render_data: RenderData) -> vo
 		_rd.compute_list_set_push_constant(compute_list, push_constant.to_byte_array(), push_constant.size() * 4)
 		_rd.compute_list_dispatch(compute_list, groups.x, groups.y, 1)
 		_rd.compute_list_end()
+```
+
+```csharp
+[Tool]
+[GlobalClass]
+public partial class InvertEffect : CompositorEffect
+{
+    private const string ShaderSource = @"
+#version 450
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(rgba16f, set = 0, binding = 0) uniform image2D color_image;
+layout(push_constant, std430) uniform Params {
+    vec2 raster_size;
+    vec2 reserved;
+} params;
+void main() {
+    ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(params.raster_size);
+    if (uv.x >= size.x || uv.y >= size.y) {
+        return;
+    }
+    vec4 color = imageLoad(color_image, uv);
+    color.rgb = vec3(1.0) - color.rgb;
+    imageStore(color_image, uv, color);
+}
+";
+
+    private RenderingDevice _rd;
+    private Rid _shader;
+    private Rid _pipeline;
+
+    public InvertEffect()
+    {
+        EffectCallbackType = EffectCallbackTypeEnum.PostTransparent;
+        _rd = RenderingServer.GetRenderingDevice();
+        RenderingServer.CallOnRenderThread(Callable.From(InitializeCompute));
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete && _shader.IsValid)
+        {
+            _rd.FreeRid(_shader);
+        }
+    }
+
+    private void InitializeCompute()
+    {
+        var source = new RDShaderSource
+        {
+            Language = RenderingDevice.ShaderLanguage.Glsl,
+            SourceCompute = ShaderSource,
+        };
+        RDShaderSpirV spirv = _rd.ShaderCompileSpirVFromSource(source);
+        if (spirv.CompileErrorCompute != "")
+        {
+            GD.PushError(spirv.CompileErrorCompute);
+            return;
+        }
+        _shader = _rd.ShaderCreateFromSpirV(spirv);
+        _pipeline = _rd.ComputePipelineCreate(_shader);
+    }
+
+    public override void _RenderCallback(int effectCallbackType, RenderData renderData)
+    {
+        if (_rd == null || !_pipeline.IsValid)
+        {
+            return;
+        }
+        if (renderData.GetRenderSceneBuffers() is not RenderSceneBuffersRD buffers)
+        {
+            return;
+        }
+        Vector2I size = buffers.GetInternalSize();
+        float[] pushConstant = { size.X, size.Y, 0.0f, 0.0f };
+        byte[] bytes = new byte[pushConstant.Length * sizeof(float)];
+        System.Buffer.BlockCopy(pushConstant, 0, bytes, 0, bytes.Length);
+        uint groupsX = (uint)Mathf.CeilToInt(size.X / 8.0f);
+        uint groupsY = (uint)Mathf.CeilToInt(size.Y / 8.0f);
+        for (uint view = 0; view < buffers.GetViewCount(); view++)
+        {
+            var uniform = new RDUniform { UniformType = RenderingDevice.UniformType.Image, Binding = 0 };
+            uniform.AddId(buffers.GetColorLayer(view));
+            Rid uniformSet = UniformSetCacheRD.GetCache(_shader, 0, new Godot.Collections.Array<RDUniform> { uniform });
+            long computeList = _rd.ComputeListBegin();
+            _rd.ComputeListBindComputePipeline(computeList, _pipeline);
+            _rd.ComputeListBindUniformSet(computeList, uniformSet, 0);
+            _rd.ComputeListSetPushConstant(computeList, bytes, (uint)bytes.Length);
+            _rd.ComputeListDispatch(computeList, groupsX, groupsY, 1);
+            _rd.ComputeListEnd();
+        }
+    }
+}
 ```
 
 使用：在 `WorldEnvironment` 或 `Camera3D` 上新建 `Compositor` 资源，往 `compositor_effects` 里加这个 `CompositorEffect`。放在相机上只影响该相机的视口。

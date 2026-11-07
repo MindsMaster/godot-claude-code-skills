@@ -125,7 +125,9 @@
 
 ## 限制
 
-- 单个 shader 的 uniform 总大小：桌面常见 65536 字节，手机常见 16384 字节。vec2 与 vec3 按 vec4 补齐，标量不补，bool 按 int 补齐。大数组改存贴图
+- uniform 总大小上限：桌面常见 65536 字节，手机常见 16384 字节
+- vec2 与 vec3 按 vec4 补齐，标量不补，bool 按 int 补齐
+- 大数组改存贴图
 - 逐实例 uniform 每个 shader 最多 16 个，只支持标量与向量，不支持纹理与数组，`particles` `sky` `fog` 不支持
 - `varying` 不能在自定义函数和 `light()` 里赋值
 - Compatibility 的 GLSL 3.3 下不能用逐实例 uniform 直接索引采样器数组，改用 `switch` 选择
