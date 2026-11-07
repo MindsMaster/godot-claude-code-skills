@@ -1,6 +1,6 @@
-# 混音细节
+# 混音
 
-SKILL.md 混音一节的展开：布局怎么写、响度怎么测、并发怎么限、固定量压低怎么做。
+分类总线布局、响度测量与目标、并发规则、固定量压低、自查清单。
 
 ## 分类总线布局
 
@@ -130,7 +130,39 @@ func _process(delta: float) -> void:
 	_duck.volume_db = move_toward(_duck.volume_db, target, rate * delta)
 ```
 
-- 压得快放得慢，放回太快听起来像音量抖了一下。连续出招之间有空隙时，加 0.1 到 0.2 s 的保持再放
+```csharp
+public partial class Ducker : Node
+{
+    private const float TriggerDb = -45.0f;
+    private const float AttackDbPerSec = 120.0f;
+    private const float ReleaseDbPerSec = 10.0f;
+
+    [Export] public StringName KeyBus { get; set; } = "MonsterAttack";
+    [Export] public StringName TargetBus { get; set; } = "Music";
+    [Export] public float DepthDb { get; set; } = -3.0f;
+
+    private AudioEffectAmplify _duck;
+
+    public override void _Ready()
+    {
+        ProcessMode = ProcessModeEnum.Always;
+        _duck = new AudioEffectAmplify();
+        AudioServer.AddBusEffect(AudioServer.GetBusIndex(TargetBus), _duck, 0);
+    }
+
+    public override void _Process(double delta)
+    {
+        int key = AudioServer.GetBusIndex(KeyBus);
+        float level = Mathf.Max(AudioServer.GetBusPeakVolumeLeftDb(key, 0), AudioServer.GetBusPeakVolumeRightDb(key, 0));
+        float target = level > TriggerDb ? DepthDb : 0.0f;
+        float rate = target < _duck.VolumeDb ? AttackDbPerSec : ReleaseDbPerSec;
+        _duck.VolumeDb = Mathf.MoveToward(_duck.VolumeDb, target, rate * (float)delta);
+    }
+}
+```
+
+- 压得快放得慢，放回太快听起来像音量抖动
+- 连续出招之间有空隙时，加 0.1 到 0.2 s 保持再放
 - 电平是触发总线推子之后的值。`TRIGGER_DB` 取得低，玩家把音效调小后仍会触发，压低量不变
 - 布局里已经放了 Amplify 时，用 `AudioServer.get_bus_effect(bus, 0)` 取出来改，不要再加一个
 - 压低量 2 到 4 dB 起步，进游戏听，比看数字准
