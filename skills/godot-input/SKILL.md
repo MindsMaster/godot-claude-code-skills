@@ -5,7 +5,16 @@ description: 写移动 跳跃 攻击 视角控制 改键菜单 手柄支持时�
 
 # Godot 输入
 
-玩法输入一律走 InputMap 动作，同一个动作绑键盘与手柄，用 `Input` 的轴和向量接口读值。不管 UI 控件的焦点与点击，也不管按键提示文本，见 `godot-ui`。
+玩法输入走 InputMap 动作，同一动作绑键盘与手柄，用 `Input` 的轴和向量接口读值。
+
+## 范围
+
+| 不含 | 去哪 |
+|---|---|
+| UI 控件焦点、点击、按键提示文本 | godot-ui |
+| 设置界面与存档格式 | godot-ui godot-resources-data |
+| 联机输入同步 | godot-multiplayer |
+| 无头测试里模拟输入 | godot-headless-testing |
 
 ## 先查内置
 
@@ -13,13 +22,15 @@ description: 写移动 跳跃 攻击 视角控制 改键菜单 手柄支持时�
 |---|---|---|
 | 判断按键 | InputMap 动作加 `Input.is_action_pressed` | `event.keycode == KEY_W` |
 | 一维轴 二维移动 | `Input.get_axis` `Input.get_vector` | 分别读两个方向再相减拼向量 |
-| 摇杆死区 | 动作的 `deadzone`，`get_vector` 取各动作死区平均值做圆形死区，第五个参数 `deadzone` 可覆盖 | `if abs(x) < 0.2` |
+| 摇杆死区 | 动作的 `deadzone`，`get_vector` 取各动作死区平均值做圆形死区 | `if abs(x) < 0.2` |
 | 手柄支持 | 同一动作加 `InputEventJoypadButton` `InputEventJoypadMotion` | 另写一套手柄分支 |
 | 改键 | `InputMap.action_erase_event` 加 `action_add_event` | 自己维护按键表 |
 | 触屏摇杆 | VirtualJoystick 4.7+，TouchScreenButton | 自己解析 `InputEventScreenTouch` |
 | 模拟输入 | `Input.action_press`，`Input.parse_input_event` | 直接改自己的状态 |
 
-## 定义动作
+## 做法
+
+### 定义动作
 
 在项目设置 Input Map 页添加，键盘与手柄放进同一个动作：
 
@@ -34,10 +45,15 @@ jump={
 }
 ```
 
-- 移动键绑 `physical_keycode`，编辑器里选 Physical Keycode，AZERTY 布局上 WASD 位置不变。要字符含义的快捷键才用 `keycode`
-- 摇杆每个方向一个 `InputEventJoypadMotion`：`axis_value` -1.0 绑 `move_left`，+1.0 绑 `move_right`。扳机轴只有 +1.0
-- `device` 为 -1 表示所有设备。本地多人给每位玩家单独的动作如 `p1_jump`，指定各自设备编号
-- 动作名用玩法语义，不复用 `ui_accept` `ui_up` 这类内置动作，它们驱动 UI 焦点
+| 字段 | 规则 |
+|---|---|
+| 移动键 | 绑 `physical_keycode`，AZERTY 上 WASD 位置不变 |
+| 字符含义的快捷键 | 绑 `keycode` |
+| 摇杆方向 | 每方向一个 `InputEventJoypadMotion`，`axis_value` -1.0 绑左，+1.0 绑右 |
+| 扳机 | 只有 +1.0 |
+| `device` | -1 为所有设备，本地多人每位玩家单独动作如 `p1_jump` 并指定设备号 |
+
+- 动作名用玩法语义，不复用驱动 UI 焦点的 `ui_accept` `ui_up`
 
 ```gdscript
 extends CharacterBody2D
@@ -49,25 +65,30 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 ```
 
-`get_vector` 的长度已限制为 1，不用再 `normalized()`。只有横向的平台游戏用 `Input.get_axis(&"move_left", &"move_right")`。模拟量用 `Input.get_action_strength`。
+- `get_vector` 长度已限制为 1，不用再 `normalized()`
+- `get_vector` 第五个参数可覆盖死区
+- 只有横向的平台游戏用 `Input.get_axis(&"move_left", &"move_right")`
+- 模拟量用 `Input.get_action_strength`
 
-## 选回调
+### 回调选择
 
 | 方式 | 适用 |
 |---|---|
-| `_physics_process` 里轮询 `Input.*` | 持续状态：移动，蓄力，按住 |
-| `_unhandled_input(event)` | 一次性动作：跳，攻击，交互。UI 已处理的事件到不了这里 |
-| `_input(event)` | 必须先于 UI 看到的：全局热键，改键捕获 |
+| `_physics_process` 里轮询 `Input.*` | 持续状态：移动、蓄力、按住 |
+| `_unhandled_input(event)` | 一次性动作：跳、攻击、交互，UI 已处理的事件到不了这里 |
+| `_input(event)` | 须先于 UI 看到：全局热键、改键捕获 |
 
-事件顺序：`_input`，GUI，`_shortcut_input`，`_unhandled_key_input`，`_unhandled_input`。处理完调 `get_viewport().set_input_as_handled()`。
+事件顺序：`_input`、GUI、`_shortcut_input`、`_unhandled_key_input`、`_unhandled_input`。处理完调 `get_viewport().set_input_as_handled()`。
 
-- 事件回调里用 `event.is_action_pressed(&"jump")`，文档要求不在输入处理中用 `Input.is_action_just_pressed`。默认不含按住重复，要重复传 `allow_echo = true`
-- `Input.is_action_just_pressed` 在 `_process` 里按帧、在 `_physics_process` 里按物理 tick 判断。一帧跑多个 tick 时只有一个 tick 为 true，按下后迅速松开也返回 true
-- 在哪个回调里消费就在哪个回调里读。别在 `_process` 里置标志让物理消费，一帧里物理可能跑 0 次或多次，标志会晚到或被重复消费
+- 事件回调里用 `event.is_action_pressed(&"jump")`，不用 `Input.is_action_just_pressed`
+- `event.is_action_pressed` 默认不含按住重复，要重复传 `allow_echo = true`
+- `Input.is_action_just_pressed` 在 `_process` 里按帧、在 `_physics_process` 里按 tick 判断
+- 一帧跑多个 tick 时只有一个 tick 为 true，按下后迅速松开也为 true
+- 在哪个回调里消费就在哪个回调里读，不在 `_process` 置标志给物理消费
 
-## 输入缓冲
+### 输入缓冲
 
-`_unhandled_input` 记录，物理里消费，时间用 `Engine.get_physics_frames()`，不用毫秒，回放时结果一致：
+`_unhandled_input` 记录，物理里消费。时间用 `Engine.get_physics_frames()`，回放时结果一致：
 
 ```gdscript
 extends CharacterBody2D
@@ -90,7 +111,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 ```
 
-## 改键
+### 改键
 
 ```gdscript
 extends Node
@@ -121,36 +142,50 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 	InputMap.action_add_event(action, event)
 ```
 
-- 只清同一类设备的事件，改键盘键不要清掉手柄绑定
+- 只清同一类设备的事件，改键盘键不清手柄绑定
 - 存档存键码整数，启动时调一次 `load_saved`
-- 恢复默认：`InputMap.load_from_project_settings()` 再删存档文件。冲突检测遍历 `InputMap.get_actions()` 逐个调 `InputMap.action_has_event()`
-- 捕获新按键：进入监听状态后，在 `_input` 里接第一个 `pressed` 的 `InputEventKey`，调 `set_input_as_handled()`，Esc 取消。手柄接 `InputEventJoypadButton`
+- 恢复默认：`InputMap.load_from_project_settings()` 再删存档文件
+- 冲突检测：遍历 `InputMap.get_actions()` 逐个 `InputMap.action_has_event()`
+- 捕获新按键：监听状态下在 `_input` 里接第一个 `pressed` 的 `InputEventKey`，调 `set_input_as_handled()`
+- 捕获时 Esc 取消，手柄接 `InputEventJoypadButton`
 
-## 鼠标与触屏
+### 鼠标与触屏
 
-- 视角控制：`Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`，在 `_unhandled_input` 里读 `InputEventMouseMotion.screen_relative`，`relative` 会按拉伸缩放，灵敏度随分辨率变。打开菜单时切回 `Input.MOUSE_MODE_VISIBLE`
-- 2D 世界坐标用 `get_global_mouse_position()`，`get_viewport().get_mouse_position()` 是视口坐标
-- `Input.use_accumulated_input` 默认 true，同一帧鼠标移动合并成一个事件。自由画线需要逐点轨迹时关掉
-- VirtualJoystick 4.7+ 是 Control，`action_left` `action_right` `action_up` `action_down` 指到 InputMap 动作后，`Input.get_vector` 照常读，玩法代码不用改。`action_*` 默认是 `ui_*` 动作，必须改成玩法动作。它的 `deadzone_ratio` 默认 0.0，设了以后先于动作死区生效
-- 按钮用 TouchScreenButton 的 `action` 属性。`input_devices/pointing/emulate_mouse_from_touch` 默认开，触摸合成鼠标事件
+| 需求 | 做法 |
+|---|---|
+| 视角控制 | `Input.mouse_mode = Input.MOUSE_MODE_CAPTURED`，读 `InputEventMouseMotion.screen_relative` |
+| 打开菜单 | 切回 `Input.MOUSE_MODE_VISIBLE` |
+| 2D 世界坐标 | `get_global_mouse_position()`，`get_viewport().get_mouse_position()` 是视口坐标 |
+| 自由画线要逐点轨迹 | 关 `Input.use_accumulated_input`，默认同帧鼠标移动合并 |
+| 触屏按钮 | TouchScreenButton 的 `action` 属性 |
+| 触屏摇杆 | VirtualJoystick 4.7+，`action_left` 等指到玩法动作，`Input.get_vector` 照常读 |
 
-## 手柄
+- `InputEventMouseMotion.relative` 按拉伸缩放，灵敏度随分辨率变
+- VirtualJoystick 的 `action_*` 默认是 `ui_*`，必须改成玩法动作
+- VirtualJoystick 的 `deadzone_ratio` 默认 0.0，设了以后先于动作死区生效
+- `input_devices/pointing/emulate_mouse_from_touch` 默认开，触摸合成鼠标事件
 
-- 震动：`Input.start_joy_vibration(device, weak, strong, duration)`，两个马达强度各 0 到 1，`duration` 为 0 时尽量久，约 65 秒，`Input.stop_joy_vibration` 提前停。给玩家留关闭选项
-- 热插拔：连 `Input.joy_connection_changed(device, connected)` 信号，已连接的设备编号用 `Input.get_connected_joypads()`
+### 手柄
+
+- 震动：`Input.start_joy_vibration(device, weak, strong, duration)`，强度 0 到 1
+- `duration` 为 0 时约 65 秒，`Input.stop_joy_vibration` 提前停，给玩家留关闭选项
+- 热插拔：连 `Input.joy_connection_changed` 信号，已连接设备用 `Input.get_connected_joypads()`
 
 ## 陷阱
 
-- 两次 `Input.get_axis` 拼向量没有圆形死区，斜向长度到 1.414
-- InputMap 只有键盘事件，插手柄毫无反应。每个动作都检查手柄绑定
-- 用 `Input.is_key_pressed(KEY_W)` 或 `event.keycode` 判断玩法键，改键和键盘布局都失效
-- `_input` 里处理游戏内点击会穿透按钮，改 `_unhandled_input`
-- `Input.is_action_pressed` 等轮询不看 GUI 焦点。LineEdit 聚焦打字时，W 键照样让角色移动，聊天框或改名框打开时要自己暂停轮询
-- 把 `ui_accept` `ui_cancel` 当玩法键，菜单打开时同时触发
-- 键盘幽灵键让某些组合键的 `is_action_pressed` `is_action_just_pressed` 为 false，组合键别设计得太多
+| 现象 | 做法 |
+|---|---|
+| 斜向速度到 1.414 倍 | 两次 `get_axis` 拼向量没有圆形死区，用 `get_vector` |
+| 插手柄毫无反应 | InputMap 只绑了键盘，每个动作检查手柄绑定 |
+| 改键和换键盘布局后玩法键失效 | 用了 `Input.is_key_pressed(KEY_W)` 或 `event.keycode`，改用动作 |
+| 游戏内点击穿透按钮 | 在 `_input` 里处理，改 `_unhandled_input` |
+| LineEdit 打字时角色跟着移动 | 轮询不看 GUI 焦点，输入框打开时暂停轮询 |
+| 菜单打开时玩法键同时触发 | 把 `ui_accept` `ui_cancel` 当了玩法键 |
+| 某些组合键按下读不到 | 键盘幽灵键，组合键少设计 |
 
 ## 参考
 
-- [InputEvent](https://docs.godotengine.org/en/stable/tutorials/inputs/inputevent.html)
-- [输入示例](https://docs.godotengine.org/en/stable/tutorials/inputs/input_examples.html)
-- [手柄](https://docs.godotengine.org/en/stable/tutorials/inputs/controllers_gamepads_joysticks.html)
+- [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
+- https://docs.godotengine.org/en/stable/tutorials/inputs/inputevent.html
+- https://docs.godotengine.org/en/stable/tutorials/inputs/input_examples.html
+- https://docs.godotengine.org/en/stable/tutorials/inputs/controllers_gamepads_joysticks.html
