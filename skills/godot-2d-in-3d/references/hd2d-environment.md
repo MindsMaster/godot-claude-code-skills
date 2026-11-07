@@ -1,6 +1,6 @@
 # HD-2D 环境配方
 
-像素角色放进带光影、雾、景深的 3D 场景。所有效果都挂在 `WorldEnvironment` 或相机上，不需要额外视口。
+像素角色放进带光影、雾、景深的 3D 场景。效果都挂在 `WorldEnvironment` 或相机上，不需要额外视口。
 
 ## 渲染器支持
 
@@ -16,7 +16,8 @@
 | `ssr_enabled`、`ssil_enabled`、SDFGI | 支持 | 不支持 | 不支持 |
 | `Decal` | 支持 | 支持，每个网格最多 8 个 | 4.7 不支持 |
 
-项目设置 `rendering/renderer/rendering_method` 选渲染器。体积雾要求 Forward+，景深要求 Forward+ 或 Mobile。
+- 渲染器在 `rendering/renderer/rendering_method` 选
+- 体积雾要求 Forward+，景深要求 Forward+ 或 Mobile
 
 ## 配方
 
@@ -58,24 +59,83 @@ func _ready() -> void:
 	camera_attributes = attributes
 ```
 
-- 场景里只放一个 `WorldEnvironment`。`Camera3D.environment` 与 `Camera3D.attributes` 可以按相机覆盖，当前相机有设置时优先于 `WorldEnvironment`。
-- 光线要用 `DirectionalLight3D` 当主光，`shadow_enabled` 打开。角色用 `ALPHA_CUT_DISCARD` 或 `ALPHA_CUT_OPAQUE_PREPASS` 才投影，见 SKILL.md。
-- 环境光决定背光面的亮度，HD-2D 里常取偏冷的色加主光偏暖。`FIXED_Y` 精灵的法线水平，竖直向下的光照不到它。
-- `ssao_enabled` 要深度与法线，混合透明的精灵不进这些缓冲，不会被遮蔽。角色用不透明系的 `alpha_cut` 才吃到。
-- `fog_aerial_perspective` 大于 0 时远处的天空色混进雾里，要求 `background_mode` 为 `BG_SKY`，上面的 `BG_COLOR` 配方下无效。
+```csharp
+public partial class Hd2dEnvironment : WorldEnvironment
+{
+    public override void _Ready()
+    {
+        var env = new Godot.Environment
+        {
+            BackgroundMode = Godot.Environment.BGMode.Color,
+            BackgroundColor = new Color(0.55f, 0.65f, 0.8f),
+            AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color(0.6f, 0.65f, 0.8f),
+            AmbientLightEnergy = 0.6f,
+            GlowEnabled = true,
+            GlowIntensity = 0.4f,
+            GlowBloom = 0.1f,
+            SsaoEnabled = true,
+            SsaoRadius = 1.0f,
+            SsaoIntensity = 2.0f,
+            FogEnabled = true,
+            FogLightColor = new Color(0.7f, 0.75f, 0.9f),
+            FogDensity = 0.01f,
+            AdjustmentEnabled = true,
+            AdjustmentSaturation = 1.15f,
+            AdjustmentContrast = 1.05f,
+        };
+        Environment = env;
+
+        CameraAttributes = new CameraAttributesPractical
+        {
+            DofBlurFarEnabled = true,
+            DofBlurFarDistance = 12.0f,
+            DofBlurFarTransition = 8.0f,
+            DofBlurNearEnabled = true,
+            DofBlurNearDistance = 3.0f,
+            DofBlurNearTransition = 2.0f,
+            DofBlurAmount = 0.08f,
+        };
+    }
+}
+```
+
+- C# 里写 `Godot.Environment`，`using System;` 时与 System.Environment 重名
+- 场景里只放一个 `WorldEnvironment`
+- `Camera3D.environment` 与 `Camera3D.attributes` 按相机覆盖，优先于 `WorldEnvironment`
+- 主光用 `DirectionalLight3D`，开 `shadow_enabled`
+- 角色用 `ALPHA_CUT_DISCARD` 或 `ALPHA_CUT_OPAQUE_PREPASS` 才投影
+- 环境光决定背光面亮度，常取偏冷环境色加偏暖主光
+- `FIXED_Y` 精灵法线水平，竖直向下的光照不到它
+- 混合透明精灵不进深度法线缓冲，不被 SSAO 遮蔽
+- `fog_aerial_perspective` 要求 `background_mode` 为 `BG_SKY`，上例 `BG_COLOR` 下无效
 
 ## 移轴景深
 
-官方文档把近远模糊同时开启称为 tilt shift 效果。
+近远模糊同时开启，官方称 tilt shift 效果。
 
-- 远模糊：`dof_blur_far_enabled`，`dof_blur_far_distance` 是开始模糊的距离，`dof_blur_far_transition` 为正时是模糊从 0 增长到最大值的过渡距离，为负时按物理方式增长。
-- 近模糊：`dof_blur_near_enabled`，`dof_blur_near_distance` 以内开始模糊。
-- `dof_blur_amount` 是最大模糊量，值大代价高，按画风尽量小。
-- 景深按相机深度模糊，不按屏幕位置。相机俯视时屏幕下方近、上方远，两侧模糊叠加就成了上下虚化的移轴观感。相机越平，效果越接近普通景深。
-- 景深在 `transparent_bg` 为 true 的视口上不工作。
-- 焦点距离要设成角色到相机的实际距离：相机 `global_position` 与角色 `global_position` 的距离，把 `dof_blur_far_distance` 设得比它稍大、`dof_blur_near_distance` 设得比它稍小。
+| 属性 | 含义 |
+|---|---|
+| `dof_blur_far_distance` | 远模糊开始的距离 |
+| `dof_blur_far_transition` | 正值是模糊增长到最大的过渡距离，负值按物理方式增长 |
+| `dof_blur_near_distance` | 以内开始近模糊 |
+| `dof_blur_amount` | 最大模糊量，越大越贵 |
+
+- 景深按相机深度模糊，不按屏幕位置
+- 相机俯视时屏幕下方近上方远，两头模糊即成移轴观感
+- 相机越平，越接近普通景深
+- `transparent_bg` 为 true 的视口上景深不工作
+- 焦点距离取相机到角色的实际距离
+- `dof_blur_far_distance` 稍大于它，`dof_blur_near_distance` 稍小于它
 
 ## 调试
 
-- 效果不出现时先看渲染器：Compatibility 下体积雾、景深、`Decal` 都不显示，体积雾与景深会打警告，如 `Depth of field blur is only available when using the Forward+ or Mobile renderer.`。上面的配方在 4.7.2 Forward+ 加 lavapipe 上读像素，glow、SSAO、雾、景深开关都改变画面。
-- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0。`SpriteBase3D.modulate` 不支持超过 1.0 的亮度，要让精灵发光就降低阈值或设 `glow_bloom`，局部发光用 `material_override` 的自发光。实测 `emission_energy_multiplier` 为 4 的自发光材质，Forward+ 与 Compatibility 上发光体外都出现泛光。Forward+ 的 `glow_blend_mode` 默认是 `GLOW_BLEND_MODE_SCREEN`，改成 `GLOW_BLEND_MODE_SOFTLIGHT` 后黑底上读不到泛光。
+- 效果不出现先看渲染器，Compatibility 下体积雾、景深、`Decal` 不显示
+- 体积雾与景深在 Compatibility 打警告，如 `Depth of field blur is only available when using the Forward+ or Mobile renderer.`
+- 上例在 4.7.2 Forward+ 读像素，glow、SSAO、雾、景深开关都改变画面
+- glow 作用在超过 `glow_hdr_threshold` 的像素上，默认 1.0
+- `SpriteBase3D.modulate` 不支持超过 1.0 的亮度
+- 精灵发光：降低阈值、设 `glow_bloom`，或 `material_override` 用自发光
+- 实测 `emission_energy_multiplier` 为 4 的自发光，两个渲染器都出泛光
+- Forward+ 的 `glow_blend_mode` 默认 `GLOW_BLEND_MODE_SCREEN`
+- 改成 `GLOW_BLEND_MODE_SOFTLIGHT` 后黑底上读不到泛光
