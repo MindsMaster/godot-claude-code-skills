@@ -48,32 +48,52 @@ The skill text is written in Chinese. Claude Code reads it directly and responds
 
 # Evaluation
 
-Each case in `evals/` poses a development task and runs with and without the plugin installed. Regex assertions and an LLM judge check whether the built-in solution is used and whether the result holds in the engine. A run passes when every check passes.
+Each case in `evals/` poses a development task and runs with and without the plugin installed. A run passes only when both hold:
 
-October 2026, Claude Code 2.1.309 with its default model. 3 runs per condition; the headless case was rerun 6 times after a skill revision, the thread pool case ran 6 times, and the three audio cases were rerun on 2.1.310 after a skill revision:
+- The result meets the task: an LLM judge checks it item by item, and afterwards every project is loaded in Godot 4.7.2 and C# projects are built
+- The solution is clean: no script reimplements what the engine already provides, nothing that can be set once is recomputed every frame, no unrequested features are added, no unused code is left behind; no specific API is required
 
-| Task | With | Without | Reason for failure |
-| --- | --- | --- | --- |
-| Follow camera and respawn | 3/3 | 0/3 | Infers teleports by comparing camera displacement every frame instead of calling `reset_smoothing()` at respawn |
-| Volume settings and ducking music under dialogue | 3/3 | 0/3 | Polls the Voice bus peak every frame and adjusts music volume from script |
-| C# hit flash on a shared material | 3/3 | 1/3 | Shader resamples `TEXTURE` instead of using `COLOR`, which already includes modulate |
-| Pixel-art character in a 3D scene | 3/3 | 1/3 | Texture pixels not read; the character's feet float 1 pixel above the ground |
-| Designer data and export | 3/3 | 2/3 | `waves.csv` not switched to the keep importer, so the exported build cannot read it |
-| Tile level and digging | 3/3 | 0/3 | Recomputes neighbors with the ground terrain after digging, so neighboring tiles do not update |
-| HUD and unified font | 3/3 | 0/3 | `.tscn` lacks `node_paths`, so the exported player reference is null at runtime |
-| Headless fixing of script errors and warnings | 6/6 | 2/6 | No warnings reported without enabling warning output |
-| 3D gunshot muffled up close, distance muffling kept far away | 3/3 | 0/3 | Unaware that `volume_db` feeds the distance filter strength; disables or raises the filter so distant shots are no longer muffled, or moves the listener onto the character and the sound is still filtered |
-| Category mix buses and sidechain ducking on monster attacks | 3/3 | 0/3 | Sets `threshold` and `ratio` from the usual compressor formula; Godot's reduction is about twice that, so a 3 to 4 dB duck comes out at 6 to 8 dB |
-| Thread pool keeps only two cores busy, count and results unchanged | 5/6 | 0/6 | Unaware that low-priority tasks get only 30% of the threads, or submits one task per element without chunking; with the plugin, 1 run did not load the skill |
-| Total | 38/39 | 6/39 | |
+| Agent model | With | Without |
+| --- | --- | --- |
+| `claude-opus-5-5` | 14/17 | 6/17 |
+| `claude-sonnet-5-5` | | |
+| `claude-haiku-5-5` | | |
+
+`claude-opus-5-5` per case, November 2026, Claude Code 2.1.319, judge model `claude-sonnet-5-5`. Each case ran once per condition; cases with a failure were topped up to 3 runs:
+
+| Task | With | Without | Lines added with/without | Reason for failure |
+| --- | --- | --- | --- | --- |
+| Follow camera and respawn | 1/1 | 0/1 | 38 / 60 | Without: the level bounds are written both in the scene and in the script |
+| 3D gunshot muffled up close, distance muffling kept far away | 1/1 | 1/1 | 0 / 0 | |
+| Volume settings and ducking music under dialogue | 1/3 | 0/3 | 61 / 178 | Runs in both conditions add an unrequested audio manager or settings persistence; without the plugin, a script detects speech to duck the music |
+| Category mix buses and sidechain ducking on monster attacks | 1/1 | 1/1 | 7 / 7 | |
+| C# hit flash on a shared material | 1/1 | 0/1 | 22 / 28 | Without: the shader multiplies the texture twice, so unflashed colors are too dark |
+| Pixel-art character in a 3D scene | 3/3 | 0/3 | 0 / 9 | Without: the feet float 1 pixel; 2 runs add a script that rotates the shadow every frame |
+| Headless fixing of script errors and warnings | 1/1 | 1/1 | 0 / 0 | |
+| Designer data and export | 0/1 | 1/1 | 76 / 54 | With: the same export setting is configured twice and an unused method is left behind |
+| Tile level and digging | 3/3 | 1/3 | 13 / 30 | Without: in 2 runs the neighbor tiles do not update after digging |
+| HUD and unified font | 1/1 | 0/1 | 19 / 20 | Without: the theme keeps unused font size styles |
+| Thread pool keeps only two cores busy, count and results unchanged | 1/1 | 1/1 | 5 / 10 | |
+| Total | 14/17 | 6/17 | | |
+
+- Lines added: non-blank, non-comment lines in scripts and shaders minus the original project, averaged over runs
+- With the plugin, all 17 runs loaded the matching skill
+- The October 2026 result of 38/39 vs 6/39 used different grading and is not comparable
 
 To reproduce:
 
 ```
-claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash
+claude plugin eval . --scaffold --trust-plugin --allow-tools Edit Write Bash \
+  --model claude-opus-5-5 --judge-model claude-sonnet-5-5 \
+  --threshold 0 --keep-temp --json evals/results/run.json
+python3 evals/load_check.py evals/results/run.json
+python3 evals/score.py evals/results/run.json
 ```
 
-Granting Bash requires `bubblewrap` and `socat`. The headless case copies the Godot executable from `GODOT_BIN` or `godot` on PATH.
+- Granting Bash requires `bubblewrap` and `socat`
+- The headless case copies Godot from `GODOT_BIN`, `godot` on PATH, or `evals/_fixtures/bin/godot`
+- `load_check.py` uses `GODOT_BIN` and `DOTNET_BIN` and needs the projects kept by `--keep-temp`
+- A PATH entry on a slow mount, such as `/mnt/c` under WSL, makes the sandbox time out; trim PATH first
 
 # Contents
 
