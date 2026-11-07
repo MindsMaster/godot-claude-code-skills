@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 from markdown import frontmatter
 
@@ -14,11 +13,6 @@ CODE_SPAN_RE = re.compile(r"`[^`]*`")
 SKILL_REF_RE = re.compile(r"\bgodot-[a-z0-9-]+")
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 WORD_RE = re.compile(r"[A-Za-z0-9_+.#/-]+")
-
-
-def is_migrated(skill_dir: Path) -> bool:
-    skill = skill_dir / "SKILL.md"
-    return skill.exists() and "\n## 范围\n" in skill.read_text(encoding="utf-8")
 
 
 def check_bullets(d, skip_section: str = "") -> list:
@@ -90,8 +84,6 @@ def check_csharp_mirror(skill_doc, docs: list) -> list:
 def check_skeleton(d) -> list:
     out = []
     heads = [(n, l[3:].strip()) for n, l in d.prose if l.startswith("## ")]
-    if "范围" not in [h for _, h in heads]:
-        return out
     if [h for _, h in heads] != SKELETON:
         out.append(("ERROR", d.where, f"## 须依次为 {' '.join(SKELETON)} 实为 {' '.join(h for _, h in heads)}"))
     skills = d.path.parent.parent
@@ -124,9 +116,8 @@ def check(docs: list) -> list:
             if n > MAX_SKILL_LINES:
                 out.append(("ERROR", d.where, f"SKILL.md {n} 行 超过 {MAX_SKILL_LINES} 行 拆到 references/"))
             out += check_skeleton(d)
-            if is_migrated(d.path.parent):
-                out += check_csharp_mirror(d, docs)
-        elif d.path.parent.name == "references" and is_migrated(d.path.parent.parent):
+            out += check_csharp_mirror(d, docs)
+        elif d.path.parent.name == "references":
             out += check_bullets(d)
             if d.path.name != "csharp.md":
                 out += check_csharp_pairs(d)

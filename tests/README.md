@@ -6,7 +6,7 @@ python3 tests/check.py [lint] [api] [gd] [run] [cs] [--only 路径子串] [--str
 
 | 步骤 | 查什么 | 依赖 |
 | --- | --- | --- |
-| lint | frontmatter、SKILL.md 行数、断链、禁用措辞。写了 `## 范围` 的 skill 另查骨架、范围表、列表长度、C# 对照 | 无 |
+| lint | frontmatter、SKILL.md 行数、断链、禁用措辞、骨架、范围表、列表长度、C# 对照 | 无 |
 | api | 行内代码的类名、`Class.member`、项目设置路径、代码块里的已弃用类、版本标注 | `tests/data/godot_api.json.gz` |
 | gd | GDScript 代码块逐个无头加载 未标类型和引擎默认警告都按错误算 | `GODOT_BIN` |
 | run | GDScript 代码块逐个真跑 有错误或警告输出、没跑完、超时都算失败 | `GODOT_BIN`，render 模式另需 `xvfb-run` 与 Vulkan 驱动 |

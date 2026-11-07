@@ -47,7 +47,7 @@ description: 何时用 中文加英文关键词 写清触发场景 不超过 102
 references 链接 每条写清什么时候读 加 docs.godotengine.org 链接
 ```
 
-`##` 只有这五个，按这个顺序，其他主题一律放 `## 做法` 下的 `###`。写了 `## 范围` 的 SKILL.md 由 lint 按此检查。
+`##` 只有这五个，按这个顺序，其他主题一律放 `## 做法` 下的 `###`。lint 按此检查每个 SKILL.md。
 
 SKILL.md 控制在 300 行内。细节表、长示例、少用的 API、单次排查得出的偏门问题放 references，并在 SKILL.md 里写清什么时候去读哪个文件。
 
@@ -112,7 +112,7 @@ python3 tests/check.py --only godot-2d
 
 `GODOT_BIN` 指向 Godot 4.7.2 可执行文件，`DOTNET_BIN` 指向 .NET 8 SDK 的 dotnet。
 
-- lint：frontmatter、行数、断链、禁用措辞。写了 `## 范围` 的 skill 另查骨架、范围表、列表长度、C# 对照
+- lint：frontmatter、行数、断链、禁用措辞、骨架、范围表、列表长度、C# 对照
 - api：行内代码的类名和成员、代码块里的已弃用类、版本标注
 - gd：每个 GDScript 代码块用 Godot 无头加载，未标类型和引擎默认警告都按错误算
 - run：每个 GDScript 代码块真跑一遍，有错误或警告输出就失败。缺的场景、资源、调用写在 `tests/run/<skill>.md` 夹具里，格式见 `tests/README.md`。render 模式要 `xvfb-run` 和 Vulkan 驱动，没有 GPU 时装 `mesa-vulkan-drivers`
