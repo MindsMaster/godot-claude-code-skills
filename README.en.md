@@ -53,11 +53,13 @@ Each case in `evals/` poses a development task and runs with and without the plu
 - The result meets the task: an LLM judge checks it item by item, and afterwards every project is loaded in Godot 4.7.2 and C# projects are built
 - The solution is clean: no script reimplements what the engine already provides, nothing that can be set once is recomputed every frame, no unrequested features are added, no unused code is left behind; no specific API is required
 
-| Agent model | With | Without |
-| --- | --- | --- |
-| `claude-opus-5-5` | 14/17 | 6/17 |
-| `claude-sonnet-5-5` | | |
-| `claude-haiku-5-5` | | |
+| Agent model | Effort | With | Without |
+| --- | --- | --- | --- |
+| `claude-opus-5-5` | medium | 14/17 | 6/17 |
+| `claude-sonnet-5-5` | medium | | |
+| `claude-haiku-5-5` | medium | | |
+
+Effort is the Claude Code 2.1.319 default for each of these models. `claude plugin eval` has no effort option and does not read `effortLevel` from user settings.
 
 `claude-opus-5-5` per case, November 2026, Claude Code 2.1.319, judge model `claude-sonnet-5-5`. Each case ran once per condition; cases with a failure were topped up to 3 runs:
 
