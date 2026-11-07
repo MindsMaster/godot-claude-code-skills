@@ -13,6 +13,7 @@ MAX_BULLET_CHARS = 40
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 SKILL_REF_RE = re.compile(r"\bgodot-[a-z0-9-]+")
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+WORD_RE = re.compile(r"[A-Za-z0-9_+.#/-]+")
 
 
 def is_migrated(skill_dir: Path) -> bool:
@@ -27,7 +28,7 @@ def check_bullets(d, skip_section: str = "") -> list:
         if line.startswith("## "):
             section = line[3:].strip()
         elif line.startswith("- ") and section != skip_section:
-            n = len(SKILL_REF_RE.sub("x", CODE_SPAN_RE.sub("x", MD_LINK_RE.sub("x", line[2:]))))
+            n = len(WORD_RE.sub("x", CODE_SPAN_RE.sub("x", MD_LINK_RE.sub("x", line[2:]))).replace(" ", ""))
             if n > MAX_BULLET_CHARS:
                 out.append(("WARNING", f"{d.where}:{lineno}", f"列表项 {n} 字 超过 {MAX_BULLET_CHARS} 拆条或改表格"))
     return out
