@@ -69,6 +69,59 @@ func validate() -> void:
 		push_warning("%s 缺少 id" % title)
 ```
 
+```csharp
+[Tool]
+[GlobalClass]
+public partial class SkillDef : Resource
+{
+    [ExportCategory("基础")]
+    [Export] public string Title { get; set; } = "";
+    [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
+    [Export(PropertyHint.PlaceholderText, "skill_id")] public string Id { get; set; } = "";
+    [Export(PropertyHint.Enum, "Fire,Water,Earth")] public string Element { get; set; } = "Fire";
+
+    [ExportGroup("数值")]
+    [Export(PropertyHint.Range, "0,100,0.5,suffix:%")] public float Chance { get; set; } = 10.0f;
+    [Export(PropertyHint.Range, "0,360,1,degrees")] public float Angle { get; set; }
+    [Export(PropertyHint.Flags, "Self:1,Allies:2,Foes:4")] public int Targets { get; set; }
+    [Export(PropertyHint.Layers2DPhysics)] public uint HitMask { get; set; }
+    [Export(PropertyHint.ExpEasing, "attenuation")] public float Falloff { get; set; } = 1.0f;
+
+    [ExportGroup("引用")]
+    [Export(PropertyHint.File, "*.json")] public string Source { get; set; } = "";
+    [Export(PropertyHint.Dir)] public string Folder { get; set; } = "";
+    [Export(PropertyHint.NodePathValidTypes, "Marker2D")] public NodePath Anchor { get; set; }
+    [Export(PropertyHint.ColorNoAlpha)] public Color Tint { get; set; } = Colors.White;
+
+    [ExportGroup("高级", "Adv")]
+    [Export] public float AdvCooldown { get; set; } = 1.0f;
+    [Export] public int AdvCost { get; set; } = 1;
+
+    [ExportGroup("")]
+    [Export] public int FormatVersion { get; set; } = 1;
+    [Export(PropertyHint.Range, "0,10,1,or_greater")] public int Level { get; set; } = 1;
+
+    [ExportToolButton("Validate", Icon = "Reload")]
+    public Callable ValidateAction => Callable.From(Validate);
+
+    public override void _ValidateProperty(Godot.Collections.Dictionary property)
+    {
+        if (property["name"].AsStringName() == PropertyName.FormatVersion)
+        {
+            property["usage"] = (int)PropertyUsageFlags.Storage;
+        }
+    }
+
+    public void Validate()
+    {
+        if (string.IsNullOrEmpty(Id))
+        {
+            GD.PushWarning($"{Title} 缺少 id");
+        }
+    }
+}
+```
+
 - 同一个脚本里 `@export_group` 一直生效到下一个组或分类，或 `@export_group("")`
 - 带前缀的组只吃连续的、带前缀的属性，遇到第一个不带前缀的属性就结束
 - 导出的 `Array[T]` 里 `T` 是 `Resource` 子类时，Inspector 提供新建、拖入、内嵌三种方式
@@ -86,27 +139,12 @@ func validate() -> void:
 | `@export_subgroup` | `[ExportSubgroup("名")]` |
 | `@export_category` | `[ExportCategory("名")]` |
 | `@export_tool_button("名", "图标")` | `[ExportToolButton("名", Icon = "图标")]`，类上要 `[Tool]` |
+| `@export_multiline` | `[Export(PropertyHint.MultilineText)]` |
+| `@export_flags_2d_physics` | `[Export(PropertyHint.Layers2DPhysics)]` |
+| `@export_node_path("Marker2D")` | `[Export(PropertyHint.NodePathValidTypes, "Marker2D")]` |
+| `@export_storage` | 无，`_ValidateProperty` 里把 `usage` 设为 Storage |
+| `@export_custom` 的 usage | 无，同上 |
 
-```csharp
-[Tool]
-[GlobalClass]
-public partial class SkillDef : Resource
-{
-    [ExportCategory("基础")]
-    [Export] public string Title { get; set; } = "";
-
-    [ExportGroup("数值")]
-    [Export(PropertyHint.Range, "0,100,0.5,suffix:%")]
-    public float Chance { get; set; } = 10f;
-
-    [ExportToolButton("Validate")]
-    public Callable ValidateAction => Callable.From(Validate);
-
-    public void Validate()
-    {
-        GD.Print("validate");
-    }
-}
-```
-
-`[ExportToolButton]` 必须写成表达式体属性，不能有存 `Callable` 的后备字段，否则报 GD0111，原因是 `Callable` 可能挡住程序集卸载。不能与 `[Export]` 同用，类上没有 `[Tool]` 也报错。
+- 组前缀匹配 C# 属性名，如 `"Adv"` 收 AdvCooldown
+- `[ExportToolButton]` 必须是表达式体属性，有后备字段报 GD0111
+- `[ExportToolButton]` 不能与 `[Export]` 同用，类上没有 `[Tool]` 也报错

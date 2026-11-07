@@ -13,12 +13,32 @@ extends Resource
 @export var price: int
 ```
 
+```csharp
+[Tool]
+[GlobalClass]
+public partial class ItemData : Resource
+{
+    [Export] public StringName Id { get; set; }
+
+    [Export] public int Price { get; set; }
+}
+```
+
 ```gdscript
 @tool
 class_name ItemDb
 extends Resource
 
 @export var items: Array[ItemData] = []
+```
+
+```csharp
+[Tool]
+[GlobalClass]
+public partial class ItemDb : Resource
+{
+    [Export] public Godot.Collections.Array<ItemData> Items { get; set; } = new();
+}
 ```
 
 导入器里用到的自定义资源脚本都要加 `@tool`，没加时编辑器里拿到的是占位实例，方法不可用。
@@ -72,6 +92,54 @@ func _import(source_file: String, save_path: String, _options: Dictionary, _plat
 	return ResourceSaver.save(db, "%s.%s" % [save_path, _get_save_extension()])
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemTableImporter : EditorImportPlugin
+{
+    public override string _GetImporterName() => "game.item_table";
+
+    public override string _GetVisibleName() => "Item Table";
+
+    public override string[] _GetRecognizedExtensions() => new[] { "itemtable" };
+
+    public override string _GetSaveExtension() => "res";
+
+    public override string _GetResourceType() => "Resource";
+
+    public override int _GetPresetCount() => 1;
+
+    public override string _GetPresetName(int presetIndex) => "Default";
+
+    public override Godot.Collections.Array<Godot.Collections.Dictionary> _GetImportOptions(string path, int presetIndex) => new();
+
+    public override float _GetPriority() => 1.0f;
+
+    public override int _GetImportOrder() => 0;
+
+    public override Error _Import(string sourceFile, string savePath, Godot.Collections.Dictionary options, Godot.Collections.Array<string> platformVariants, Godot.Collections.Array<string> genFiles)
+    {
+        Variant parsed = Json.ParseString(FileAccess.GetFileAsString(sourceFile));
+        if (parsed.VariantType != Variant.Type.Array)
+        {
+            return Error.ParseError;
+        }
+        var db = new ItemDb();
+        foreach (Variant rowValue in parsed.AsGodotArray())
+        {
+            Godot.Collections.Dictionary row = rowValue.AsGodotDictionary();
+            db.Items.Add(new ItemData
+            {
+                Id = row.GetValueOrDefault("id", "").AsStringName(),
+                Price = row.GetValueOrDefault("price", 0).AsInt32(),
+            });
+        }
+        return ResourceSaver.Save(db, $"{savePath}.{_GetSaveExtension()}");
+    }
+}
+#endif
+```
+
 ```gdscript
 @tool
 extends EditorPlugin
@@ -87,13 +155,37 @@ func _exit_tree() -> void:
 	_importer = null
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemTablePlugin : EditorPlugin
+{
+    private ItemTableImporter _importer;
+
+    public override void _EnterTree()
+    {
+        _importer = new ItemTableImporter();
+        AddImportPlugin(_importer);
+    }
+
+    public override void _ExitTree()
+    {
+        RemoveImportPlugin(_importer);
+        _importer = null;
+    }
+}
+#endif
+```
+
 放一个 `data/items.itemtable`，内容 `[{"id":"sword","price":10}]`，编辑器扫描后生成 `.import` 文件和 `.godot/imported/` 下的 `.res`。游戏里 `load("res://data/items.itemtable")` 直接得到 `ItemDb`。
 
 - 必须实现的虚方法：`_get_importer_name` `_get_visible_name` `_get_recognized_extensions` `_get_save_extension` `_get_resource_type` `_get_preset_name` `_get_import_options` `_import`
 - 扩展名别用 `json` `txt` 这类常见后缀，会和内置导入器抢文件。用自己的后缀，如 `itemtable`
 - `_get_save_extension` 对普通资源写 `res`，场景写 `scn`，材质写 `material`。`_get_resource_type` 决定拖放到哪种属性槽
 - `_import` 的返回值是 `Error`，解析失败返回 `ERR_PARSE_ERROR`。源文件是系统边界，字段缺失和类型不对都要处理
-- 保存路径是 `save_path` 加扩展名，不要写到别处。额外生成的文件放进 `_gen_files`，按平台不同的变体放进 `_platform_variants` 并用 `save_path.特性标签.扩展名` 保存
+- 保存路径是 `save_path` 加扩展名，不写到别处
+- 额外生成的文件路径放进 `_gen_files`
+- 平台变体放进 `_platform_variants`，存为 `save_path.特性标签.扩展名`
 - 选项用 `_get_import_options` 返回 `[{"name": "scale", "default_value": 1.0}]` 这样的字典数组，在 Import 面板里显示，`_import` 的 `options` 参数拿到值
 - 需要多线程导入时重写 `_can_import_threaded` 返回 `true`，`_import` 里不碰场景树和编辑器单例
 - 导入时生成了本身需要导入的文件（如图片），在 `_import` 里调用 `append_import_external_resource`
@@ -111,6 +203,23 @@ func _post_import(scene: Node) -> Object:
 	for node: MeshInstance3D in scene.find_children("*", "MeshInstance3D"):
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return scene
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class NoShadowPostImport : EditorScenePostImport
+{
+    public override GodotObject _PostImport(Node scene)
+    {
+        foreach (Node node in scene.FindChildren("*", "MeshInstance3D"))
+        {
+            ((MeshInstance3D)node).CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+        }
+        return scene;
+    }
+}
+#endif
 ```
 
 - 单个文件用：Import 面板 Import Script 分类下的 Path 选这个脚本，然后 Reimport

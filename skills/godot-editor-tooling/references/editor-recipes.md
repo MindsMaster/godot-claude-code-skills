@@ -1,5 +1,7 @@
 # 编辑器扩展配方
 
+插件骨架与各类编辑器扩展的完整写法。
+
 ## 插件骨架
 
 ```
@@ -28,6 +30,22 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	pass
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemsPlugin : EditorPlugin
+{
+    public override void _EnterTree()
+    {
+    }
+
+    public override void _ExitTree()
+    {
+    }
+}
+#endif
 ```
 
 - 在 Project Settings 的 Plugins 页勾选 Enable，写入 `editor_plugins/enabled`
@@ -59,7 +77,41 @@ func _exit_tree() -> void:
 	_dock = null
 ```
 
-- `dock_icon` 或 `icon_name` 设图标，`closable` 允许关闭，`available_layouts` 限定垂直水平浮动布局，默认只允许垂直和浮动，`dock_shortcut` 绑定打开快捷键
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemsDockPlugin : EditorPlugin
+{
+    private EditorDock _dock;
+
+    public override void _EnterTree()
+    {
+        _dock = new EditorDock
+        {
+            Title = "Items",
+            DefaultSlot = EditorDock.DockSlot.RightUl,
+        };
+        _dock.AddChild(GD.Load<PackedScene>("res://addons/items/items_panel.tscn").Instantiate());
+        AddDock(_dock);
+    }
+
+    public override void _ExitTree()
+    {
+        RemoveDock(_dock);
+        _dock.QueueFree();
+        _dock = null;
+    }
+}
+#endif
+```
+
+| `EditorDock` 属性 | 作用 |
+|---|---|
+| `dock_icon` `icon_name` | 图标 |
+| `closable` | 允许关闭 |
+| `available_layouts` | 可用布局，默认垂直与浮动 |
+| `dock_shortcut` | 打开快捷键 |
+
 - 面板内容做成场景，布局随停靠位置变化时重写 `EditorDock._update_layout`
 - 要兼容 4.4 到 4.5，面板控件用 `add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, panel)` 加入，`remove_control_from_docks(panel)` 移除
 - 同一份代码跨 4.5 与 4.6 时，用 `ClassDB.class_exists(&"EditorDock")` 分支，`EditorDock` 用 `ClassDB.instantiate` 创建，`add_dock` 用 `call("add_dock", dock)`，否则 4.5 解析报错
@@ -80,6 +132,29 @@ func _notification(what: int) -> void:
 		_title.add_theme_color_override("font_color", get_theme_color("accent_color", "Editor"))
 		var icon := get_theme_icon("Reload", "EditorIcons")
 		custom_minimum_size.y = icon.get_height() * 2.0
+```
+
+```csharp
+[Tool]
+public partial class ThemedPanel : VBoxContainer
+{
+    private readonly Label _title = new();
+
+    public ThemedPanel()
+    {
+        AddChild(_title);
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationThemeChanged)
+        {
+            _title.AddThemeColorOverride("font_color", GetThemeColor("accent_color", "Editor"));
+            Texture2D icon = GetThemeIcon("Reload", "EditorIcons");
+            CustomMinimumSize = CustomMinimumSize with { Y = icon.GetHeight() * 2.0f };
+        }
+    }
+}
 ```
 
 - 控件挂进编辑器后，`get_theme_color(名, "Editor")` 取编辑器主题色，主题切换时 `NOTIFICATION_THEME_CHANGED` 重新取
@@ -123,8 +198,59 @@ func _validate() -> void:
 	print("validate")
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class ValidatePlugin : EditorPlugin
+{
+    private const string ShortcutPath = "items/validate";
+
+    private Shortcut _shortcut;
+
+    public override void _EnterTree()
+    {
+        var key = new InputEventKey
+        {
+            Keycode = Key.V,
+            CommandOrControlAutoremap = true,
+            ShiftPressed = true,
+        };
+        _shortcut = new Shortcut { Events = new Godot.Collections.Array { key } };
+        EditorInterface.Singleton.GetEditorSettings().AddShortcut(ShortcutPath, _shortcut);
+        AddToolMenuItem("Validate Items", Callable.From(Validate));
+        EditorInterface.Singleton.GetCommandPalette().AddCommand("Validate Items", ShortcutPath, Callable.From(Validate));
+    }
+
+    public override void _ExitTree()
+    {
+        RemoveToolMenuItem("Validate Items");
+        EditorInterface.Singleton.GetCommandPalette().RemoveCommand(ShortcutPath);
+    }
+
+    public override void _ShortcutInput(InputEvent @event)
+    {
+        if (!@event.IsPressed() || @event.IsEcho())
+        {
+            return;
+        }
+        if (EditorInterface.Singleton.GetEditorSettings().IsShortcut(ShortcutPath, @event))
+        {
+            Validate();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    private void Validate()
+    {
+        GD.Print("validate");
+    }
+}
+#endif
+```
+
 - 用 `Shortcut` 资源，不要在 `_input` 里手写 `keycode` 判断。`command_or_control_autoremap` 让 macOS 自动换成 Cmd
-- `EditorSettings.add_shortcut` 与 `is_shortcut`（4.6+）让快捷键出现在编辑器设置的快捷键页，用户可改键，注册后须在 `_shortcut_input` 里用 `is_shortcut(路径, event)` 匹配才会触发
+- `EditorSettings.add_shortcut` 4.6+ 让快捷键进编辑器设置，用户可改键
+- 注册后在 `_shortcut_input` 里用 `is_shortcut(路径, event)` 匹配才触发
 - 4.5 及以下没有这两个方法，用 `Shortcut.matches_event(event)`，或把 `Shortcut` 赋给按钮的 `shortcut` 属性，4.6+ 的 `EditorDock` 用 `dock_shortcut`
 - `add_tool_menu_item` 放进 Project > Tools 菜单，`add_command` 进命令面板（Ctrl+Shift+P）
 
@@ -143,6 +269,30 @@ func _validate(files: Array) -> void:
 		print("validate ", path)
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class FileMenu : EditorContextMenuPlugin
+{
+    public override void _PopupMenu(string[] paths)
+    {
+        if (paths.Length == 1 && paths[0].EndsWith(".tres"))
+        {
+            AddContextMenuItem("Validate Resource", Callable.From<Godot.Collections.Array>(Validate));
+        }
+    }
+
+    private void Validate(Godot.Collections.Array files)
+    {
+        foreach (Variant path in files)
+        {
+            GD.Print("validate ", path);
+        }
+    }
+}
+#endif
+```
+
 ```gdscript
 @tool
 extends EditorPlugin
@@ -156,6 +306,28 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	remove_context_menu_plugin(_menu)
 	_menu = null
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class FileMenuPlugin : EditorPlugin
+{
+    private FileMenu _menu;
+
+    public override void _EnterTree()
+    {
+        _menu = new FileMenu();
+        AddContextMenuPlugin(EditorContextMenuPlugin.ContextMenuSlot.Filesystem, _menu);
+    }
+
+    public override void _ExitTree()
+    {
+        RemoveContextMenuPlugin(_menu);
+        _menu = null;
+    }
+}
+#endif
 ```
 
 ## 响应文件变化
@@ -182,6 +354,41 @@ func _on_filesystem_changed() -> void:
 	print("文件系统有变化")
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class ReimportWatcher : EditorPlugin
+{
+    public override void _EnterTree()
+    {
+        EditorFileSystem fs = EditorInterface.Singleton.GetResourceFilesystem();
+        fs.ResourcesReimported += OnReimported;
+        fs.FilesystemChanged += OnFilesystemChanged;
+    }
+
+    public override void _ExitTree()
+    {
+        EditorFileSystem fs = EditorInterface.Singleton.GetResourceFilesystem();
+        fs.ResourcesReimported -= OnReimported;
+        fs.FilesystemChanged -= OnFilesystemChanged;
+    }
+
+    private void OnReimported(string[] paths)
+    {
+        foreach (string path in paths)
+        {
+            GD.Print("重导 ", path);
+        }
+    }
+
+    private void OnFilesystemChanged()
+    {
+        GD.Print("文件系统有变化");
+    }
+}
+#endif
+```
+
 - `resources_reimported(paths)` 重导后触发，`resources_reimporting(paths)` 重导前触发，`filesystem_changed` 文件系统有变化时触发，`sources_changed(exist)` 导入文件的源文件变化时触发
 - 别在 `_process` 里每 0.5 秒轮询 mtime 或文件列表
 - 代码生成了文件后调用 `EditorInterface.get_resource_filesystem().scan()` 让编辑器看见，`update_file(path)` 只登记文件不导入，要导入用 `reimport_files` 或 `scan`
@@ -205,6 +412,30 @@ func _enter_tree() -> void:
 	})
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class SettingsPlugin : EditorPlugin
+{
+    private const string Setting = "items/validation/strict";
+
+    public override void _EnterTree()
+    {
+        if (!ProjectSettings.HasSetting(Setting))
+        {
+            ProjectSettings.SetSetting(Setting, true);
+        }
+        ProjectSettings.SetInitialValue(Setting, true);
+        ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
+        {
+            { "name", Setting },
+            { "type", (int)Variant.Type.Bool },
+        });
+    }
+}
+#endif
+```
+
 保存项目设置时才写入 `project.godot`，`set_initial_value` 让与默认值相同的设置不写盘。
 
 ## 编辑器里造节点
@@ -223,9 +454,29 @@ func add_marker() -> void:
 	EditorInterface.mark_scene_as_unsaved()
 ```
 
+```csharp
+[Tool]
+public partial class MarkerSpawner : Node2D
+{
+    [ExportToolButton("Add Marker", Icon = "Add")]
+    public Callable AddAction => Callable.From(AddMarker);
+
+    private void AddMarker()
+    {
+#if TOOLS
+        var marker = new Marker2D { Name = "SpawnPoint" };
+        AddChild(marker);
+        marker.Owner = EditorInterface.Singleton.GetEditedSceneRoot();
+        EditorInterface.Singleton.MarkSceneAsUnsaved();
+#endif
+    }
+}
+```
+
 - 不设 `owner`，节点既不在场景面板显示，也不会存盘
 - `owner` 必须是当前编辑场景的根，不是直接父节点
-- 脚本同时在游戏里运行时，不能直接写 `EditorInterface`，导出的游戏里没有这个类，脚本会解析失败。把编辑器部分拆成只在编辑器用的脚本，或者通过 `Engine.get_singleton(&"EditorInterface")` 取对象
+- 游戏里也运行的脚本不能直接写 `EditorInterface`，导出后解析失败
+- 编辑器部分拆到单独脚本，或用 `Engine.get_singleton(&"EditorInterface")`
 
 ## EditorScript 批处理
 
@@ -244,6 +495,31 @@ func _run() -> void:
 		ur.add_do_property(node_2d, &"position", node_2d.position.snapped(Vector2(16.0, 16.0)))
 		ur.add_undo_property(node_2d, &"position", node_2d.position)
 	ur.commit_action()
+```
+
+```csharp
+#if TOOLS
+[Tool]
+[GlobalClass]
+public partial class SnapSelectionToGrid : EditorScript
+{
+    public override void _Run()
+    {
+        EditorUndoRedoManager ur = EditorInterface.Singleton.GetEditorUndoRedo();
+        ur.CreateAction("Snap to grid");
+        foreach (Node node in EditorInterface.Singleton.GetSelection().GetSelectedNodes())
+        {
+            if (node is not Node2D node2D)
+            {
+                continue;
+            }
+            ur.AddDoProperty(node2D, Node2D.PropertyName.Position, node2D.Position.Snapped(new Vector2(16.0f, 16.0f)));
+            ur.AddUndoProperty(node2D, Node2D.PropertyName.Position, node2D.Position);
+        }
+        ur.CommitAction();
+    }
+}
+#endif
 ```
 
 - 脚本编辑器里 `File > Run`（Ctrl+Shift+X）执行，文件系统里右键 Run 也行。有 `class_name` 的也能从命令面板搜类名运行
@@ -268,8 +544,34 @@ func randomize_color() -> void:
 	ur.commit_action()
 ```
 
+```csharp
+[Tool]
+public partial class ColorRandomizer : Node2D
+{
+    [ExportToolButton("Randomize Color", Icon = "ColorRect")]
+    public Callable RandomizeAction => Callable.From(RandomizeColor);
+
+    private void RandomizeColor()
+    {
+#if TOOLS
+        EditorUndoRedoManager ur = EditorInterface.Singleton.GetEditorUndoRedo();
+        ur.CreateAction("Randomize Color", UndoRedo.MergeMode.Disable, this);
+        ur.AddDoProperty(this, CanvasItem.PropertyName.SelfModulate, new Color(GD.Randf(), GD.Randf(), GD.Randf()));
+        ur.AddUndoProperty(this, CanvasItem.PropertyName.SelfModulate, SelfModulate);
+        ur.CommitAction();
+#endif
+    }
+}
+```
+
 - `EditorInterface.get_editor_undo_redo()` 4.4+，插件里的 `get_undo_redo()` 返回同一个对象
-- 动作的历史按第一个操作的对象推断：节点记入当前编辑场景，内嵌资源记入所属场景，外部资源和其他对象记入全局历史。推断不对时用第三个参数 `custom_context` 指定
+| 第一个操作的对象 | 记入的历史 |
+|---|---|
+| 节点 | 当前编辑场景 |
+| 内嵌资源 | 所属场景 |
+| 外部资源、其他对象 | 全局 |
+
+- 推断不对时用第三个参数 `custom_context` 指定
 - 需要调函数的动作用 `add_do_method` 和 `add_undo_method`
 - 连续拖动同一属性，动作用同一个名字加 `UndoRedo.MERGE_ENDS` 合并成一步
 
@@ -288,6 +590,26 @@ func _enable_plugin() -> void:
 
 func _disable_plugin() -> void:
 	remove_autoload_singleton(AUTOLOAD_NAME)
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemsServicePlugin : EditorPlugin
+{
+    private const string AutoloadName = "ItemsService";
+
+    public override void _EnablePlugin()
+    {
+        AddAutoloadSingleton(AutoloadName, "res://addons/items/ItemsService.cs");
+    }
+
+    public override void _DisablePlugin()
+    {
+        RemoveAutoloadSingleton(AutoloadName);
+    }
+}
+#endif
 ```
 
 主屏幕插件在编辑器顶部 2D 3D Script 旁多一个标签页：
@@ -323,35 +645,66 @@ func _get_plugin_icon() -> Texture2D:
 	return EditorInterface.get_editor_theme().get_icon("Node", "EditorIcons")
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class MainScreenPlugin : EditorPlugin
+{
+    private Control _screen;
+
+    public override void _EnterTree()
+    {
+        _screen = GD.Load<PackedScene>("res://addons/items/main_screen.tscn").Instantiate<Control>();
+        _screen.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        EditorInterface.Singleton.GetEditorMainScreen().AddChild(_screen);
+        _MakeVisible(false);
+    }
+
+    public override void _ExitTree()
+    {
+        if (_screen != null)
+        {
+            _screen.QueueFree();
+            _screen = null;
+        }
+    }
+
+    public override bool _HasMainScreen()
+    {
+        return true;
+    }
+
+    public override void _MakeVisible(bool visible)
+    {
+        if (_screen != null)
+        {
+            _screen.Visible = visible;
+        }
+    }
+
+    public override string _GetPluginName()
+    {
+        return "Items";
+    }
+
+    public override Texture2D _GetPluginIcon()
+    {
+        return EditorInterface.Singleton.GetEditorTheme().GetIcon("Node", "EditorIcons");
+    }
+}
+#endif
+```
+
 - 主屏幕容器是 VBoxContainer，内容根节点要 `SIZE_EXPAND_FILL` 才铺满
 - 切换主屏幕标签页时编辑器调 `_make_visible`，显示隐藏要插件自己管，所以进树后先隐藏
 - 面板脚本要 `@tool`，否则按钮和逻辑在编辑器里不运行
 
 ## C# 插件
 
-```csharp
-[Tool]
-public partial class ItemsPlugin : EditorPlugin
-{
-    private EditorDock _dock;
-
-    public override void _EnterTree()
-    {
-        _dock = new EditorDock();
-        _dock.Title = "Items";
-        _dock.DefaultSlot = EditorDock.DockSlot.RightUl;
-        AddDock(_dock);
-    }
-
-    public override void _ExitTree()
-    {
-        RemoveDock(_dock);
-        _dock.QueueFree();
-        _dock = null;
-    }
-}
-```
-
-- 编辑器单例在 C# 里经 Singleton 属性访问，如 `EditorInterface.Singleton.GetEditorTheme()`，不是静态方法
-- `plugin.cfg` 里 `script="ItemsPlugin.cs"`，类名与文件名一致
-- 每次改完先点 Build，`[Tool]` 脚本才用上新代码
+- `plugin.cfg` 写 `script="ItemsPlugin.cs"`，类名与文件名一致
+- 插件类加 `[Tool]`，整个文件用 `#if TOOLS` 包住
+- 游戏脚本里用到编辑器类的代码也包进 `#if TOOLS`
+- 导出配置不定义 `TOOLS`，不包住则导出构建失败
+- 编辑器单例经 Singleton 属性访问，如 EditorInterface.Singleton
+- 改完先 Build，`[Tool]` 脚本才用上新代码
+- 引擎里的 C# 属性名是大驼峰，`_parse_property` 收到 Price

@@ -19,6 +19,17 @@ extends Resource
 @export var price: int
 ```
 
+```csharp
+[Tool]
+[GlobalClass]
+public partial class ItemData : Resource
+{
+    [Export] public StringName Id { get; set; }
+
+    [Export] public int Price { get; set; }
+}
+```
+
 ```gdscript
 @tool
 extends EditorProperty
@@ -45,6 +56,43 @@ func _on_value_changed(value: float) -> void:
 	emit_changed(get_edited_property(), int(value))
 ```
 
+```csharp
+#if TOOLS
+[Tool]
+public partial class PriceEditor : EditorProperty
+{
+    private readonly EditorSpinSlider _spin = new();
+    private bool _updating;
+
+    public PriceEditor()
+    {
+        _spin.Step = 1.0;
+        _spin.MaxValue = 9999.0;
+        AddChild(_spin);
+        AddFocusable(_spin);
+        _spin.ValueChanged += OnValueChanged;
+    }
+
+    public override void _UpdateProperty()
+    {
+        int value = GetEditedObject().Get(GetEditedProperty()).AsInt32();
+        _updating = true;
+        _spin.Value = value;
+        _updating = false;
+    }
+
+    private void OnValueChanged(double value)
+    {
+        if (_updating)
+        {
+            return;
+        }
+        EmitChanged(GetEditedProperty(), (int)value);
+    }
+}
+#endif
+```
+
 ```gdscript
 @tool
 extends EditorInspectorPlugin
@@ -57,6 +105,29 @@ func _parse_property(_object: Object, _type: Variant.Type, name: String, _hint_t
 		add_property_editor(name, load("res://addons/items/price_editor.gd").new())
 		return true
 	return false
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemInspector : EditorInspectorPlugin
+{
+    public override bool _CanHandle(GodotObject @object)
+    {
+        return @object is ItemData;
+    }
+
+    public override bool _ParseProperty(GodotObject @object, Variant.Type type, string name, PropertyHint hintType, string hintString, PropertyUsageFlags usageFlags, bool wide)
+    {
+        if (name == "Price")
+        {
+            AddPropertyEditor(name, new PriceEditor());
+            return true;
+        }
+        return false;
+    }
+}
+#endif
 ```
 
 ```gdscript
@@ -72,6 +143,28 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	remove_inspector_plugin(_inspector)
 	_inspector = null
+```
+
+```csharp
+#if TOOLS
+[Tool]
+public partial class ItemInspectorPlugin : EditorPlugin
+{
+    private ItemInspector _inspector;
+
+    public override void _EnterTree()
+    {
+        _inspector = new ItemInspector();
+        AddInspectorPlugin(_inspector);
+    }
+
+    public override void _ExitTree()
+    {
+        RemoveInspectorPlugin(_inspector);
+        _inspector = null;
+    }
+}
+#endif
 ```
 
 - `_parse_property` 返回 `true` 表示替换内置编辑器，返回 `false` 表示在内置编辑器之前插入自定义控件，两者都保留
