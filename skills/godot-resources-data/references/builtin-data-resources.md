@@ -1,6 +1,6 @@
 # 内置数据资源
 
-SKILL.md 的先查内置表指到这里时读。这些资源都能在 Inspector 里编辑，自带曲线编辑器和渐变编辑器。
+引擎自带的曲线、渐变、路径、动画数据资源，都能在 Inspector 里编辑。
 
 ## 对照
 
@@ -33,8 +33,6 @@ func damage_at(distance: float, max_distance: float) -> float:
 - `min_value` `max_value` 限定纵轴，Inspector 里编辑时就有范围
 - 曲线是资源，属于共享数据。运行时要改点位先 `duplicate()`
 
-C#：
-
 ```csharp
 public partial class Falloff : Node
 {
@@ -57,6 +55,18 @@ extends Sprite2D
 
 func show_heat(value: float) -> void:
 	modulate = heat.sample(clampf(value, 0.0, 1.0))
+```
+
+```csharp
+public partial class HeatSprite : Sprite2D
+{
+    [Export] public Gradient Heat { get; set; }
+
+    public void ShowHeat(float value)
+    {
+        Modulate = Heat.Sample(Mathf.Clamp(value, 0.0f, 1.0f));
+    }
+}
 ```
 
 给 shader 用时包成纹理，不要把曲线数据拆成 uniform 数组：
@@ -84,6 +94,16 @@ extends Path2D
 
 func point_at(ratio: float) -> Vector2:
 	return curve.sample_baked(ratio * curve.get_baked_length())
+```
+
+```csharp
+public partial class PathProbe : Path2D
+{
+    public Vector2 PointAt(float ratio)
+    {
+        return Curve.SampleBaked(ratio * Curve.GetBakedLength());
+    }
+}
 ```
 
 - 巡逻和轨道移动：`PathFollow2D` 作为 `Path2D` 的子节点，每帧 `progress += speed * delta`，`loop` 默认 `true`，超出长度回绕，到头停住设 `false`

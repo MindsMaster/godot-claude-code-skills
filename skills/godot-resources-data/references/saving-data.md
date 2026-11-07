@@ -1,5 +1,7 @@
 # 存档与用户数据
 
+存档位置、格式、版本迁移、原子写入与加密。
+
 ## 位置
 
 `user://` 是游戏唯一可写、导出后仍存在的位置。默认路径带项目名，项目改名后旧存档就找不到了。发布前固定它：
@@ -72,11 +74,87 @@ static func _migrate(payload: Dictionary) -> Dictionary:
 	return state
 ```
 
-- 先写 `.tmp` 再改名，写到一半断电或崩溃不会毁掉旧存档。Windows 上引擎覆盖已有文件是先删旧文件再移动，崩在两步之间只剩完整的 `.tmp`，所以 `read` 开头发现只有 `.tmp` 时先改名回 `PATH`
-- `JSON.parse_string` 读回的数字都是 `float`，`3` 变成 `3.0`。用 `JSON.from_native` 写、`JSON.to_native` 读（4.4+）可以保留 `int`、`Vector2`、`Color` 等类型，代价是 `Dictionary` 变成 `{"type":"Dictionary","args":[...]}`，键和 `int` 带 `s:` `i:` 前缀，手改不方便
-- 存档带 `version`，读到旧版本在 `_migrate` 里逐级升。不要靠字段是否存在猜版本
-- 读取是系统边界：解析失败、字段缺失、类型不对都要处理，回到默认值或提示玩家，不要让游戏崩
-- 运行时对象不直接序列化。给对象写 `to_dict()` 和 `from_dict()`，存档只含标识（物品 id、关卡名），读回来再去数据表查 `Resource`
+```csharp
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
+public sealed class SaveFile
+{
+    public int Version { get; set; }
+
+    public PlayerState State { get; set; } = new();
+}
+
+public static class SaveStore
+{
+    public const int CurrentVersion = 2;
+    private const string SavePath = "user://save.json";
+    private const string TmpPath = SavePath + ".tmp";
+
+    public static Error Write(PlayerState state)
+    {
+        var payload = new SaveFile { Version = CurrentVersion, State = state };
+        FileAccess file = FileAccess.Open(TmpPath, FileAccess.ModeFlags.Write);
+        if (file == null)
+        {
+            return FileAccess.GetOpenError();
+        }
+        file.StoreString(JsonSerializer.Serialize(payload));
+        file.Close();
+        return DirAccess.RenameAbsolute(TmpPath, SavePath);
+    }
+
+    public static PlayerState Read()
+    {
+        if (!FileAccess.FileExists(SavePath) && FileAccess.FileExists(TmpPath))
+        {
+            DirAccess.RenameAbsolute(TmpPath, SavePath);
+        }
+        if (!FileAccess.FileExists(SavePath))
+        {
+            return new PlayerState();
+        }
+        try
+        {
+            if (JsonNode.Parse(FileAccess.GetFileAsString(SavePath)) is not JsonObject root)
+            {
+                return new PlayerState();
+            }
+            Migrate(root);
+            return root.Deserialize<SaveFile>()?.State ?? new PlayerState();
+        }
+        catch (JsonException)
+        {
+            return new PlayerState();
+        }
+    }
+
+    private static void Migrate(JsonObject root)
+    {
+        int version = root["Version"]?.GetValue<int>() ?? 1;
+        if (version < 2 && root["State"] is JsonObject state)
+        {
+            state["Gold"] = state["Coins"]?.DeepClone() ?? 0;
+            state.Remove("Coins");
+        }
+    }
+}
+```
+
+- 先写 `.tmp` 再改名，写到一半崩溃不毁旧存档
+- Windows 上改名覆盖是先删旧文件再移动
+- 崩在两步之间只剩 `.tmp`，`read` 开头先把它改名回 `PATH`
+| 写法 | 读回的类型 | 文件 |
+|---|---|---|
+| `JSON.stringify` | 数字都是 `float`，`Vector2` `Color` 变字符串 | 易手改 |
+| `JSON.from_native` 写、`JSON.to_native` 读 4.4+ | 保留 `int` `Vector2` `Color` | 带类型包装与 `s:` `i:` 前缀，难手改 |
+
+- 存档带 `version`，旧版本在 `_migrate` 里逐级升
+- 不靠字段是否存在猜版本
+- 解析失败、字段缺失、类型不对时回到默认值或提示玩家
+- 运行时对象不直接序列化，写 `to_dict()` 与 `from_dict()`
+- 存档只存物品 id、关卡名等标识，读回再查数据表
+- C# 用普通类加 `System.Text.Json`，迁移在 JsonNode 上改字段
 
 对象存取的最短形态：
 
@@ -96,6 +174,15 @@ static func from_dict(data: Dictionary) -> PlayerState:
 	for id: String in data.get("items", []):
 		state.item_ids.append(StringName(id))
 	return state
+```
+
+```csharp
+public sealed class PlayerState
+{
+    public int Gold { get; set; }
+
+    public List<string> ItemIds { get; set; } = new();
+}
 ```
 
 ## ConfigFile 设置
@@ -118,56 +205,34 @@ func load_volume() -> float:
 	return cfg.get_value("audio", "master", 1.0)
 ```
 
+```csharp
+public partial class AudioSettings : Node
+{
+    private const string SettingsPath = "user://settings.cfg";
+
+    public void SaveVolume(float value)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(SettingsPath);
+        cfg.SetValue("audio", "master", value);
+        cfg.Save(SettingsPath);
+    }
+
+    public float LoadVolume()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(SettingsPath) != Error.Ok)
+        {
+            return 1.0f;
+        }
+        return cfg.GetValue("audio", "master", 1.0f).AsSingle();
+    }
+}
+```
+
 保存前先 `load`，保留其他段落里别的代码写的键。
 
 ## 加密
 
 `FileAccess.open_encrypted_with_pass(path, FileAccess.WRITE, password)` 和 `ConfigFile.save_encrypted_pass` 可以防玩家随手改存档。密码在游戏二进制里，防不住有意破解，也不能当安全措施。联网校验另做。
 
-## C#
-
-C# 的存档数据用普通类加 `System.Text.Json`，比 `Variant` 字典好维护：
-
-```csharp
-using System.Text.Json;
-
-public sealed class SaveData
-{
-    public int Version { get; set; } = 2;
-
-    public int Gold { get; set; }
-
-    public List<string> ItemIds { get; set; } = new();
-}
-
-public static class SaveStore
-{
-    private const string SavePath = "user://save.json";
-
-    public static void Write(SaveData data)
-    {
-        using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
-        file.StoreString(JsonSerializer.Serialize(data));
-    }
-
-    public static SaveData Read()
-    {
-        if (!FileAccess.FileExists(SavePath))
-        {
-            return new SaveData();
-        }
-
-        string text = FileAccess.GetFileAsString(SavePath);
-        try
-        {
-            return JsonSerializer.Deserialize<SaveData>(text) ?? new SaveData();
-        }
-        catch (JsonException)
-        {
-            return new SaveData();
-        }
-    }
-}
-```
-
-`FileAccess.Open` 失败返回 `null`，生产代码里先判断 `null` 再写入，用 `FileAccess.GetOpenError()` 取原因。

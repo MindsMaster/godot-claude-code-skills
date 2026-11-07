@@ -13,6 +13,19 @@ extends Resource
 @export var price: int
 ```
 
+```csharp
+[GlobalClass]
+public partial class ItemData : Resource
+{
+    [Export] public StringName Id { get; set; }
+
+    [Export] public string Title { get; set; } = "";
+
+    [Export] public int Price { get; set; }
+}
+```
+
+<!-- check: gdonly -->
 ```gdscript
 @tool
 extends EditorScript
@@ -36,16 +49,20 @@ func _run() -> void:
 ```
 
 - 脚本编辑器里打开它，`File > Run`（Ctrl+Shift+X）执行
-- 已存在的 `.tres` 先 `load` 再原地改，Inspector 里手填的其他字段保留。同路径重存 uid 保留，别处引用不断，前提是在编辑器里执行，运行游戏时 `ResourceSaver` 不写 uid
+- C# 项目也用这个 GDScript 工具脚本，它只在编辑器里跑
+- 已存在的 `.tres` 先 `load` 再原地改，手填的其他字段保留
+- 编辑器里同路径重存 uid 保留，引用不断
+- 运行游戏时 `ResourceSaver` 不写 uid
 - 转换结果提交进版本库，源 JSON 一起留着
-- 解析 JSON 是系统边界：行缺字段、类型不对时报错并跳过，不要写出半成品资源
+- 行缺字段或类型不对时报错并跳过，不写半成品资源
 
-JSON 一直在变、需要源文件放进工程就自动导入时，改用 `EditorImportPlugin`，见 godot-editor-tooling 的导入外部数据一节。
+JSON 常改、要求放进工程就自动导入时，改用 `EditorImportPlugin`，见 godot-editor-tooling。
 
 ## 大数据烘焙成 .res
 
-运行时解析 MB 级 JSON 再手建 `ArrayMesh`，每次启动都付一遍代价。导入期建好，存成二进制 `.res`：
+MB 级数据在编辑器里建好，存成二进制 `.res`，运行时只 `load`。
 
+<!-- check: gdonly -->
 ```gdscript
 @tool
 extends EditorScript
@@ -70,5 +87,6 @@ func _run() -> void:
 ```
 
 - 运行时 `load("res://baked/terrain.res")` 直接得到 `ArrayMesh`
-- `.res` 是二进制，不能手改也不能 diff，源数据留在仓库里，烘焙结果也提交，或者在 CI 里重新烘焙
-- 查找表、导航数据、预计算的噪声同理，存成自定义 `Resource` 的 `PackedFloat32Array` 字段
+- `.res` 不能手改也不能 diff，源数据留在仓库
+- 烘焙结果提交，或在 CI 里重新烘焙
+- 查找表、预计算噪声存成自定义 `Resource` 的 `PackedFloat32Array` 字段
