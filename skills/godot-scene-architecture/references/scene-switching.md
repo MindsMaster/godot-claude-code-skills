@@ -1,31 +1,40 @@
 # 场景切换
 
-## 选哪个
+切换 API 的选择与行为、自建切换器、叠加打开。
+
+## 选择
 
 | 需求 | 用这个 |
 |---|---|
-| 整屏换关卡，旧的全部丢弃 | `SceneTree.change_scene_to_file(path)` |
-| 已经有 `PackedScene`（预加载过） | `SceneTree.change_scene_to_packed(scene)` |
-| 切换前要先建好场景、传参数 | `SceneTree.change_scene_to_node(node)`，4.6+，`node` 不能已在树里 |
+| 整屏换关卡，旧场景全部丢弃 | `SceneTree.change_scene_to_file(path)` |
+| 已有预加载的 `PackedScene` | `SceneTree.change_scene_to_packed(scene)` |
+| 切换前建好场景、传参数 | `SceneTree.change_scene_to_node(node)` 4.6+ |
 | 重开当前关 | `SceneTree.reload_current_scene()` |
 | 菜单、对话框、小游戏叠在当前场景上 | `instantiate()` 后 `add_child`，不切换 |
-| 要保留旧场景状态再回来 | 自己管：旧场景 `remove_child` 不释放，或叠加方式 |
-| 切换要转场动画和加载进度 | 自己写切换器，见下 |
+| 保留旧场景状态再回来 | 旧场景 `remove_child` 不释放，或叠加 |
+| 转场动画、加载进度 | 自建切换器 |
 
-`change_scene_to_file` 内部做 `load` 再实例化，同步阻塞，大场景会卡一帧以上。
+- `change_scene_to_file` 同步 `load`，大场景卡一帧以上
 
 ## 行为
 
-以下按 4.7 的行为写。
+| 时刻 | 状态 |
+|---|---|
+| 调用后 | 旧场景出树，`current_scene` 为 `null` |
+| 调用后的同一帧 | 拿不到新场景 |
+| 帧末 | 旧场景释放，新场景进树 |
+| `scene_changed` 发出 4.5+ | 新场景可用 |
 
-- 调用后旧场景立即从树里移除，`get_tree()` 对旧场景返回 `null`，`current_scene` 为 `null`
-- 帧末旧场景释放，新场景加入。同一帧里拿不到新场景
-- 要拿新场景：`await get_tree().scene_changed`，4.5+，须在 autoload 这类不会被切走的节点里等，旧场景里的函数随节点释放不会恢复
-- 在被切换掉的场景脚本里，调用 `change_scene_to_file` 之后的代码仍会运行，但 `get_tree()` 已经为 `null`。把它放在函数最后一行，或先取 `var tree := get_tree()`
-- Autoload 节点不受影响，留在 `/root` 下
-- `change_scene_to_node` 之后 `SceneTree` 接管该节点，之后再切换会释放它，别保留引用
+- 等 `scene_changed` 要在 autoload 里，旧场景的函数随节点释放不恢复
+- 旧场景脚本里调用之后的代码照常运行，但 `get_tree()` 为 `null`
+- 切换调用放在函数最后，或先存 `var tree := get_tree()`
+- autoload 不受影响，留在 `/root` 下
+- `change_scene_to_node` 的 `node` 不能已在树里
+- `change_scene_to_node` 后 `SceneTree` 接管该节点，下次切换释放它，不保留引用
 
-4.6+ 用 `change_scene_to_node` 给新场景传参数，切换前就能设好：
+## 传参数
+
+4.6+ 用 `change_scene_to_node`，切换前设好：
 
 ```gdscript
 extends Node
@@ -38,11 +47,30 @@ func go(level_index: int) -> void:
 	get_tree().change_scene_to_node(level)
 ```
 
-4.5 及以下参数放在 autoload 的字段里，新场景 `_ready` 里读。
+```csharp
+public partial class Level : Node
+{
+    public int Index { get; set; }
+}
 
-## 自己做切换器
+public partial class LevelGate : Node
+{
+    [Export] public PackedScene NextScene { get; set; }
 
-场景切换需要淡入淡出、加载界面时，在 autoload 里做一个切换器，自带一个 `CanvasLayer` 放遮罩。`scene_changed` 是 4.5+，更低版本改成 `await get_tree().process_frame`：
+    public void Go(int levelIndex)
+    {
+        var level = NextScene.Instantiate<Level>();
+        level.Index = levelIndex;
+        GetTree().ChangeSceneToNode(level);
+    }
+}
+```
+
+- 4.5 及以下参数放 autoload 字段，新场景 `_ready` 里读
+
+## 自建切换器
+
+放在 autoload 里，自带一个 `CanvasLayer` 和遮罩。4.4 没有 `scene_changed`，改成等 `process_frame`：
 
 ```gdscript
 extends CanvasLayer
@@ -71,14 +99,57 @@ func change_to(path: String) -> void:
 	finished.emit()
 ```
 
-- 遮罩 `CanvasLayer` 的 `layer` 设大于 HUD，`process_mode` 设 `PROCESS_MODE_ALWAYS` 让暂停时也能转场
-- 带进度条的加载见 godot-resources-data 的带进度的异步加载一节
-- 不要手动 `current_scene.free()` 再 `add_child` 新场景再赋值 `current_scene`。`change_scene_to_*` 已经处理了释放时机和 `current_scene`
-- 切换前先把 `get_tree().paused` 恢复，暂停状态会带到新场景
+```csharp
+public partial class SceneSwitcher : CanvasLayer
+{
+    [Signal] public delegate void FinishedEventHandler();
 
-## 叠加而非切换
+    private ColorRect _fade;
 
-小游戏、设置页、商店这类能回到原界面的，不切换：
+    public override void _Ready()
+    {
+        _fade = GetNode<ColorRect>("Fade");
+    }
+
+    public async Task ChangeTo(string path)
+    {
+        var tween = CreateTween();
+        tween.TweenProperty(_fade, "modulate:a", 1.0, 0.3);
+        await ToSignal(tween, Tween.SignalName.Finished);
+        ResourceLoader.LoadThreadedRequest(path);
+        var status = ResourceLoader.LoadThreadedGetStatus(path);
+        while (status == ResourceLoader.ThreadLoadStatus.InProgress)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            status = ResourceLoader.LoadThreadedGetStatus(path);
+        }
+        if (status == ResourceLoader.ThreadLoadStatus.Loaded)
+        {
+            GetTree().ChangeSceneToPacked((PackedScene)ResourceLoader.LoadThreadedGet(path));
+            await ToSignal(GetTree(), SceneTree.SignalName.SceneChanged);
+        }
+        else
+        {
+            GD.PushError($"场景加载失败 {path}");
+        }
+        tween = CreateTween();
+        tween.TweenProperty(_fade, "modulate:a", 0.0, 0.3);
+        await ToSignal(tween, Tween.SignalName.Finished);
+        EmitSignal(SignalName.Finished);
+    }
+}
+```
+
+- 遮罩的 `layer` 大于 HUD
+- 切换器设 `PROCESS_MODE_ALWAYS`，暂停时也能转场
+- 切换前恢复 `get_tree().paused`，暂停状态会带到新场景
+- 不手动 `free` 旧场景再赋 `current_scene`，`change_scene_to_*` 已处理
+- 加载进度条见 godot-resources-data 的带进度的异步加载
+- C# 的 `await ToSignal` 对应 GDScript 的 `await 信号`
+
+## 叠加打开
+
+能回到原界面的商店、设置页、小游戏，叠加不切换：
 
 ```gdscript
 extends Node
@@ -95,4 +166,25 @@ func _on_shop_closed() -> void:
 	get_tree().paused = false
 ```
 
-商店根节点 `process_mode` 设 `WHEN_PAUSED` 或 `ALWAYS`，关闭时 `queue_free`。
+```csharp
+public partial class ShopOpener : Node
+{
+    [Export] public PackedScene ShopScene { get; set; }
+
+    public void OpenShop()
+    {
+        var shop = ShopScene.Instantiate();
+        AddChild(shop);
+        GetTree().Paused = true;
+        shop.TreeExited += OnShopClosed;
+    }
+
+    private void OnShopClosed()
+    {
+        GetTree().Paused = false;
+    }
+}
+```
+
+- 商店根节点设 `PROCESS_MODE_WHEN_PAUSED` 或 `PROCESS_MODE_ALWAYS`
+- 关闭时商店自己 `queue_free`
