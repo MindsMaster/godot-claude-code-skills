@@ -1,12 +1,12 @@
-# 2D 物理查询细节
+# 2D 物理查询
 
-SKILL.md 里的 `RayCast2D` 与 `intersect_ray` 不够用时读这里：范围与点查询、`ShapeCast2D`、C# 写法、结果字段。
+RayCast2D 与 ShapeCast2D 节点属性、范围与点查询、结果字段。
 
 ## 节点探测
 
 | 属性 | 默认 | 说明 |
 |---|---|---|
-| `enabled` | true | false 时不自动更新，`force_raycast_update` 仍然有效 |
+| `enabled` | true | false 时不自动更新，`force_raycast_update` 仍有效 |
 | `target_position` | `Vector2(0, 50)` | 相对节点自身位置 |
 | `collision_mask` | 1 | 只扫第 1 层 |
 | `collide_with_areas` | false | 要打 `Area2D` 必须开 |
@@ -14,9 +14,10 @@ SKILL.md 里的 `RayCast2D` 与 `intersect_ray` 不够用时读这里：范围�
 | `exclude_parent` | true | 只对父节点是 `CollisionObject2D` 时有效 |
 | `hit_from_inside` | false | 只有 `RayCast2D` 有，起点在形状内时命中，法线为零向量 |
 
-其他要排除的对象用 `add_exception(node)`，`clear_exceptions` 清空。
-
-`ShapeCast2D` 多了 `shape`、`max_results`（默认 32）、`margin`。结果用 `get_collision_count`、`get_collider(i)`、`get_collision_point(i)`、`get_closest_collision_safe_fraction`。
+- 其他要排除的对象用 `add_exception(node)`，`clear_exceptions` 清空
+- `ShapeCast2D` 多了 `shape`、`max_results` 默认 32、`margin`
+- ShapeCast2D 结果：`get_collision_count`、`get_collider(i)`、`get_collision_point(i)`
+- 安全移动比例：`get_closest_collision_safe_fraction`
 
 <!-- check: extends CharacterBody2D -->
 ```gdscript
@@ -28,7 +29,29 @@ func has_ground_ahead(direction: float) -> bool:
 	return _ledge.is_colliding()
 ```
 
-`target_position` 设为 `Vector2(0, 0)` 再 `force_shapecast_update` 就是当场的重叠检测，不必等 `Area2D` 的下一个物理步。
+```csharp
+public partial class LedgeWalker : CharacterBody2D
+{
+    private ShapeCast2D _ledge;
+
+    public override void _Ready()
+    {
+        _ledge = GetNode<ShapeCast2D>("LedgeProbe");
+    }
+
+    public bool HasGroundAhead(float direction)
+    {
+        Vector2 position = _ledge.Position;
+        position.X = Mathf.Abs(position.X) * direction;
+        _ledge.Position = position;
+        _ledge.ForceShapecastUpdate();
+        return _ledge.IsColliding();
+    }
+}
+```
+
+- `target_position` 设 `Vector2(0, 0)` 再 `force_shapecast_update` 是当场重叠检测
+- 不必等 `Area2D` 的下一个物理步
 
 ## 范围与点查询
 
@@ -50,6 +73,32 @@ func enemies_in_radius(center: Vector2, radius: float, mask: int) -> Array[Node2
 	return found
 ```
 
+```csharp
+public partial class RadiusQuery : Node2D
+{
+    public List<Node2D> EnemiesInRadius(Vector2 center, float radius, uint mask)
+    {
+        var circle = new CircleShape2D { Radius = radius };
+        var query = new PhysicsShapeQueryParameters2D
+        {
+            Shape = circle,
+            Transform = new Transform2D(0.0f, center),
+            CollisionMask = mask,
+            CollideWithAreas = true,
+        };
+        var found = new List<Node2D>();
+        foreach (Godot.Collections.Dictionary hit in GetWorld2D().DirectSpaceState.IntersectShape(query, 16))
+        {
+            if (hit["collider"].AsGodotObject() is Node2D node)
+            {
+                found.Add(node);
+            }
+        }
+        return found;
+    }
+}
+```
+
 <!-- check: extends Node2D -->
 ```gdscript
 func clickable_at(point: Vector2) -> Array[Dictionary]:
@@ -59,11 +108,28 @@ func clickable_at(point: Vector2) -> Array[Dictionary]:
 	return get_world_2d().direct_space_state.intersect_point(query)
 ```
 
-- `transform` 与 `position` 都是全局坐标。
-- `intersect_point` 不碰 `ConcavePolygonShape2D` 和 Segments 模式的 `CollisionPolygon2D`，它们不是实心形状。
-- `canvas_instance_id` 为 0 时点查询只查 Viewport 默认画布层，放在 `CanvasLayer` 里的物理对象要填该层的 `get_instance_id()`。
-- `intersect_shape` 带 `motion` 与 `margin`；要沿方向扫过去取最近距离用 `cast_motion`，要两个形状的接触点用 `collide_shape` 与 `get_rest_info`。
-- 只想知道某个 `Area2D` 里有谁，直接用它的 `get_overlapping_bodies` 和信号，不必再查空间。
+```csharp
+public partial class PointQuery : Node2D
+{
+    public Godot.Collections.Array<Godot.Collections.Dictionary> ClickableAt(Vector2 point)
+    {
+        var query = new PhysicsPointQueryParameters2D { Position = point, CollideWithAreas = true };
+        return GetWorld2D().DirectSpaceState.IntersectPoint(query);
+    }
+}
+```
+
+- `transform` 与 `position` 都是全局坐标
+- `intersect_point` 不碰 `ConcavePolygonShape2D` 和 Segments 模式的 `CollisionPolygon2D`
+- 点查询的 `canvas_instance_id` 为 0 时只查默认画布层
+- CanvasLayer 里的物理对象，`canvas_instance_id` 填该层的 `get_instance_id()`
+- 只问某个 `Area2D` 里有谁，用它的 `get_overlapping_bodies` 和信号
+
+| 需求 | 方法 |
+|---|---|
+| 形状带位移重叠 | `intersect_shape` 的 `motion` 与 `margin` |
+| 沿方向扫过去取最近距离 | `cast_motion` |
+| 两个形状的接触点 | `collide_shape`、`get_rest_info` |
 
 ## 结果字段
 
@@ -73,34 +139,4 @@ func clickable_at(point: Vector2) -> Array[Dictionary]:
 | `intersect_point` | `Array[Dictionary]` | `collider` `collider_id` `rid` `shape` |
 | `intersect_shape` | `Array[Dictionary]` | `collider` `collider_id` `rid` `shape` |
 
-## C#
-
-```csharp
-using Godot;
-using Godot.Collections;
-
-public partial class Shooter : CharacterBody2D
-{
-    private const uint Mask = (1u << 0) | (1u << 2);
-
-    public override void _PhysicsProcess(double delta)
-    {
-        if (!Input.IsActionJustPressed("fire"))
-        {
-            return;
-        }
-
-        PhysicsDirectSpaceState2D space = GetWorld2D().DirectSpaceState;
-        PhysicsRayQueryParameters2D query = PhysicsRayQueryParameters2D.Create(
-            GlobalPosition, GetGlobalMousePosition(), Mask, new Array<Rid> { GetRid() });
-        Dictionary hit = space.IntersectRay(query);
-        if (hit.Count > 0)
-        {
-            Vector2 point = (Vector2)hit["position"];
-            GD.Print(point, hit["collider"]);
-        }
-    }
-}
-```
-
-`intersect_shape` 与 `intersect_point` 在 C# 返回 `Array<Dictionary>`。mask 参数是 `uint`，第 n 层是 `1u << (n - 1)`。
+- C# 中后两者返回 `Array<Dictionary>`，mask 参数是 `uint`

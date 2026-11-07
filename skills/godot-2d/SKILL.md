@@ -5,7 +5,18 @@ description: 写 Godot 4 的 2D 场景时用。CharacterBody2D 角色移动与�
 
 # Godot 2D
 
-2D 游戏常见需求的内置节点选择、最短写法和易错点。动画播放、着色器特效、UI 控件、输入映射不在这里。3D 场景里放 2D 角色走 godot-2d-in-3d。
+2D 游戏常见需求的内置节点选择、最短写法和易错点。
+
+## 范围
+
+| 不含 | 去哪 |
+|---|---|
+| 动画播放、Tween | godot-animation |
+| shader、粒子、命中闪白写法 | godot-shaders-vfx |
+| UI 控件、HUD 布局 | godot-ui |
+| 输入映射 | godot-input |
+| 3D 场景里放 2D 角色 | godot-2d-in-3d |
+| 大量实体的性能 | godot-performance |
 
 ## 先查内置
 
@@ -39,6 +50,8 @@ description: 写 Godot 4 的 2D 场景时用。CharacterBody2D 角色移动与�
 
 ### CharacterBody2D
 
+平台跳跃：
+
 <!-- check: extends CharacterBody2D -->
 ```gdscript
 const SPEED := 160.0
@@ -53,6 +66,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 ```
 
+俯视角：
+
 <!-- check: extends CharacterBody2D -->
 ```gdscript
 func _physics_process(_delta: float) -> void:
@@ -60,33 +75,25 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 ```
 
-- 俯视角把 `motion_mode` 设为 `MOTION_MODE_FLOATING`。默认的 grounded 模式有地面、墙、天花板之分，俯视角会出现滑坡与卡边行为。
-- `move_and_slide` 自带 delta，`velocity` 单位是像素每秒，不要乘 delta。`move_and_collide` 要乘。
-- 斜坡不脱地用 `floor_snap_length`，上下坡速度一致开 `floor_constant_speed`，站定不下滑是 `floor_stop_on_slope`。
-- 撞到什么：`get_slide_collision(i).get_collider()`，数量 `get_slide_collision_count`。
-- 平台带动玩家是内置的，离开平台的速度处理看 `platform_on_leave`。
+| 属性或方法 | 用途 |
+|---|---|
+| `motion_mode` | 俯视角设 `MOTION_MODE_FLOATING`，所有碰撞按墙处理 |
+| `floor_snap_length` | 下坡不脱地 |
+| `floor_constant_speed` | 上下坡速度一致 |
+| `floor_stop_on_slope` | 站定不下滑 |
+| `platform_on_leave` | 移动平台带动角色是内置的，此项管离开时的速度 |
+| `get_slide_collision(i).get_collider()` | 本帧撞到什么，数量 `get_slide_collision_count()` |
 
-<!-- check: extends CharacterBody2D -->
-```csharp
-public override void _PhysicsProcess(double delta)
-{
-    Vector2 v = Velocity;
-    v.X = Input.GetAxis("left", "right") * 160f;
-    Velocity = v;
-    MoveAndSlide();
-}
-```
+- `velocity` 单位像素每秒，`move_and_slide` 不乘 delta，`move_and_collide` 要乘
+- 默认 grounded 模式按 `up_direction` 区分地面墙天花板，斜坡加减速
 
-C# 里 Velocity 是结构体属性，直接给它的 X 赋值编译不过，先取副本再整体赋回。
+### 单向平台与推动刚体
 
-### 单向平台与可推物体
+- 单向平台：平台的 `CollisionShape2D` 勾 `one_way_collision`
+- 角色撞上 `RigidBody2D` 不推动它，每物理帧对它 `apply_central_force`
+- 下穿、漏穿、推箱写法见 [references/bodies.md](references/bodies.md)
 
-- 单向平台：平台的 `CollisionShape2D` 勾 `one_way_collision`，从下往上能穿过，从上面站得住。子形状在 `Area2D` 下无效。高速物体漏过去时加大 `one_way_collision_margin`，默认 1 像素。`one_way_collision_direction` 改单向的朝向，4.7+。
-- 下穿：平台放独立 layer，按下键时对角色 `set_collision_mask_value(层号, false)`，落到平台下面再恢复。4.7.2 实测去掉该位后角色穿过平台。
-- `CharacterBody2D` 撞上 `RigidBody2D` 不会推动它，4.7.2 实测箱子纹丝不动。`move_and_slide` 之后遍历 `get_slide_collision(i)`，每个物理帧对 `get_collider()` 得到的刚体调 `apply_central_force`，力的方向取碰撞法线的反方向。`apply_central_impulse` 与时间无关，每帧调用会随帧率变化，只用于一次性冲击。
-- `RigidBody2D` 的位置和速度归物理模拟。频繁直接改 `position` 或 `linear_velocity` 行为不可预测，要改就放进 `_integrate_forces(state)`。
-
-### 碰撞层与 mask
+### 碰撞层
 
 layer 是我在哪一层，mask 是我扫描哪些层。先在项目设置里给层起名，代码只用 1 到 32 的编号。
 
@@ -109,10 +116,10 @@ layer 是我在哪一层，mask 是我扫描哪些层。先在项目设置里给
 | 敌人攻击判定 Area2D | enemy_hitbox | player |
 | 拾取物 Area2D | 无 | player |
 
-- Area2D 作为检测方只设 mask，自己不需要在任何 layer 里，除非别的 Area2D 要检测它。
-- 代码里改单个位：`set_collision_layer_value(2, true)`、`set_collision_mask_value(1, true)`，编号从 1 起。
-- 函数参数里的位掩码是 `1 << (层号 - 1)`，全部层是 `0xffffffff`。
-- 敌人之间不想互相挤：敌人的 mask 里不放 enemy 层。
+- 检测方 Area2D 只设 mask，除非别的 Area2D 要检测它
+- 改单个位：`set_collision_layer_value(2, true)`，编号从 1 起
+- 函数参数里的位掩码是 `1 << (层号 - 1)`，全部层 `0xffffffff`
+- 敌人互不挤：敌人的 mask 不放 enemy 层
 
 ### Area2D
 
@@ -131,10 +138,11 @@ func _on_body_entered(body: Node2D) -> void:
 	_shape.set_deferred("disabled", true)
 ```
 
-- 信号回调在物理查询期间触发，禁用形状、改 `monitoring` 用 `set_deferred`，或 `call_deferred`。
-- `get_overlapping_bodies` 每个物理步更新一次，刚移动完立刻查不到，优先用信号。
-- `monitoring` 是我检测别人，`monitorable` 是别人能检测我。
-- 撞 TileMapLayer 时 `body_entered` 的参数是 `TileMapLayer`，不是格子。需要格子见 references/tilemaplayer.md。
+- `monitoring` 是我检测别人，`monitorable` 是别人能检测我
+- 信号回调里禁用形状、改 `monitoring` 用 `set_deferred`
+- `get_overlapping_bodies` 每物理步更新一次，刚移动完查不到，优先用信号
+- 撞 TileMapLayer 时 `body_entered` 的参数是 `TileMapLayer`，不是格子
+- 回查格子见 [references/tilemaplayer.md](references/tilemaplayer.md)
 
 ### 射线与空间查询
 
@@ -177,22 +185,30 @@ func _physics_process(_delta: float) -> void:
 		print(point, hit.collider)
 ```
 
-- 节点 `RayCast2D.target_position` 相对自己，`exclude_parent` 默认 true 排除父级碰撞体。同一物理步里改了 `target_position` 或位置就要读结果，先 `force_raycast_update`。`enabled` 为 false 时 `force_raycast_update` 仍然有效。`ShapeCast2D` 对应 `force_shapecast_update`，要先给 `shape`。
-- `intersect_ray` 结果是字典，没命中为空，命中有 `position` `normal` `collider` `collider_id` `rid` `shape`。`intersect_point` 与 `intersect_shape` 返回字典数组，没有 `position`，第二个参数 `max_results` 默认 32。
-- 查询参数的 mask 默认全部层，节点的 `collision_mask` 默认只有第 1 层。
-- `ShapeCast2D`、`intersect_shape`、`intersect_point` 的完整写法、C#、结果字段：references/physics-queries.md。
+- `RayCast2D.target_position` 相对自己
+- `exclude_parent` 默认 true，排除父级碰撞体
+- 同一物理步改了位置要读结果，先 `force_raycast_update()`
+- `enabled` 为 false 时 `force_raycast_update()` 仍有效
+- 查询参数的 mask 默认全部层，节点的 `collision_mask` 默认只有第 1 层
+
+- `intersect_ray` 返回字典，没命中为空
+- `intersect_point` `intersect_shape` 返回字典数组，无 `position`
+- ShapeCast2D、范围与点查询、结果字段见 [references/physics-queries.md](references/physics-queries.md)
 
 ### TileMapLayer
 
-- 新代码一律 `TileMapLayer`，一层一个节点，多层靠多个节点。旧 `TileMap` 在编辑器里一键转换。
-- 读写：`set_cell(coords, source_id, atlas_coords)`、`erase_cell`、`get_cell_tile_data(coords).get_custom_data("name")`、`local_to_map`、`map_to_local`。
-- 碰撞、导航、遮挡、自定义数据、地形都在 TileSet 里先建对应层再给每块瓦片填。
-- 自动连接用 `set_cells_terrain_connect`，不要自己写邻格位掩码。运行时挖掉地形格子也用它，terrain 传 -1，`erase_cell` 不刷新邻格。手写 `.tscn` 的 terrain 属性与 peering bit 取值表：references/tilemaplayer.md。
-- 带逻辑的物件如宝箱、火把用 TileSet 的 Scenes Collection 源，或直接放场景，不要在 `_draw` 里模拟。
-- 手写 `.tscn` 预置格子用无头脚本 `set_cell` 加 `ResourceSaver.save` 生成，手编 `tile_map_data` 头 2 字节必须是 0，否则整层读成 0 格：references/tilemaplayer.md。
-- 完整表格、运行时改瓦片、碰撞回查格子、Y 排序：references/tilemaplayer.md。
+一层一个节点，多层靠多个节点，旧 `TileMap` 在编辑器里一键转换。
 
-### Camera2D 与 Parallax2D
+- 读写用 `set_cell`、`erase_cell`、`get_cell_tile_data`、`local_to_map`
+- 地形接边用 `set_cells_terrain_connect`，不手写位掩码，挖掉时 terrain 传 -1
+- `erase_cell` 不刷新邻格地形
+- 碰撞、导航、遮挡、自定义数据、地形先在 TileSet 建层，再给瓦片填
+- 宝箱、火把等带逻辑物件用 Scenes Collection 源，或直接放场景
+- 预置格子用无头脚本 `set_cell` 加 `ResourceSaver.save` 生成
+- 手编 `tile_map_data` 头 2 字节须为 0，否则整层读成 0 格
+- 配置表、peering bit、运行时改瓦片、Y 排序见 [references/tilemaplayer.md](references/tilemaplayer.md)
+
+### Camera2D
 
 ```ini
 [node name="Camera2D" type="Camera2D" parent="Player"]
@@ -204,87 +220,76 @@ limit_right = 2560
 limit_bottom = 720
 ```
 
-- 相机做玩家子节点，跟随、边界、平滑、死区都是内置。`limit_*` 是整数像素。
-- `limit_enabled` 自 4.5 起才有，4.4 上限制总是启用。
-- 震屏改 `offset` 不改节点位置，`offset` 可以越过 limit。噪声用 `FastNoiseLite`。
-- 复活、传送这类瞬移，在设置 `global_position` 的那段代码里紧接着调相机的 `reset_smoothing`，否则相机飞过去。同一帧调即可，4.7.2 实测下一帧就到位。不要在相机里每帧比较位移距离猜是否传送，冲刺快了会误判，阈值大了又漏判。
-- 跟随物理角色且画面抖：`process_callback` 改 `CAMERA2D_PROCESS_PHYSICS`，或打开 `physics/common/physics_interpolation`。
-- `zoom` 大于 1 是放大，视野变小。
-- 视差背景用 `Parallax2D`（4.3+）：子节点贴图左上角放 `(0, 0)`，`scroll_scale` 小于 1 是远景，`repeat_size` 填图的尺寸，缩小视野时加大 `repeat_times`。
-- 完整震屏代码、从 TileMapLayer 算 limit、Parallax2D 摆法和尺寸问题：references/camera-parallax.md。
+- 相机做玩家子节点，跟随、边界、平滑、死区都内置
+- `limit_*` 是整数像素
+- 震屏改 `offset` 不改节点位置，`offset` 可越过 limit，噪声用 `FastNoiseLite`
+- 复活、传送后同一段代码里紧接着调 `reset_smoothing()`
+- 不在相机里比较位移距离猜传送，冲刺会误判
+- 视差背景用 `Parallax2D` 4.3+，`scroll_scale` 小于 1 是远景
+- 画面抖、`zoom`、完整震屏、算 limit、Parallax2D 摆法见 [references/camera-parallax.md](references/camera-parallax.md)
 
-### y_sort_enabled 与 z_index
+### 绘制顺序
 
-- 俯视角让下方的物体盖住上方：共同父节点开 `y_sort_enabled`，子节点按 Y 排序。排序依据是节点原点，所以角色原点放脚底。
-- 开了的父节点下，子节点自己没开时它的整棵子树作为一个整体参与排序。
-- Y 排序只在相同 `z_index` 的节点之间生效。
-- `z_index` 默认相对父节点累加，`z_as_relative` 关掉才是绝对值。UI 和特效层用 CanvasLayer，不靠 z_index 堆高。
-- 同级不排序时，场景树里靠后的画在上面。
+| 工具 | 规则 |
+|---|---|
+| `y_sort_enabled` | 共同父节点开，子节点按原点 Y 排序，角色原点放脚底 |
+| 子节点未开 y_sort | 整棵子树作为一个整体参与排序 |
+| `z_index` | Y 排序只在同 `z_index` 间生效，默认相对父节点累加 |
+| `z_as_relative` | 关掉后 `z_index` 是绝对值 |
+| 同级不排序 | 场景树里靠后的画在上面 |
+| `CanvasLayer` | 不随 Camera2D 移动缩放，`layer` 大的在上，负数在世界后 |
 
-### CanvasLayer
-
-- HUD、暂停菜单、转场放 `CanvasLayer`，不随 Camera2D 移动缩放。`layer` 大的在上，负数在世界后面。
-- 同一个 `layer` 值的多个 CanvasLayer 前后顺序不确定，别靠它。
-- 想让 CanvasLayer 里的东西跟着世界走并带深度感：`follow_viewport_enabled` 加 `follow_viewport_scale`。
+- HUD、暂停菜单、转场放 CanvasLayer，不靠 `z_index` 堆高
+- 同一 `layer` 值的多个 CanvasLayer 前后顺序不确定
+- 跟着世界走带深度感：`follow_viewport_enabled` 加 `follow_viewport_scale`
 
 ### 像素风
 
-```ini
-[display]
+| 路线 | 设置 |
+|---|---|
+| 低分辨率整体放大 | `display/window/stretch/mode` 设 `viewport`，`display/window/stretch/scale_mode` 设 `integer` |
+| 高分辨率加取整 | `canvas_items`，开 `rendering/2d/snap/snap_2d_transforms_to_pixel` |
 
-window/size/viewport_width=640
-window/size/viewport_height=360
-window/stretch/mode="viewport"
-window/stretch/scale_mode="integer"
+- 两条路线都把 `rendering/textures/canvas_textures/default_texture_filter` 设 0 即 Nearest
+- 4.7 新建项目默认 `canvas_items` 加 `expand`，要手动改
+- `Sprite2D.centered` 默认 true，奇数尺寸贴图落在半像素上变形
+- 完整设置、抖动排查、字体、光影分辨率见 [references/pixel-art.md](references/pixel-art.md)
 
-[rendering]
-
-textures/canvas_textures/default_texture_filter=0
-```
-
-- 设置路径：`display/window/stretch/mode`、`display/window/stretch/scale_mode`、`rendering/textures/canvas_textures/default_texture_filter`、`rendering/2d/snap/snap_2d_transforms_to_pixel`、`rendering/2d/snap/snap_2d_vertices_to_pixel`。
-- 4.7 新建项目默认 `canvas_items` 加 `expand`，像素风项目要手动改成 `viewport`。
-- 取整两个设置官方不建议同开，只开 `snap_2d_transforms_to_pixel`。取整与相机平滑一起开会更不平滑。
-- `Sprite2D.centered` 默认 true，奇数尺寸贴图会落在半像素上变形。
-- 抖动排查、字体、光影分辨率、HDR：references/pixel-art.md。
-
-### 光照、离屏、寻路、自绘、泛光
-
-这几块的最短代码放 references，需求出现时去读。
+### 光照、离屏、寻路、自绘
 
 | 需求 | 要点 | 文件 |
 |---|---|---|
-| 2D 光照与阴影 | `CanvasModulate` 压暗，`PointLight2D` 必须有 `texture`，`LightOccluder2D` 投影 | references/lighting-glow.md |
-| 泛光与 HDR 2D | `rendering/viewport/hdr_2d` 加 `WorldEnvironment`，`modulate` 大于 1 发光 | references/lighting-glow.md |
-| 离屏销毁与暂停 | `VisibleOnScreenNotifier2D`，`VisibleOnScreenEnabler2D` | references/navigation-culling.md |
-| 寻路 | `NavigationRegion2D` 烘焙，`NavigationAgent2D` 每物理帧取 `get_next_path_position` | references/navigation-culling.md |
-| 线、多边形、网格线 | `Line2D`、`Polygon2D`、`_draw` 加 `queue_redraw` | references/drawing.md |
+| 2D 光照与阴影 | `CanvasModulate` 压暗，`PointLight2D` 必须有 `texture`，`LightOccluder2D` 投影 | [lighting-glow.md](references/lighting-glow.md) |
+| 泛光与 HDR 2D | `rendering/viewport/hdr_2d` 加 `WorldEnvironment`，`modulate` 大于 1 发光 | [lighting-glow.md](references/lighting-glow.md) |
+| 离屏销毁与暂停 | `VisibleOnScreenNotifier2D`，`VisibleOnScreenEnabler2D` | [navigation-culling.md](references/navigation-culling.md) |
+| 寻路 | `NavigationRegion2D` 烘焙，`NavigationAgent2D` 每物理帧取 `get_next_path_position` | [navigation-culling.md](references/navigation-culling.md) |
+| 线、多边形、网格线 | `Line2D`、`Polygon2D`、`_draw` 加 `queue_redraw` | [drawing.md](references/drawing.md) |
 
 ## 陷阱
 
-- `TileMap`、`ParallaxBackground`、`ParallaxLayer` 已弃用，旧教程里常见，别照抄。
-- 俯视角忘了 `MOTION_MODE_FLOATING`：默认 grounded 模式按 `up_direction` 区分地面与墙并对斜坡加减速，floating 模式所有碰撞按墙处理，滑动速度恒定。
-- 碰撞形状的 `disabled` 官方要求用 `set_deferred` 改，信号回调里直接改容易出错。
-- `direct_space_state` 在 `_process` 或 `_input` 里取：默认设置下不报错但只反映上一个物理步，开了 `physics/2d/run_on_separate_thread` 就报 `Space state is inaccessible` 并返回 null。查询放进 `_physics_process`，输入事件里只记标志。
-- `PhysicsRayQueryParameters2D` 不会自动排除发射者，射线从体内出发加 `hit_from_inside` 或穿过自己的形状都会命中自己，`exclude` 填 `[get_rid()]`。节点 `RayCast2D` 才有 `exclude_parent`。
-- `collide_with_areas` 在 `RayCast2D`、`ShapeCast2D` 和三种 query 参数里默认都是 false，射线与点查询打不到 `Area2D`，受击框用 Area2D 时要手动开。
-- `Area2D` 要检测 TileMapLayer 或 StaticBody2D，对方的 layer 要出现在它的 mask 里，并且 TileSet 里配了碰撞形状。
-- 静止的 `Area2D` 检测不到之后生成或瞬移进来的 `StaticBody2D`，实测 `body_entered` 不触发，Area2D 自己生成或移动时才检测。会动的固体用 `AnimatableBody2D`。
-- `Camera2D.zoom` 不计入位图字体与光栅化字体的过采样，缩放后文字会糊。清晰文字放进 CanvasLayer，或开 MSDF。
-- `viewport` 拉伸模式下场景整体低分辨率渲染，精灵没有亚像素位置和旋转。需要时走 `canvas_items` 加取整。
-- 把 2D 节点每帧手算透视缩放伪 3D：位置、缩放、排序、光照都要自己维护。需要真透视、旋转镜头、光照阴影时改真 3D 加 `Sprite3D`，取舍见 godot-2d-in-3d。
-- `Sprite2D` 的切片动画用 `hframes`、`vframes` 与 `frame_coords`，朝向翻转用 `flip_h`。
-- 一格一个 `ColorRect`、手写边界夹取、手写 SmoothDamp、手写矩形与相机相交判断，都有内置替代，见先查内置。
+| 现象 | 做法 |
+|---|---|
+| 信号回调里直接改碰撞形状 `disabled` 出错 | 用 `set_deferred` |
+| `_process` 或 `_input` 里查 `direct_space_state` 结果滞后，物理单独线程时报 `Space state is inaccessible` | 查询放进 `_physics_process`，输入里只记标志 |
+| `PhysicsRayQueryParameters2D` 命中发射者自己 | `exclude` 填 `[get_rid()]`，查询不会自动排除 |
+| 射线与点查询打不到 `Area2D` | `collide_with_areas` 默认 false，手动开 |
+| Area2D 检测不到 TileMapLayer 或 StaticBody2D | 对方 layer 放进 mask，TileSet 配碰撞形状 |
+| 静止的 Area2D 检测不到后生成或瞬移进来的 StaticBody2D | 会动的固体用 `AnimatableBody2D` |
+| `Camera2D.zoom` 放大后文字糊 | 文字放进 CanvasLayer，或开 MSDF |
+| `viewport` 拉伸下精灵无亚像素位置和旋转 | 需要时改 `canvas_items` 加取整 |
+| 2D 节点每帧手算透视缩放伪 3D | 改真 3D 加 `Sprite3D`，见 godot-2d-in-3d |
 
 ## 参考
 
-- references/camera-parallax.md 相机边界、平滑死区、完整震屏、Parallax2D 尺寸与摆法
-- references/physics-queries.md ShapeCast2D、intersect_shape、intersect_point、C# 写法、结果字段
-- references/tilemaplayer.md TileSet 配置表、格子读写、地形、碰撞回查、运行时改瓦片、Y 排序
-- references/pixel-art.md 两条像素风路线、抖动排查、导入与字体、光影分辨率
-- references/lighting-glow.md 2D 光照与阴影、HDR 2D 与 glow
-- references/navigation-culling.md VisibleOnScreen 系列、NavigationAgent2D 最短用法
-- references/drawing.md Line2D、Polygon2D、_draw 的选择与写法
+- [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
+- [references/camera-parallax.md](references/camera-parallax.md)：相机边界、平滑死区、完整震屏、Parallax2D 尺寸与摆法
+- [references/bodies.md](references/bodies.md)：单向平台、下穿、推动刚体、改刚体状态
+- [references/physics-queries.md](references/physics-queries.md)：ShapeCast2D、`intersect_shape`、`intersect_point`、结果字段
+- [references/tilemaplayer.md](references/tilemaplayer.md)：TileSet 配置表、格子读写、地形、碰撞回查、运行时改瓦片、Y 排序
+- [references/pixel-art.md](references/pixel-art.md)：两条像素风路线、抖动排查、导入与字体、光影分辨率
+- [references/lighting-glow.md](references/lighting-glow.md)：2D 光照与阴影、HDR 2D 与 glow
+- [references/navigation-culling.md](references/navigation-culling.md)：VisibleOnScreen 系列、NavigationAgent2D 最短用法
+- [references/drawing.md](references/drawing.md)：Line2D、Polygon2D、`_draw` 的选择与写法
 - https://docs.godotengine.org/en/stable/tutorials/physics/ray-casting.html
 - https://docs.godotengine.org/en/stable/tutorials/2d/using_tilemaps.html
 - https://docs.godotengine.org/en/stable/tutorials/2d/2d_parallax.html
