@@ -6,6 +6,7 @@
 
 加载场景，跑若干物理帧，断言，按失败数退出。Logger 子类把引擎报错也计入失败，所以 SCRIPT ERROR 不会被漏掉。Logger 与 ScriptBacktrace 是 4.5+，4.4 上去掉计数类改用 grep。
 
+<!-- check: gdonly -->
 ```gdscript
 extends SceneTree
 
@@ -61,10 +62,12 @@ func _finish(code: int) -> void:
 	quit(code)
 ```
 
-- 30 秒的 `create_timer` 是看门狗。`_run` 里任何一行报错，整个协程会被中断而 `_finish(0)` 永远不执行，没有看门狗进程就卡住
+- 30 秒的 `create_timer` 是看门狗
+- `_run` 里一行报错整个协程中断，`_finish(0)` 不执行，没有看门狗就卡住
 - `_run` 在 `_initialize` 里不 await 地调用，协程在第一个 await 处交还控制权
 - 用 `_initialize` 不用 `_init`：自动加载节点在 `_initialize` 里已经是 `root` 的子节点，`_init` 里还没有
-- `_initialize` 返回前 `root` 不在树内，自动加载节点和 `root.add_child` 的节点 `is_inside_tree()` 为 false，`_ready` 没跑。第一个 `await` 之后才进树，`global_position`、`look_at` 这类依赖全局变换的调用放在它之后
+- `_initialize` 返回前 `root` 不在树内，`_ready` 没跑
+- 第一个 `await` 后才进树，依赖全局变换的调用放在它之后
 - 不用 `assert`：失败只打 `SCRIPT ERROR: Assertion failed` 并中断所在函数，退出码不变，release 导出里整条被忽略
 - `_log_error` 可能在其他线程调用，所以计数加了 `Mutex`
 - 运行 `bash` 命令见 SKILL.md 的 `gdrun`
@@ -73,6 +76,7 @@ func _finish(code: int) -> void:
 
 遍历工程，逐个 `load`。缺失 `ext_resource` 的场景仍然返回非 null，所以检查输出里的 ERROR 才是判据，null 检查只能抓到文件不存在这类情况。
 
+<!-- check: gdonly -->
 ```gdscript
 extends SceneTree
 
@@ -127,6 +131,7 @@ exit $fail
 
 ## 点按钮与按键
 
+<!-- check: gdonly -->
 ```gdscript
 extends SceneTree
 
@@ -176,6 +181,7 @@ headless 的根窗口第一帧之后只有 64x64，窗口外的坐标进不了 h
 
 只能在非 headless 下。
 
+<!-- check: gdonly -->
 ```gdscript
 extends SceneTree
 
@@ -207,6 +213,7 @@ xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --audio-driver Dummy --ren
 
 ## 运行时查 API
 
+<!-- check: gdonly -->
 ```gdscript
 extends SceneTree
 

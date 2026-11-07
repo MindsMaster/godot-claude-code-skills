@@ -1,4 +1,6 @@
-# CI、导出、C# 与测试框架
+# CI、导出与测试框架
+
+下载 Godot 二进制、CI 配置、导出验证、GUT 与 gdUnit4 命令行。
 
 ## 下载 Godot 二进制
 
@@ -16,7 +18,9 @@ URL 前缀 `https://github.com/godotengine/godot/releases/download/4.7.2-stable/
 zip 内容不同：
 
 - 标准版：一个文件 `Godot_v4.7.2-stable_linux.x86_64`
-- mono 版：目录 `Godot_v4.7.2-stable_mono_linux_x86_64/`，里面可执行文件叫 `Godot_v4.7.2-stable_mono_linux.x86_64`（下划线变点），旁边有 `GodotSharp/` 目录。可执行文件必须与 `GodotSharp/` 同目录
+- mono 版目录 `Godot_v4.7.2-stable_mono_linux_x86_64/`
+- 可执行文件 `Godot_v4.7.2-stable_mono_linux.x86_64`，下划线变点
+- 可执行文件必须与旁边的 `GodotSharp/` 目录同目录
 
 ```bash
 V=4.7.2
@@ -55,30 +59,16 @@ godot --headless --no-header --path . --export-release "Linux" build/game.x86_64
 
 - `export_presets.cfg` 必须在工程根目录，预设名与第一个参数完全一致。不存在时退出码 1
 - `--export-pack` 不需要导出模板，实测退出码 0，输出 `[ DONE ] savepack` 和一串 `Storing File:`
-- `--export-release` 和 `--export-debug` 需要模板。缺失时输出 `No export template found at the expected path:` 后面跟路径，退出码 1。本机标准版的路径是 `~/.local/share/godot/export_templates/4.7.2.stable/linux_release.x86_64`，以报错里打印的路径为准
+- `--export-release` 与 `--export-debug` 需要模板
+- 缺模板输出 `No export template found at the expected path:` 加路径，退出码 1
+- 模板路径以报错里打印的为准，如 `~/.local/share/godot/export_templates/4.7.2.stable/`
 - 输出目录须已存在
-- 导出后 `res://` 里的场景变成 `.remap`，运行时靠资源加载器透明处理，用 `DirAccess` 扫目录的代码会在导出后失效，这类问题只有跑导出包才能发现
+- 导出后场景变成 `.remap`，加载器透明处理
+- 用 `DirAccess` 扫目录的代码导出后失效，只有跑导出包才发现
 
 ## C# 工程
 
-下文 `godot_mono` 指 mono 版可执行文件。标准版 Godot 不加载 `.cs`：运行带 C# 脚本的场景输出 `ERROR: No loader found for resource: res://Hello.cs (expected type: Script)`。必须用 mono 版，且先构建：
-
-```bash
-dotnet build
-godot_mono --headless --no-header --path . --import
-godot_mono --headless --no-header --path . main.tscn --quit-after 30
-```
-
-实测：
-
-- `dotnet build` 在 `Godot.NET.Sdk/4.7.2` 的工程上首次约 9 秒，之后约 2 秒。编译错误输出 `Hello.cs(8,17): error CS0029: ...`，退出码 1
-- 先 `dotnet build` 再运行，`GD.Print` 的输出和 `GetTree().Quit(4)` 的退出码 4 都正常
-- 没构建就运行：输出 `Cannot instantiate C# script because the associated class could not be found`，之后进程卡住，需要 `timeout -s KILL`
-- 找不到 dotnet：输出 `Unable to load .NET runtime, specifically hostfxr` 后崩溃（134）。设 `DOTNET_ROOT` 并把 dotnet 放进 `PATH`
-- 也可以 `godot_mono --headless --path . --build-solutions --quit` 代替 `dotnet build`，编译失败时退出码 1，输出 `ERROR: An EditorPlugin build callback failed.`
-- mono 版 `--import` 的输出里有 `ERROR: Parameter "singleton" is null.`（`is_cmdline_mode`），无害，grep 时排除
-
-C# 的断言写法与 GDScript 一样：自己计数，`GetTree().Quit(code)`。C# 通用规则见 godot-csharp。
+mono 版构建与运行的实测见 [csharp.md](csharp.md)。
 
 ## 测试框架
 
@@ -103,7 +93,8 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit
 - `-gexit` 跑完退出。`--headless` 下 9.7.1 不加也会退出，有窗口时不加会一直开着
 - 退出码：全过为 0，有失败为 1，只有 pending 为 0。测试函数里的运行时报错算失败
 - 选项也可以放 `res://.gutconfig.json`
-- 官方文档示例用了 `-d`，无人值守时去掉。实测 9.7.1 加 `-d` 且 stdin 为空时，测试里一出运行时错误，后面的测试不再跑，也不打印汇总，退出码 0
+- 官方示例带 `-d`，无人值守时去掉
+- 实测 9.7.1 带 `-d` 且 stdin 为空：出错后不再跑后续测试，不打汇总，退出码 0
 
 gdUnit4 命令行，选项来自其文档的 `-help` 输出：
 
@@ -112,11 +103,28 @@ export GODOT_BIN=/path/to/godot
 ./addons/gdUnit4/runtest.sh --headless --ignoreHeadlessMode -a ./test
 ```
 
-- `runtest.sh` 自己不加 `--headless`，没有显示时起不来，退出码 1。加了 `--headless` 还要加 `--ignoreHeadlessMode`，否则拒绝运行，退出码 103。headless 下不传递 InputEvent，测试要模拟输入时改用 `xvfb-run -a ./addons/gdUnit4/runtest.sh -a ./test`
-- `-a` 加测试目录或套件，可重复。`-i` 忽略某套件或用例，`-c` 失败后继续（默认第一个失败就中止），`-conf` 指定配置文件
-- 退出码：全过为 0，有失败或测试里的运行时报错为 100，有 orphan 节点为 101，headless 未放行为 103，发现测试时有脚本错误为 105。`gdrun` 之类只认 0 的包装要把 101 单独处理
+- `runtest.sh` 不自带 `--headless`，无显示时退出码 1
+- 加 `--headless` 还要加 `--ignoreHeadlessMode`，否则退出码 103
+- headless 下不传递 InputEvent，模拟输入时用 `xvfb-run -a ./addons/gdUnit4/runtest.sh -a ./test`
+| 参数 | 作用 |
+|---|---|
+| `-a` | 测试目录或套件，可重复 |
+| `-i` | 忽略某套件或用例 |
+| `-c` | 失败后继续，默认首个失败即中止 |
+| `-conf` | 指定配置文件 |
+
+| 退出码 | 含义 |
+|---|---|
+| 0 | 全过 |
+| 100 | 有失败或运行时报错 |
+| 101 | 有 orphan 节点 |
+| 103 | headless 未放行 |
+| 105 | 发现测试时有脚本错误 |
+
+- 只认 0 的包装如 `gdrun` 要单独处理 101
 - `runtest.sh` 读 `GODOT_BIN` 或 `--godot_binary`，检测到 mono 版会先执行 `dotnet build --debug`
-- 它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`，避免脚本解析错误时本地调试器陷入无限的 `debug>` 循环。自己拼命令行时照抄这个做法
+- 它启动 Godot 时带 `-d --remote-debug tcp://127.0.0.1:0`
+- 这样解析错误时不陷入本地 `debug>` 循环，自己拼命令照抄
 - 因为端口 0，每次运行都会打印两行无害的 `ERROR:`：`The remote port number must be between 1 and 65535` 与 `Remote Debugger: Unable to connect to host`。套 `gdrun` 时具体排除这两行
 
 两个框架都把测试函数里的运行时报错计为失败。测试函数以外的报错靠 `gdrun` 的 grep 兜底，grep 照样要留。
