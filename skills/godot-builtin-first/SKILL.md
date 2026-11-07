@@ -5,22 +5,20 @@ description: 在 Godot 4 项目里动手写任何功能之前先用，看到 pro
 
 # 先用内置
 
-Godot 的节点、资源和编辑器已经覆盖了大部分游戏功能。自己写之前先确认三件事：版本、内置方案、验证方式。细节去对应的细分 skill。
+动手写功能前的流程：读项目版本与语言、查引擎内置方案、写完验证。具体做法在各细分 skill。
 
-## 第一步 读项目
+## 范围
 
-```
-grep -E 'config/features|run/main_scene|stretch|renderer|physics_engine' project.godot
-ls *.csproj *.sln 2>/dev/null
-```
+| 不含 | 去哪 |
+|---|---|
+| 各领域具体做法 | 下表去哪一列 |
+| GDScript 语法、类型、警告 | godot-gdscript |
+| C# 通用规则 | godot-csharp |
+| 无头运行命令与退出码 | godot-headless-testing |
 
-- `config/features` 里的版本号决定能用哪些 API。本套 skill 以 4.7.2 为准，标了 `4.5+` 之类的要对照项目版本
-- 有 `.csproj` 是 C# 工程，改完先 `dotnet build`
-- `rendering/renderer/rendering_method` 决定能用哪些渲染特性，没写这一项就是默认的 Forward+。SDFGI VoxelGI 体积雾只有 Forward+ 有，Mobile 和 Compatibility 都没有
+## 先查内置
 
-## 第二步 查内置
-
-| 想做 | 用这个 | 去哪个 skill |
+| 需求 | 用这个 | 去哪 |
 | --- | --- | --- |
 | 节点树 组件 引用 状态机 | PackedScene、`@export` 节点引用、`%UniqueName`、信号、分组 | godot-scene-architecture |
 | 新做关卡 背景 NPC 道具 UI 自查内容是摆的还是运行时建的 | 节点存进 `.tscn`、`@tool` 自绘节点、预制场景、存盘导出数据 | godot-scene-authoring |
@@ -67,25 +65,34 @@ ls *.csproj *.sln 2>/dev/null
 | GDScript 写法 | 静态类型 信号 await | godot-gdscript |
 | C# 写法 | 源码生成器 `StringName` 缓存 生命周期 | godot-csharp |
 
-表里没有的需求，先在类参考里搜关键词：
+## 做法
+
+### 读项目
+
+```
+grep -E 'config/features|run/main_scene|stretch|renderer|physics_engine' project.godot
+ls *.csproj *.sln 2>/dev/null
+```
+
+| 项 | 决定什么 |
+|---|---|
+| `config/features` 版本号 | 能用哪些 API，本套 skill 以 4.7.2 为准，标了 `4.5+` 的对照项目版本 |
+| 有 `.csproj` | C# 工程：读各 skill 的 `references/csharp.md`，改完先 `dotnet build` |
+| `rendering/renderer/rendering_method` | 渲染特性，不写即 Forward+ |
+
+- SDFGI、VoxelGI、体积雾只有 Forward+ 有，Mobile 和 Compatibility 都没有
+
+### 查类参考
+
+表里没有的需求，在类参考里搜关键词：
 
 ```
 grep -ril '<关键词>' <godot源码>/doc/classes | head
 ```
 
-或者打开 `https://docs.godotengine.org/en/stable/classes/class_<小写类名>.html`。
+或打开 `https://docs.godotengine.org/en/stable/classes/class_<小写类名>.html`。
 
-## 第三步 验证
-
-写完至少做到：
-
-- GDScript：新增 `class_name` 或资源后先 `godot --headless --path . --import`，再对每个改动的脚本 `godot --headless --path . --check-only -s x.gd`
-- C#：`dotnet build` 无错误
-- 改到运行时行为：写一个冒烟场景无头跑几帧并断言，见 godot-headless-testing
-
-判失败不能只看退出码。`--import` 打开工程后退出码恒为 0，导入错误和脚本语法错误都一样，运行时 `SCRIPT ERROR` 和 `--quit-after` 到点也是 0。每条命令的输出都要 grep `SCRIPT ERROR|Parse Error|^ERROR:`，有就算失败。现成的 `gdrun` 函数和退出码表见 godot-headless-testing。
-
-不确定某个方法是否存在时，不要猜，查：
+不确定方法是否存在时查，不猜：
 
 ```
 mkdir -p /tmp/godot-doc
@@ -93,19 +100,41 @@ godot --headless --doctool /tmp/godot-doc
 grep -l 'name="move_and_slide"' /tmp/godot-doc/doc/classes/*.xml
 ```
 
-导出的 XML 说明文字是空的，只能确认名字和签名。要看行为说明去类参考网页，或者在脚本里用 `ClassDB.class_has_method`。
+- 导出的 XML 说明为空，只能确认名字和签名
+- 看行为说明去类参考网页，或脚本里 `ClassDB.class_has_method`
 
-## 什么时候可以自己写
+### 验证
 
-内置方案不满足硬约束时才自研，并在代码里留一条注释写明约束：
+| 改动 | 至少做 |
+|---|---|
+| GDScript | 新增 `class_name` 或资源后先 `godot --headless --path . --import`，再对改动脚本 `--check-only -s x.gd` |
+| C# | `dotnet build` 无错误 |
+| 运行时行为 | 冒烟场景无头跑几帧并断言，见 godot-headless-testing |
 
-- 锁步联机或回放要逐帧复现：内置物理不保证确定性，官方物理介绍页明确写了无论哪个物理引擎都一样。模拟用自己的定点数和计时，表现层再用内置节点
-- 要按任意帧 seek 重算表现：`Tween` 没有 seek，`custom_step` 只能向前推，`AnimationPlayer.seek` 可以跳到任意秒，先试它
-- profiler 证明内置节点是瓶颈：大量子弹改用 `PhysicsServer2D` 和 `RenderingServer`，自己管 RID 释放，先试 `MultiMesh` 和对象池，见 godot-performance
+- 不能只看退出码，`--import`、运行时 `SCRIPT ERROR`、`--quit-after` 到点都返回 0
+- 每条命令的输出 grep `SCRIPT ERROR|Parse Error|^ERROR:`，有就算失败
+- 现成的 `gdrun` 函数和退出码表见 godot-headless-testing
+
+### 自研条件
+
+内置方案不满足硬约束时才自己写，并在代码里留一条注释写明约束：
+
+| 约束 | 做法 |
+|---|---|
+| 锁步联机或回放要逐帧复现 | 内置物理不保证确定性。模拟用自己的定点数和计时，表现层用内置节点 |
+| 按任意帧 seek 重算表现 | `Tween` 无 seek，先试 `AnimationPlayer.seek` |
+| profiler 证明内置节点是瓶颈 | 先试 `MultiMesh` 和对象池，再用 `PhysicsServer2D` `RenderingServer` 自管 RID，见 godot-performance |
 
 ## 陷阱
 
-- 网上大量教程是 Godot 3，`KinematicBody2D`、`yield`、`export var`、`onready var`、`instance()` 都是旧写法
-- `TileMap`、`ParallaxBackground`、`ParallaxLayer` 在 4.7 已弃用，新代码用 `TileMapLayer`、`Parallax2D`
-- 代码里 `new` 一整棵节点树会让场景在编辑器里不可见不可调，能做成 `.tscn` 的就做成 `.tscn`
-- 静态字段或字典缓存 `Texture2D`、`Material` 会持有强引用，资源不随引用归零释放，而且 `ResourceLoader` 已经按路径缓存
+| 现象 | 做法 |
+|---|---|
+| 照网上教程写出 `KinematicBody2D` `yield` `export var` `onready var` `instance()` | 这些是 Godot 3 写法，换成 4 的 `CharacterBody2D` `await` `@export` `@onready` `instantiate()` |
+| 用了 `TileMap` `ParallaxBackground` `ParallaxLayer` | 4.7 已弃用，用 `TileMapLayer` `Parallax2D` |
+| 代码 `new` 一整棵节点树，编辑器里看不到 | 能做成 `.tscn` 的做成 `.tscn`，见 godot-scene-authoring |
+| 静态字段或字典缓存 `Texture2D` `Material` 不释放 | 强引用让资源不随引用归零释放，`ResourceLoader` 已按路径缓存，不再自建缓存 |
+
+## 参考
+
+- https://docs.godotengine.org/en/stable/classes/index.html
+- https://docs.godotengine.org/en/stable/tutorials/best_practices/index.html
