@@ -30,6 +30,7 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 
 分组：
 
+<!-- check: gdonly -->
 ```gdscript
 @export_category("Main")
 @export_group("Combat", "combat_")
@@ -38,15 +39,19 @@ SKILL.md 讲了用法和陷阱，这里按类别列注解。示例是片段，�
 @export var combat_ranged_range := 5.0
 ```
 
-- `@export_group` 之后的导出都属于该组，`@export_group("")` 退出。第二参数是属性名前缀，只收带该前缀的属性，遇到第一个不带前缀的属性即结束，Inspector 里省略该前缀
+- `@export_group` 之后的导出都属于该组，`@export_group("")` 退出
+- 第二参数是属性名前缀，只收带该前缀的属性，Inspector 里省略前缀
+- 写了前缀时，遇到第一个不带前缀的属性即结束该组
 - 组不能嵌套，子组用 `@export_subgroup`
-- 开关整个组的布尔属性用 `@export_custom(PROPERTY_HINT_GROUP_ENABLE, "")`，4.5+，只在组或子组内有效，组关闭时隐藏组内其他属性，hint_string 写 `"checkbox_only"` 取消隐藏
+- 开关整个组的布尔属性用 `@export_custom(PROPERTY_HINT_GROUP_ENABLE, "")` 4.5+，只在组内有效
+- 组关闭时隐藏组内其他属性，hint_string 写 `"checkbox_only"` 不隐藏
 
 ## 导出的约束
 
 - `@export` 没有类型标注也没有初值是解析错误
 - 导出数组的初值必须是常量表达式
-- 导出 Resource 时，场景加载就把该资源当依赖一起加载。大关卡场景、可选内容用 `@export_file` 存路径，用时再加载
+- 导出的 Resource 随场景作为依赖一起加载
+- 大关卡场景、可选内容用 `@export_file` 存路径，用时再加载
 - 非 `@tool` 脚本在编辑器里不执行，Inspector 修改导出变量时 setter 与 getter 也不运行
 - `Array[Array]` 可导出，`Array[Array[float]]` 这类嵌套类型化集合不支持
 - 在 `Resource` 里导出 `Node` 是解析错误
