@@ -156,7 +156,7 @@ default_fill.bg_color = before
 other.queue_free()
 ```
 
-## SKILL.md `StyleBoxFlat.new()`
+## references/theme.md `StyleBoxFlat.new()`
 
 ```gdscript
 await frames(2)
@@ -227,7 +227,7 @@ expect(node.tr_n("ITEM_COUNT_ONE", "ITEM_COUNT_MANY", 3) == "ITEM_COUNT_MANY", "
 expect(node.tr_n("ITEM_COUNT_ONE", "ITEM_COUNT_MANY", 1) == "ITEM_COUNT_ONE", "n 为 1 时返回单数键名")
 ```
 
-## SKILL.md `func _key_text`
+## references/focus-navigation.md `func _key_text`
 
 <!-- check: setup -->
 ```gdscript

@@ -1,24 +1,28 @@
 # 设置界面
 
-SKILL.md 讲界面怎么搭。本文讲设置的生效与保存时机，窗口模式与尺寸怎么确认和还原，以及失焦时自动暂停。音量换算见 godot-audio，键位重绑见 godot-input，`ConfigFile` 读写见 godot-resources-data。
+设置的生效与保存时机、底栏约定、窗口模式与尺寸的确认和还原、窗口陷阱、启动参数恢复入口、失焦暂停。音量换算见 godot-audio，键位重绑见 godot-input，`ConfigFile` 读写见 godot-resources-data。
 
 ## 生效与保存
 
-改值当下就生效，玩家才能边听边调音量、边看边调亮度。什么时候写盘有两种常见做法，各有取舍，没有哪种在所有游戏里都对。按平台和玩家习惯选一种，整个设置界面保持一致。
+改值当下生效，写盘时机二选一，整个设置界面保持一致：
 
 | 做法 | 写盘 | 离开设置 | 取舍 |
 |---|---|---|---|
-| 离开即保存 | 离开设置界面时 | 直接离开 | 操作最少。改错了只能手动改回或恢复默认 |
-| 按应用保存 | 点应用时 | 有未保存的改动时问应用、放弃、取消 | 试完可以整体放弃。多一个按钮和一个弹框 |
+| 离开即保存 | 离开设置界面时 | 直接离开 | 操作最少，改错只能手动改回或恢复默认 |
+| 按应用保存 | 点应用时 | 有未保存改动时问应用、放弃、取消 | 可整体放弃，多一个按钮和一个弹框 |
 
-两种做法共同的部分：
+| 规则 | 说明 |
+|---|---|
+| 窗口模式和尺寸 | 点应用才切换并倒计时确认，见下文 |
+| 保存或放弃的时机 | 界面隐藏和退出场景树时，不每拖一格写一次 |
+| 键位与窗口重设 | 与上次应用的值比对，变了才重设 |
+| 恢复默认 | 只重置当前分页，先弹确认框，默认焦点在取消 |
 
-- 窗口模式和窗口尺寸不随改值切换，点应用后才切换并倒计时确认，见下一节
-- 保存或放弃放在界面隐藏和退出场景树时。返回键、Esc、宿主隐藏父节点走隐藏，`queue_free`、切场景、退出程序只走退出场景树，不发 `NOTIFICATION_VISIBILITY_CHANGED`。不要每拖一格滑块写一次文件
-- 每次改值都调同一个 apply 时，键位和窗口按上次应用的值比对，变了才重设。否则拖音量滑块也会重建 InputMap，还会把玩家手动拖过的窗口尺寸拉回去
-- 恢复默认只重置当前分页，按下先弹确认框，默认焦点放在取消上
+- 返回键、Esc、宿主隐藏父节点走隐藏
+- `queue_free`、切场景、退出程序只走退出场景树，不发 `NOTIFICATION_VISIBILITY_CHANGED`
+- 不比对就重设时，拖音量滑块也重建 InputMap，并把玩家拖过的窗口拉回去
 
-下面是按应用保存的面板。`back()` 遇到未保存的改动时发 `leave_blocked`，由宿主弹框，应用选 `apply()` 再 `hide()`，放弃选 `discard()` 再 `hide()`。改成离开即保存时，把 `_notification` 里的 `discard()` 换成 `_save(draft)`，`back()` 直接 `hide()`。
+按应用保存的面板：
 
 ```gdscript
 extends Control
@@ -87,35 +91,144 @@ func _save(values: Dictionary) -> void:
 	config.save(SETTINGS_PATH)
 ```
 
-- `Dictionary` 的 `==` 和 `!=` 逐项比较内容，嵌套的字典和数组也比较到底，判断有没有未保存的改动不用自己遍历
-- 宿主强制关闭设置时按放弃处理，玩家没点应用的改动不落盘
+```csharp
+public partial class SettingsPanel : Control
+{
+    [Signal] public delegate void LeaveBlockedEventHandler();
+
+    private const string SettingsPath = "user://settings.cfg";
+
+    public Godot.Collections.Dictionary Draft { get; private set; } = new();
+    private Godot.Collections.Dictionary _saved = new();
+    private bool _editing;
+
+    public void Open(Godot.Collections.Dictionary current)
+    {
+        _saved = current.Duplicate(true);
+        Draft = current.Duplicate(true);
+        _editing = true;
+        Show();
+    }
+
+    public void SetValue(string key, Variant value)
+    {
+        Draft[key] = value;
+        ApplyValues(Draft);
+    }
+
+    public bool HasUnsaved()
+    {
+        return !Draft.RecursiveEqual(_saved);
+    }
+
+    public void Apply()
+    {
+        Save(Draft);
+        _saved = Draft.Duplicate(true);
+    }
+
+    public void Discard()
+    {
+        Draft = _saved.Duplicate(true);
+        ApplyValues(Draft);
+    }
+
+    public void Back()
+    {
+        if (HasUnsaved())
+        {
+            EmitSignal(SignalName.LeaveBlocked);
+            return;
+        }
+        Hide();
+    }
+
+    public override void _Notification(int what)
+    {
+        bool closing = what == NotificationVisibilityChanged && !IsVisibleInTree();
+        if ((closing || what == NotificationExitTree) && _editing)
+        {
+            _editing = false;
+            if (HasUnsaved())
+            {
+                Discard();
+            }
+        }
+    }
+
+    private void ApplyValues(Godot.Collections.Dictionary values)
+    {
+        int bus = AudioServer.GetBusIndex("Master");
+        float volume = values.ContainsKey("master_volume") ? values["master_volume"].AsSingle() : 1.0f;
+        AudioServer.SetBusVolumeLinear(bus, volume);
+        AudioServer.SetBusMute(bus, volume <= 0.0f);
+    }
+
+    private void Save(Godot.Collections.Dictionary values)
+    {
+        var config = new ConfigFile();
+        foreach (KeyValuePair<Variant, Variant> pair in values)
+        {
+            config.SetValue("settings", pair.Key.AsString(), pair.Value);
+        }
+        config.Save(SettingsPath);
+    }
+}
+```
+
+- `back()` 遇到未保存改动发 `leave_blocked`，由宿主弹框
+- 宿主：应用选 `apply()` 再 `hide()`，放弃选 `discard()` 再 `hide()`
+- 改成离开即保存：`_notification` 里 `discard()` 换成 `_save(draft)`，`back()` 直接 `hide()`
+- GDScript 的 `Dictionary` 用 `==` `!=` 逐项比较，嵌套也比到底
+- C# 的 `==` 比引用，内容比较用 RecursiveEqual
+- 宿主强制关闭设置时按放弃处理
 
 ## 底栏与状态显示
 
-下面是一套常见的约定，供参考。项目已有自己的界面规范时以项目为准。
+常见约定，项目有自己的界面规范时以项目为准。
 
-- 底栏按钮常驻，暂时不可用的置灰，不随状态出现或消失。按钮出现或消失会让相邻按钮跟着移位
-- 主按钮同一时刻只有一个。按应用保存时应用是主按钮，没有改动时置灰
-- 恢复默认这类会丢掉自定义的操作放在离主按钮最远的一侧
-- 和已保存值不同的选项改文字颜色，所在分类的标签同样变色。选中状态用底色或边框表示，两种状态各用一个通道，可以同时出现。不插图标或文字，行高不变
-- 底栏按钮写上手柄键位，焦点停在哪一行都能直接触发，不用把焦点移到底栏。不要占用游戏里的暂停键，暂停键在设置界面里一般等同返回
-- 返回键在选项列表里也直接离开设置。先退回分类栏再离开要按两次，第一次看起来像没生效。分类切换交给肩键或扳机
-- 键位提示条不重复底栏按钮已经标出的操作
-- 说明栏只放当前焦点选项的说明，没有就留空，不写操作引导
+| 元素 | 约定 |
+|---|---|
+| 底栏按钮 | 常驻，不可用时置灰，不出现消失，免得相邻按钮移位 |
+| 主按钮 | 同一时刻一个，按应用保存时是应用，无改动时置灰 |
+| 恢复默认 | 放在离主按钮最远的一侧 |
+| 已改动选项 | 改文字颜色，所在分类标签同样变色 |
+| 选中状态 | 用底色或边框，与已改动各用一个通道 |
+| 底栏手柄键位 | 写在按钮上，焦点在任一行都能直接触发 |
+| 暂停键 | 不占用，设置界面里等同返回 |
+| 返回键 | 在选项列表里也直接离开设置 |
+| 分类切换 | 交给肩键或扳机 |
+| 键位提示条 | 不重复底栏已标出的操作 |
+| 说明栏 | 只放当前焦点选项的说明，没有就留空 |
+
+- 已改动标记不插图标或文字，行高不变
+- 返回先退回分类栏要按两次，第一次像没生效
 
 ## 窗口模式确认与还原
 
-做法同操作系统的显示设置：窗口模式和尺寸改值时只记下，不动窗口。玩家点应用后才切换并弹确认框，倒计时内不点保留就回到上次确认的值。
+同操作系统的显示设置：改值只记下，点应用才切换并弹确认框，倒计时内不点保留就还原。
 
-- 改值当下切窗口的话，玩家左右翻选项时窗口跟着来回切，每切一次弹一个确认框，看不清自己选到了哪个
-- 有未应用的改动时离开设置，弹框问应用、放弃、取消。应用走上面的确认流程，放弃把选项退回已确认的值再离开，取消留在设置里
-- 只有窗口相关的选项要等应用。垂直同步、帧率上限、渲染倍率这些切错了画面照样可见，改值当下生效
-- 确认前的值只在内存里，写盘只写已确认的值。倒计时期间崩溃或被结束进程，下次启动用的仍是能用的设置
-- 倒计时用 `create_timer(15.0, true, false, true)`，暂停时照走，第 4 个参数让它不受 `Engine.time_scale` 影响
-- 失焦时也要继续倒计时，玩家看不见画面时只能靠超时还原
-- 设置界面被强制关闭时丢掉未应用的窗口值，倒计时中的按还原处理
-- 方向键导航在最近的根 Control 下按距离找下一个焦点。父节点不是 Control 或设了 `top_level` 的 Control 自成一个根。确认框作为设置面板的子节点时，焦点会跳到框外的面板上。4.5+ 给背后的面板设 `focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED` 与 `mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED`，关框时改回 `FOCUS_BEHAVIOR_INHERITED` 与 `MOUSE_BEHAVIOR_INHERITED`。4.4 给框内按钮写 `focus_neighbor_*` 指向框内。确认框加到 `get_tree().root` 下自成一个根，没有这个问题
-- 设置界面放在 CanvasLayer 里时，加到 `get_tree().root` 下的确认框画在它下面，鼠标也先点到设置界面。把确认框加到同一个 CanvasLayer 或层级更高的 CanvasLayer
+| 规则 | 原因或做法 |
+|---|---|
+| 改值不立即切窗口 | 翻选项时窗口来回切，每次弹一个确认框 |
+| 只有窗口选项等应用 | 垂直同步、帧率上限、渲染倍率改值当下生效 |
+| 只写已确认的值 | 倒计时中崩溃，下次启动仍是能用的设置 |
+| 有未应用改动时离开 | 弹框问应用、放弃、取消 |
+| 设置界面被强制关闭 | 丢掉未应用的窗口值，倒计时中的按还原 |
+| 失焦时 | 继续倒计时，看不见画面只能靠超时还原 |
+
+- 倒计时 `create_timer(15.0, true, false, true)`，暂停时照走
+- 第 4 个参数让它不受 `Engine.time_scale` 影响
+- 方向键导航在最近的根 Control 下找下一个焦点
+- 父节点不是 Control、或设了 `top_level` 的 Control 自成一个根
+- 确认框作为设置面板的子节点时，焦点会跳到框外
+
+| 版本或位置 | 把焦点留在确认框里 |
+|---|---|
+| 4.5+ | 背后面板设 `focus_behavior_recursive` 与 `mouse_behavior_recursive` 为 DISABLED，关框改回 INHERITED |
+| 4.4 | 框内按钮的 `focus_neighbor_*` 指向框内 |
+| 加到 `get_tree().root` 下 | 自成一个根，没有这个问题 |
+| 设置界面在 CanvasLayer 里 | 确认框加到同一个或更高的 CanvasLayer，否则画在下面 |
 
 确认框：
 
@@ -155,6 +268,54 @@ func _resolve(keep: bool) -> void:
 		return
 	queue_free()
 	resolved.emit(keep)
+```
+
+```csharp
+public partial class DisplayConfirmDialog : Control
+{
+    [Signal] public delegate void ResolvedEventHandler(bool keep);
+
+    private const double Seconds = 15.0;
+
+    private Label _countdown;
+    private Button _keep;
+    private SceneTreeTimer _timer;
+
+    public override void _Ready()
+    {
+        _countdown = GetNode<Label>("%Countdown");
+        _keep = GetNode<Button>("%KeepButton");
+        ProcessMode = ProcessModeEnum.Always;
+        _timer = GetTree().CreateTimer(Seconds, true, false, true);
+        _timer.Timeout += () => Resolve(false);
+        _keep.Pressed += () => Resolve(true);
+        _keep.GrabFocus();
+    }
+
+    public override void _Process(double delta)
+    {
+        _countdown.Text = Tr("Reverting in %d s").Replace("%d", Mathf.CeilToInt(_timer.TimeLeft).ToString());
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (@event.IsActionPressed("ui_cancel"))
+        {
+            GetViewport().SetInputAsHandled();
+            Resolve(false);
+        }
+    }
+
+    private void Resolve(bool keep)
+    {
+        if (IsQueuedForDeletion())
+        {
+            return;
+        }
+        QueueFree();
+        EmitSignal(SignalName.Resolved, keep);
+    }
+}
 ```
 
 应用与还原：
@@ -221,19 +382,112 @@ func windowed_sizes() -> Array[Vector2i]:
 	return fitting
 ```
 
-## 窗口的陷阱
+```csharp
+public partial class DisplaySettings : Node
+{
+    private static readonly Vector2I[] Sizes = { new(1280, 720), new(1600, 900), new(1920, 1080), new(2560, 1440) };
 
-- 先 `DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)` 再设尺寸。Windows 在全屏或最大化时直接忽略尺寸设置，macOS 在窗口铺满屏幕可用区时也忽略
-- Windows 退出全屏会恢复进入全屏前的窗口位置和尺寸，切回窗口后再设一次尺寸并 `move_to_center()`
-- `WINDOW_MODE_FULLSCREEN` 与 `WINDOW_MODE_EXCLUSIVE_FULLSCREEN` 都不改显示器的显示模式，全屏时窗口尺寸列表不影响渲染分辨率。全屏时把尺寸选项灰掉。降 3D 渲染分辨率用 `Viewport.scaling_3d_scale`，2D 和 UI 照常按窗口分辨率画。`Window.content_scale_factor` 只在 `Window.content_scale_mode` 为 `Window.CONTENT_SCALE_MODE_VIEWPORT` 时降低渲染分辨率，其他模式下它是界面缩放
-- `WINDOW_MODE_EXCLUSIVE_FULLSCREEN` 在 Windows 上切换时可能黑屏片刻，切到别的程序也会触发一次切换
-- 窗口尺寸列表只留严格小于 `DisplayServer.screen_get_usable_rect()` 的档位。usable rect 已扣掉任务栏，`Window.size` 是客户区，标题栏另占高度
-- 存档里的尺寸不在当前屏幕的列表里时退到最大一档，换到小屏幕时窗口不会超出屏幕
-- 无头模式没有屏幕，usable rect 是零，列表只剩兜底的一档
+    [Export] public PackedScene ConfirmScene { get; set; }
 
-## 启动参数救不回存档
+    public DisplayServer.WindowMode ConfirmedMode { get; set; } = DisplayServer.WindowMode.Windowed;
+    public Vector2I ConfirmedSize { get; set; } = new(1280, 720);
+    public DisplayServer.WindowMode PendingMode { get; set; } = DisplayServer.WindowMode.Windowed;
+    public Vector2I PendingSize { get; set; } = new(1280, 720);
 
-`--windowed` `--fullscreen` `--resolution` 由引擎自己消费，`OS.get_cmdline_args()` 里看不到。启动时套用存档的代码会覆盖它们，玩家没法靠启动参数救回黑屏。用 `--` 之后的自定义参数做恢复入口，从 `OS.get_cmdline_user_args()` 读：
+    public bool HasPending()
+    {
+        return PendingMode != ConfirmedMode || PendingSize != ConfirmedSize;
+    }
+
+    public void DiscardPending()
+    {
+        PendingMode = ConfirmedMode;
+        PendingSize = ConfirmedSize;
+    }
+
+    public void ApplyPending()
+    {
+        DisplayServer.WindowMode mode = PendingMode;
+        Vector2I windowSize = PendingSize;
+        ApplyWindow(mode, windowSize);
+        var dialog = ConfirmScene.Instantiate<DisplayConfirmDialog>();
+        dialog.Resolved += keep =>
+        {
+            if (keep)
+            {
+                ConfirmedMode = mode;
+                ConfirmedSize = windowSize;
+            }
+            else
+            {
+                ApplyWindow(ConfirmedMode, ConfirmedSize);
+            }
+            DiscardPending();
+        };
+        GetTree().Root.AddChild(dialog);
+    }
+
+    public void ApplyWindow(DisplayServer.WindowMode mode, Vector2I windowSize)
+    {
+        if (DisplayServer.WindowGetMode() != mode)
+        {
+            DisplayServer.WindowSetMode(mode);
+        }
+        if (mode != DisplayServer.WindowMode.Windowed)
+        {
+            return;
+        }
+        List<Vector2I> sizes = WindowedSizes();
+        Vector2I target = sizes.Contains(windowSize) ? windowSize : sizes[^1];
+        Window window = GetWindow();
+        window.Size = target;
+        window.MoveToCenter();
+    }
+
+    public List<Vector2I> WindowedSizes()
+    {
+        int screen = DisplayServer.WindowGetCurrentScreen();
+        Vector2I workArea = DisplayServer.ScreenGetUsableRect(screen).Size;
+        var fitting = new List<Vector2I>();
+        foreach (Vector2I candidate in Sizes)
+        {
+            if (candidate.X < workArea.X && candidate.Y < workArea.Y)
+            {
+                fitting.Add(candidate);
+            }
+        }
+        if (fitting.Count == 0)
+        {
+            fitting.Add(Sizes[0]);
+        }
+        return fitting;
+    }
+}
+```
+
+## 窗口陷阱
+
+| 现象 | 做法 |
+|---|---|
+| 全屏或最大化时设尺寸无效 | 先切 `DisplayServer.WINDOW_MODE_WINDOWED` 再设尺寸 |
+| macOS 窗口铺满可用区时尺寸被忽略 | 同上，尺寸取严格小于可用区的档位 |
+| Windows 退出全屏恢复成旧尺寸 | 切回窗口后再设一次尺寸并 `move_to_center()` |
+| 全屏时改尺寸列表无效果 | 两种全屏都不改显示模式，全屏时把尺寸选项灰掉 |
+| `WINDOW_MODE_EXCLUSIVE_FULLSCREEN` 切换黑屏片刻 | Windows 上切到别的程序也会触发一次 |
+| 窗口超出屏幕 | 存档尺寸不在当前屏幕列表里时退到最大一档 |
+| 无头模式尺寸列表只剩一档 | 无屏幕，usable rect 为零，属正常 |
+
+- `DisplayServer.screen_get_usable_rect()` 已扣掉任务栏
+- `Window.size` 是客户区，标题栏另占高度
+- 降 3D 渲染分辨率用 `Viewport.scaling_3d_scale`，2D 和 UI 照常按窗口分辨率画
+- `Window.content_scale_factor` 只在 `Window.CONTENT_SCALE_MODE_VIEWPORT` 下降渲染分辨率
+- 其他 `Window.content_scale_mode` 下它是界面缩放
+
+## 启动参数恢复入口
+
+- `--windowed` `--fullscreen` `--resolution` 由引擎消费，`OS.get_cmdline_args()` 里没有
+- 启动时套用存档会覆盖它们，玩家没法靠这些参数救回黑屏
+- 恢复入口用 `--` 之后的自定义参数，从 `OS.get_cmdline_user_args()` 读
 
 ```gdscript
 extends Node
@@ -251,9 +505,31 @@ func _ready() -> void:
 		config.save(SETTINGS_PATH)
 ```
 
+```csharp
+public partial class DisplayReset : Node
+{
+    private const string SettingsPath = "user://settings.cfg";
+
+    public override void _Ready()
+    {
+        var config = new ConfigFile();
+        if (config.Load(SettingsPath) != Error.Ok)
+        {
+            return;
+        }
+        bool requested = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--reset-display") >= 0;
+        if (requested && config.HasSection("display"))
+        {
+            config.EraseSection("display");
+            config.Save(SettingsPath);
+        }
+    }
+}
+```
+
 ## 失焦暂停
 
-窗口模式游玩时点到窗口外，游戏不该继续跑。单机打开暂停菜单并暂停，联机只打开菜单。
+窗口模式下点到窗口外：单机打开暂停菜单并暂停，联机只打开菜单。
 
 ```gdscript
 extends Control
@@ -288,9 +564,67 @@ func close() -> void:
 		_paused_by_menu = false
 ```
 
-- `NOTIFICATION_APPLICATION_FOCUS_OUT` 在整个程序失去焦点时发，SceneTree 转发给所有节点。`NOTIFICATION_WM_WINDOW_FOCUS_OUT` 在同一程序的两个窗口间切换也会发，用它的话弹出原生子窗口就会误暂停
-- 回到前台不自动继续，让玩家自己按继续
-- 失焦时引擎释放按住的键和由非手柄输入按下的动作，鼠标按键状态不清。手柄事件照常到达，后台的手柄仍能操作游戏。4.7+ 可开 `input_devices/joypads/ignore_joypad_on_unfocused_application`
-- 奖励选择框之类的模态界面挡住暂停菜单时，单机仍要单独暂停，回到前台时只恢复自己设的暂停
-- 无头模式不会收到这个通知。测试里调 `get_tree().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)` 模拟，节点收到的通知相同。4.7+ 这样调也会释放按键并把输入记为失焦，测完再发一次 `NOTIFICATION_APPLICATION_FOCUS_IN`。4.6 及更早释放按键在各平台的窗口代码里，手动发通知不释放
-- 带窗口跑的自动化测试被点到别处也会暂停，给测试留一个关闭失焦暂停的开关
+```csharp
+public partial class FocusPauseMenu : Control
+{
+    private bool _pausedByMenu;
+
+    public override void _Ready()
+    {
+        ProcessMode = ProcessModeEnum.Always;
+        Hide();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationApplicationFocusOut)
+        {
+            Open();
+        }
+    }
+
+    public void Open()
+    {
+        if (Visible)
+        {
+            return;
+        }
+        Show();
+        if (Multiplayer.GetPeers().Length == 0 && !GetTree().Paused)
+        {
+            GetTree().Paused = true;
+            _pausedByMenu = true;
+        }
+    }
+
+    public void Close()
+    {
+        Hide();
+        if (_pausedByMenu)
+        {
+            GetTree().Paused = false;
+            _pausedByMenu = false;
+        }
+    }
+}
+```
+
+| 通知 | 何时发 |
+|---|---|
+| `NOTIFICATION_APPLICATION_FOCUS_OUT` | 整个程序失去焦点，SceneTree 转发给所有节点 |
+| `NOTIFICATION_WM_WINDOW_FOCUS_OUT` | 同一程序的窗口间切换也发，弹原生子窗口会误暂停 |
+
+- 回到前台不自动继续，玩家自己按继续
+- 失焦时引擎释放按住的键和非手柄输入按下的动作
+- 鼠标按键状态不清
+- 手柄事件照常到达，后台手柄仍能操作游戏
+- 4.7+ 可开 `input_devices/joypads/ignore_joypad_on_unfocused_application`
+- 模态界面挡住暂停菜单时单机仍要暂停，回前台只恢复自己设的暂停
+- 带窗口跑的自动化测试留一个关闭失焦暂停的开关
+
+无头模式收不到该通知，测试里手动发：
+
+| 版本 | `get_tree().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)` 的效果 |
+|---|---|
+| 4.7+ | 节点收到相同通知，并释放按键、记为失焦，测完发 `NOTIFICATION_APPLICATION_FOCUS_IN` |
+| 4.6 及更早 | 节点收到通知，不释放按键 |

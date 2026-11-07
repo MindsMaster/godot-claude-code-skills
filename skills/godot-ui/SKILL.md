@@ -5,7 +5,17 @@ description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适�
 
 # Godot UI
 
-在场景里用 Container 和 anchors 搭 Control 界面，用项目级 Theme 统一外观，用引擎自带的 ProgressBar、RichTextLabel、翻译系统和焦点导航。不管 2D 游戏世界里的节点摆放（见 `godot-2d`），不管输入动作本身的定义（见 `godot-input`），不管动画选型（见 `godot-animation`）。
+Control 界面：场景里用 Container 和 anchors 搭，项目级 Theme 统一外观，用内置的 ProgressBar、RichTextLabel、翻译系统和焦点导航。
+
+## 范围
+
+| 不含 | 去哪 |
+|---|---|
+| 2D 世界里的节点摆放 | godot-2d |
+| 输入动作定义、改键 | godot-input |
+| 动画选型、数字滚动 | godot-animation |
+| 3D 场景里的 UI 面板 | godot-2d-in-3d |
+| `.tscn` 里导出节点引用的写法 | godot-scene-architecture |
 
 ## 先查内置
 
@@ -30,9 +40,11 @@ description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适�
 | 手柄菜单导航 | focus_neighbor 与 `grab_focus()` | 自己监听方向键切换高亮 |
 | 分辨率适配 | `display/window/stretch/mode` | 运行时按窗口大小手动缩放根节点 |
 
-## 布局
+## 做法
 
-HUD 与菜单在场景编辑器里搭。根节点是铺满屏幕的 Control，用 `Full Rect` preset，其下用 Container 嵌套。
+### 布局
+
+HUD 与菜单在场景里搭：根 Control 用 `Full Rect` preset，其下嵌套 Container。
 
 ```ini
 [node name="Hud" type="Control"]
@@ -58,14 +70,19 @@ layout_mode = 2
 show_percentage = false
 ```
 
-要点：
+- 有 Camera2D 时 HUD 放 `CanvasLayer` 下，否则随相机移动
+- `CanvasLayer.layer` 默认 1，大的在上
+- 根 Control 设 `mouse_filter = 2` 即 IGNORE，否则吃掉所有点击
+- Container 决定子节点位置，子节点只表达尺寸需求
 
-- 有 Camera2D 的世界场景里，HUD 放在 `CanvasLayer` 下，Control 直接挂在 Node2D 世界里会随相机移动。`layer` 默认 1，大的在上
-- 根 Control 的 `mouse_filter = 2` 即 `MOUSE_FILTER_IGNORE`，否则整屏 HUD 吃掉所有点击，见陷阱
-- Container 的子节点由 Container 决定位置，子节点只表达需求：`custom_minimum_size` 是下限，`size_flags_*` 是分配方式
-- `size_flags_horizontal = 3` 即 `Control.SIZE_EXPAND_FILL`，占满剩余空间。空 Control 加 EXPAND_FILL 当弹簧，把左右两组控件推开
-- `size_flags_stretch_ratio` 在多个 EXPAND 子节点间分配比例
-- 脚本里要摆浮动控件（跟随角色的血条，弹出提示）才用代码，仍然用 preset 而不是裸坐标：
+| 子节点属性 | 作用 |
+|---|---|
+| `custom_minimum_size` | 尺寸下限 |
+| `size_flags_horizontal = 3` | 即 `Control.SIZE_EXPAND_FILL`，占满剩余空间 |
+| `size_flags_stretch_ratio` | 多个 EXPAND 子节点间按比例分配 |
+| 空 Control 加 EXPAND_FILL | 当弹簧，推开左右两组控件 |
+
+浮动控件，如跟随角色的血条、弹出提示，才用代码摆，仍用 preset：
 
 ```gdscript
 extends Control
@@ -74,19 +91,20 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 32)
 ```
 
-`set_anchors_preset` 只改锚点不改偏移，通常用 `set_anchors_and_offsets_preset`。`PRESET_FULL_RECT` 铺满，`PRESET_TOP_WIDE` 贴顶拉宽。
+- `set_anchors_preset` 只改锚点，不改偏移
+- 一般用 `set_anchors_and_offsets_preset`
+- `PRESET_FULL_RECT` 铺满，`PRESET_TOP_WIDE` 贴顶拉宽
 
-### 容器的限制
+### 容器限制
 
-- Container 在子节点变化与 `queue_sort()` 时重排。直接 Tween 子节点的 `position` 或 `size` 会被下一次排序覆盖。要动画就 Tween `scale` `modulate` `rotation`，或把动画节点包一层普通 Control
-- `scale` 的中心是 `pivot_offset`，默认左上角。缩放按钮设 `pivot_offset_ratio = Vector2(0.5, 0.5)` 4.6+，4.5 及以前在 `resized` 信号里设 `pivot_offset = size / 2.0`
-- Label 开 `autowrap_mode` 后宽度要来自 `custom_minimum_size.x` 或 `SIZE_EXPAND_FILL`，否则在收缩的 Container 里被压成 1 像素宽。对话气泡要短句收窄、长句到上限换行，设 `custom_maximum_size.x` 4.7+
-- ScrollContainer 的内容子节点设 `SIZE_EXPAND` 才会随滚动区变宽
-- FoldableContainer 4.5+ 配 FoldableGroup 做手风琴，标题栏按钮用 `add_title_bar_control`
+Container 在子节点变化和 `queue_sort()` 时重排，子节点的 `position` `size` 动画会被覆盖。
 
-## Theme
+- 动画改动 `scale` `modulate` `rotation`，或外包一层普通 Control
+- 按中心缩放、Label 换行、滚动区宽度见 [references/layout.md](references/layout.md)
 
-外观统一放一个 Theme 资源，在项目设置里挂成全局默认：
+### Theme
+
+外观放一个 Theme 资源，项目设置里挂成全局默认：
 
 ```ini
 [gui]
@@ -95,14 +113,15 @@ theme/custom="res://ui/theme/main.tres"
 theme/custom_font="res://ui/fonts/main.ttf"
 ```
 
-- 对应 `gui/theme/custom` 和 `gui/theme/custom_font`。场景里任何 Control 无需设 `theme` 就继承它
-- 局部换主题：给某个 Control 设 `theme`，它的 Control 和 Window 后代都继承，遇到其他类型的节点就断开
-- 同一类控件的多种样式用 theme type variation：在 Theme 里新建类型如 `DangerButton`，Base Type 选 `Button`，节点上设 `theme_type_variation`。项目级 Theme 里的变体才会出现在 Inspector 下拉里
-- 颜色字号间距都在 Theme 编辑器里改，脚本只读：`get_theme_color(&"font_color", &"Label")`
-- 代码生成的 UI 同样继承 Theme，不用逐个 `add_theme_*_override`
-- 单个 Label 的字号颜色描边阴影用 `label_settings`，LabelSettings 资源可多个 Label 共用，优先于 Theme
+- 对应 `gui/theme/custom` 与 `gui/theme/custom_font`
+- 任何 Control 不设 `theme` 也继承它，代码建的 UI 同样继承
+- 局部换主题：给 Control 设 `theme`，Control 与 Window 后代继承
+- 遇到其他类型的节点，继承断开
+- 颜色字号间距在 Theme 编辑器里改，脚本只读：`get_theme_color(&"font_color", &"Label")`
+- 同类控件多种样式用 theme type variation，单个 Label 用 `label_settings`
+- StyleBox 种类、变体、LabelSettings 见 [references/theme.md](references/theme.md)
 
-只有单个节点的一次性差异才用 override，如血条的填充颜色随阵营变：
+单个节点的一次性差异才用 override，如血条填充色随阵营变：
 
 ```gdscript
 extends ProgressBar
@@ -113,34 +132,19 @@ func set_team_color(color: Color) -> void:
 	add_theme_stylebox_override(&"fill", fill)
 ```
 
-`duplicate()` 必须有，否则改的是 Theme 里共享的那份 StyleBox，所有同类控件一起变色。
+- `duplicate()` 必须有，否则改到 Theme 里共享的 StyleBox
 
-### StyleBox
+### 血条
 
-StyleBoxFlat 做纯色圆角描边阴影，StyleBoxTexture 做九宫格贴图，StyleBoxEmpty 去掉默认样式如按钮焦点框，StyleBoxLine 做分隔线。
+ProgressBar 做纯色条，TextureProgressBar 做贴图条或环形条。样式在 Theme 里改 `fill` 与 `background`。
 
-```gdscript
-extends PanelContainer
-
-func _ready() -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.1, 0.1, 0.12, 0.9)
-	box.set_corner_radius_all(8)
-	box.set_border_width_all(2)
-	box.set_content_margin_all(12.0)
-	add_theme_stylebox_override(&"panel", box)
-```
-
-复用的样式放进 Theme 资源，代码构造只用于运行时才知道参数的样式。
-
-## 血条
-
-ProgressBar 做纯色条，TextureProgressBar 做贴图条或环形条。样式在 Theme 里改 `fill` 和 `background`。
-
-- ProgressBar 默认 `show_percentage = true`，血条要关掉
-- TextureProgressBar 的 `step` 默认 1.0，ProgressBar 的 `step` 是 0.01。用 Tween 做平滑，`step` 太大会出现阶梯，设成 0.01 或更小
-- TextureProgressBar 的 `fill_mode` 有径向，做冷却环和圆形血球不用 shader
-- 贴图要拉伸用 `nine_patch_stretch` 加 `stretch_margin_*`
+| 属性 | 用法 |
+|---|---|
+| ProgressBar `show_percentage` | 默认 true，血条关掉 |
+| ProgressBar `step` | 默认 0.01 |
+| TextureProgressBar `step` | 默认 1.0，Tween 平滑时设 0.01 或更小，否则出阶梯 |
+| TextureProgressBar `fill_mode` | 径向值做冷却环、圆形血球，不用 shader |
+| TextureProgressBar `nine_patch_stretch` | 贴图拉伸，配 `stretch_margin_*` |
 
 缓动与受伤残影：
 
@@ -161,55 +165,51 @@ func set_health(value: float) -> void:
 	_tween.tween_property(_chip, "value", value, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 ```
 
-前景条与残影条是同位置叠放的两个 ProgressBar，残影条在下，填充色用浅色，前景条的 `background` 设 StyleBoxEmpty 否则盖住残影条。数字跳动用 `tween_method`，见 `godot-animation`。
+- 前景条与残影条同位置叠放，残影条在下，填充用浅色
+- 前景条 `background` 设 StyleBoxEmpty，否则盖住残影条
 
-## RichTextLabel
+### RichTextLabel
 
-- `bbcode_enabled = true` 后写 `[b]` `[color=red]` `[url]` `[img]` 等标签。常用标签清单在 `references/richtext.md`
-- `visible_ratio` 或 `visible_characters` 做打字机效果，用 Tween 驱动 `visible_ratio` 从 0 到 1
-- `fit_content = true` 让高度随内容变，放在 VBox 里时常用
-- `[url]` 默认点击无反应，连 `meta_clicked` 信号做词条链接与提示
-- 自定义效果继承 RichTextEffect，`bbcode` 成员定义标签名，`_process_custom_fx` 改 `CharFXTransform`，示例见 `references/richtext.md`
-- 带自定义效果的 RichTextLabel 持续每帧处理，不用时隐藏
-
-## 多分辨率
-
-`display/window/stretch/mode`：
-
-| 值 | 效果 | 适用 |
-|---|---|---|
-| `disabled` | 不缩放，1 单位 1 像素，aspect 无效 | 工具类应用 |
-| `canvas_items` | 2D 与 UI 以目标分辨率直接渲染，文字清晰 | 大多数游戏，4.7 起新建项目默认 |
-| `viewport` | 先渲染到基准尺寸再整体缩放 | 像素风 |
-
-`display/window/stretch/aspect`：
-
-| 值 | 效果 |
+| 需求 | 用法 |
 |---|---|
-| `keep` | 保持比例，两侧或上下黑边。UI 不用考虑比例，代价是黑边 |
-| `keep_width` | 宽固定，更高的屏幕多露出下方内容。HUD 常用 |
-| `keep_height` | 高固定，更宽的屏幕多露出右侧内容。横版卷轴常用 |
-| `expand` | 宽高都可能变大，4.7 起新建项目默认。UI 必须用 anchors 贴边 |
-| `ignore` | 拉伸变形，一般不用 |
+| BBCode | `bbcode_enabled = true`，写 `[b]` `[color=red]` `[url]` `[img]` |
+| 打字机 | Tween 驱动 `visible_ratio` 从 0 到 1，或改 `visible_characters` |
+| 高度随内容 | `fit_content = true`，放在 VBox 里常用 |
+| 链接点击 | 连 `meta_clicked`，`[url]` 默认点击无反应 |
+| 自定义效果 | 继承 RichTextEffect，`bbcode` 定标签名，`_process_custom_fx` 改 `CharFXTransform` |
 
-- 基准尺寸设在 `display/window/size/viewport_width` 与 `display/window/size/viewport_height`。未设置时 mode 是 `disabled`，aspect 是 `keep`
-- 像素风用 `viewport` 配 `keep` 或 `expand`，再加 `display/window/stretch/scale_mode = "integer"`，窗口小于基准尺寸会裁切，配合 `Window.min_size`
-- `display/window/stretch/scale` 是全局倍率。给玩家的界面缩放选项在运行时设 `get_window().content_scale_factor`
-- 除 `keep` 外 HUD 的位置要靠 anchors 和 Container 跟随屏幕边缘，写死坐标必然错位
-- 手机刘海与圆角用 `DisplayServer.get_display_safe_area()` 取安全区，再设根 MarginContainer 的边距
+- 带自定义效果的 RichTextLabel 每帧处理，不用时隐藏
+- 标签清单与效果示例见 [references/richtext.md](references/richtext.md)
 
-## 本地化
+### 多分辨率
 
-玩家可见文本一律进翻译表，包括按钮文字、提示、地点名。表格式与导入见 `references/localization.md`。
+| 游戏 | `display/window/stretch/mode` | `display/window/stretch/aspect` |
+|---|---|---|
+| 大多数游戏 | `canvas_items` | `expand` |
+| 像素风 | `viewport` | `keep` 或 `expand` |
 
-- Label Button 等控件的 `text` 填翻译键，如 `MENU_START`，运行时自动翻译，不用写 `tr()`
-- 脚本里拼接的文本用 `tr("KEY")`。带变量用命名占位符 `tr("PICKED_UP").format({item = name})`，占位符位置由译者调整
-- 复数用 `tr_n("%d item", "%d items", count) % count`，不要自己写 `if count == 1`。语言的复数形式不止两种。前两个参数写带 `%d` 的英文原文，它是翻译表的键，也是缺翻译时的回退文本。写成 `ITEM_ONE` 这类键名，缺翻译时返回的键名里没有 `%d`，`%` 报 `String formatting error`。CSV 需要 `?plural` 列 4.6+，4.5 及以前用 PO
-- 同一英文词不同含义用第二个参数 context：`tr("Close", "Distance")`
-- 不该翻译的文本，如玩家名，把节点的 `auto_translate_mode` 设成 `Node.AUTO_TRANSLATE_MODE_DISABLED`
-- 切换语言：`TranslationServer.set_locale("zh_CN")`，选择存进设置文件，启动时读出来再调
-- `tr()` 返回的文本在语言切换后不会自动更新，要在 `_notification` 里响应 `NOTIFICATION_TRANSLATION_CHANGED` 重设
-- 开发期开 `internationalization/pseudolocalization/use_pseudolocalization` 检查漏翻与文本溢出，运行时用 `TranslationServer.pseudolocalization_enabled` 切换
+- 4.7 起新建项目默认 `canvas_items` 加 `expand`
+- 除 `keep` 外，HUD 靠 anchors 和 Container 贴边
+- 各取值、整数缩放、界面缩放、安全区见 [references/layout.md](references/layout.md)
+
+### 本地化
+
+玩家可见文本一律进翻译表，含按钮文字、提示、地点名。
+
+| 文本 | 写法 |
+|---|---|
+| 控件的 `text` | 填翻译键如 `MENU_START`，运行时自动翻译 |
+| 脚本拼接 | `tr("KEY")` |
+| 带变量 | `tr("PICKED_UP").format({item = name})`，占位符位置由译者调整 |
+| 复数 | `tr_n("%d item", "%d items", count) % count` |
+| 同词不同义 | 第二个参数 context：`tr("Close", "Distance")` |
+| 不翻译，如玩家名 | `auto_translate_mode` 设 `Node.AUTO_TRANSLATE_MODE_DISABLED` |
+| 切换语言 | `TranslationServer.set_locale("zh_CN")`，存进设置，启动时恢复 |
+
+- 复数形式不止两种，不写 `if count == 1`
+- `tr_n` 前两个参数写带 `%d` 的英文原文，它是键也是回退文本
+- CSV 复数要 `?plural` 列 4.6+，4.5 及以前用 PO
+- `tr()` 的结果切换语言后不自动更新，在 `NOTIFICATION_TRANSLATION_CHANGED` 里重设：
 
 ```gdscript
 extends Label
@@ -221,80 +221,66 @@ func _notification(what: int) -> void:
 		text = tr_n("%d item", "%d items", _count) % _count
 ```
 
-## 按键提示
+- 导入、注册、伪本地化、字体回退见 [references/localization.md](references/localization.md)
 
-提示文本从 InputMap 取，玩家改键后自动跟随：
+### 焦点导航
 
-```gdscript
-extends Label
+- 场景启动后须有控件拿焦点，否则方向键和手柄无反应
+- 写法：`$StartButton.grab_focus.call_deferred()`
+- 控件隐藏会丢焦点，面板重新显示要再抓
+- `focus_mode`、邻居、弹窗还焦点、无障碍名称见 [references/focus-navigation.md](references/focus-navigation.md)
 
-@export var action: StringName = &"interact"
+### 按键提示
 
-func _ready() -> void:
-	text = tr("PROMPT_INTERACT").format({key = _key_text(action)})
+- 提示文本从 `InputMap.action_get_events` 取，改键后自动跟随
+- 绑定 `physical_keycode` 时用 `as_text_physical_keycode()`
+- 手柄按 `InputEventJoypadButton.button_index` 映射到自己的图标
+- 完整写法与键帽字母见 [references/focus-navigation.md](references/focus-navigation.md)
 
-func _key_text(action_name: StringName) -> String:
-	for event: InputEvent in InputMap.action_get_events(action_name):
-		if event is InputEventKey:
-			return (event as InputEventKey).as_text_physical_keycode()
-	return ""
-```
+### 输入顺序
 
-- 绑定的是 `physical_keycode` 时用 `as_text_physical_keycode()`，绑定 `keycode` 时用 `as_text_keycode()`。`InputEvent.as_text()` 对物理键会返回 "E - Physical" 这类带后缀的文本
-- `as_text_physical_keycode()` 给的是 US QWERTY 位置的名字，AZERTY 上 `physical_keycode` 为 W 的键帽印的是 Z。要显示键帽字母用 `OS.get_keycode_string(DisplayServer.keyboard_get_label_from_physical(key.physical_keycode))`，只有 Linux Windows macOS 实现，无头模式和其他平台报错并原样返回
-- 手柄事件的 `as_text()` 是长描述，不适合直接显示，按 `InputEventJoypadButton.button_index` 映射到自己的图标
-- 键盘与手柄提示的切换：在 `_input` 里看最近一个事件是 `InputEventJoypadButton` 还是 `InputEventKey`，记成当前设备类型，据此选图标集
+`_input`、`_gui_input`、`_shortcut_input`、`_unhandled_key_input`、`_unhandled_input`，依次传递。
 
-## 焦点导航与手柄
+| 输入 | 放哪 |
+|---|---|
+| Control 内部拖动、自绘区域点击 | `_gui_input`，处理完 `accept_event()` |
+| 游戏世界的点击与按键 | `_unhandled_input`，UI 处理过的到不了 |
+| 暂停、截图等全局键 | `_unhandled_input` 或 `_shortcut_input` |
+| 按钮快捷键 | `BaseButton.shortcut` |
 
-- 场景启动后必须有一个控件拿焦点，否则方向键和手柄无反应：`$StartButton.grab_focus.call_deferred()`
-- 菜单面板显示时对第一个按钮 `grab_focus()`。控件被隐藏会丢焦点，面板重新显示要再抓一次
-- 内置动作 `ui_up` `ui_down` `ui_left` `ui_right` `ui_accept` `ui_cancel` `ui_focus_next` 驱动焦点移动，不要在游戏逻辑里复用这些动作
-- 默认的邻居是引擎猜的，复杂界面在 Inspector 的 Focus 分类里显式设 `focus_neighbor_left` `focus_neighbor_right` `focus_neighbor_top` `focus_neighbor_bottom` `focus_next` `focus_previous`
-- `focus_mode`：`FOCUS_ALL` 可点击也可导航，`FOCUS_CLICK` 只能点击，`FOCUS_NONE` 不可聚焦。Label 默认 NONE，Button 默认 ALL
-- 整棵子树禁止聚焦：`focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED` 4.5+
-- 鼠标悬停高亮也要聚焦时：`mouse_entered.connect(grab_focus)`
-- 弹窗关闭后焦点还给触发它的按钮，打开前存 `get_viewport().gui_get_focus_owner()`
-- ScrollContainer 的 `follow_focus = true` 让聚焦项自动滚入视野
-
-## 输入与点击
-
-UI 的事件顺序：`_input` 然后 GUI（`_gui_input`）然后 `_shortcut_input` 然后 `_unhandled_key_input` 然后 `_unhandled_input`。
-
-- Control 内部交互（拖动，点击自绘区域）用 `_gui_input`，处理完调 `accept_event()`
-- 游戏世界的点击与按键放 `_unhandled_input`。UI 已处理的事件到不了这里，不用再手写 "鼠标是否在 UI 上" 判断
-- 全屏键位（暂停，截图）放 `_unhandled_input` 或 `_shortcut_input`，不要放 `_process` 轮询
-- 按钮上的快捷键用 `BaseButton.shortcut`，不用另写 `_input`
+- 不手写鼠标是否在 UI 上的判断
 
 ### mouse_filter
 
-默认值：Control Panel PanelContainer ColorRect Button ProgressBar RichTextLabel 是 `MOUSE_FILTER_STOP`，各种 Container TextureRect TextureProgressBar 是 `MOUSE_FILTER_PASS`，Label NinePatchRect 是 `MOUSE_FILTER_IGNORE`。
+| 值 | 行为 | 默认值为它的控件 |
+|---|---|---|
+| `MOUSE_FILTER_STOP` | 吃掉事件，下层和 `_unhandled_input` 收不到 | Control Panel PanelContainer ColorRect Button ProgressBar RichTextLabel |
+| `MOUSE_FILTER_PASS` | 未 `accept_event()` 就冒泡给父 Control，到 STOP 为止 | 各 Container、TextureRect、TextureProgressBar |
+| `MOUSE_FILTER_IGNORE` | 不收事件，也不挡下层 | Label NinePatchRect |
 
-- STOP 吃掉事件，下面的节点和 `_unhandled_input` 都收不到。滚轮事件例外，`mouse_force_pass_scroll_events` 默认 true 会放行
-- PASS 收到后没调 `accept_event()` 就冒泡给父 Control，冒到 STOP 为止，没人处理才继续往后走
-- IGNORE 完全透明，不收事件也不挡下层
-- 铺满屏幕的 HUD 根节点，装饰用的 ColorRect TextureRect Panel，叠在按钮上的图标，一律改成 IGNORE
-- 整棵子树关掉鼠标输入：`mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED` 4.5+
-
-## 无障碍
-
-4.7+ 的 AccessibilityServer 为每个节点自动生成无障碍元素，不用手动调 `create_element`。`accessibility/general/accessibility_support` 默认 0，检测到读屏软件才处理更新。只有图标的按钮和自绘控件设 `accessibility_name` 与 `accessibility_description` 4.5+。
+- 滚轮例外：`mouse_force_pass_scroll_events` 默认 true，STOP 也放行
+- HUD 根节点、装饰 ColorRect TextureRect Panel、按钮上的图标设 IGNORE
+- 子树关鼠标：`mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED` 4.5+
 
 ## 陷阱
 
-- 代码里 `new Label()` 加 `new ColorRect()` 按像素写死位置，`expand` 与不同比例屏幕下错位。改成场景加 Container
-- `custom_minimum_size` 只能放大最小尺寸，文字内容也会撑大它
-- 手写 `.tscn` 实例化 HUD 并给 `@export var player: Player` 赋 `NodePath`，节点头漏写 `node_paths=PackedStringArray("player")` 则运行期为 `null`，信号连不上。写法见 godot-scene-architecture 的 references/lifecycle.md
-- 每关 `new Theme()` 或到处 `add_theme_*_override`：改一个字号要翻遍代码。用项目级 Theme 与 type variation
-- 改 `get_theme_stylebox()` 的返回值前不 `duplicate()`，会改到共享样式
-- 显示玩家名的 Label 没关 `auto_translate_mode`，名字与翻译键同名时会被替换
-- 用 `ui_accept` 之类内置动作做玩法，菜单打开时会重复触发
+| 现象 | 做法 |
+|---|---|
+| `custom_minimum_size` 设小了控件仍很大 | 它只是下限，文字内容也会撑大 |
+| 手写 `.tscn` 给导出的节点引用赋 NodePath，运行时为 null | 节点头补 `node_paths=PackedStringArray("player")`，见 godot-scene-architecture |
+| 改 `get_theme_stylebox()` 的返回值，同类控件一起变 | 先 `duplicate()` |
+| 显示玩家名的 Label 被替换成译文 | 关 `auto_translate_mode`，名字与翻译键同名时会被翻译 |
+| 菜单打开时玩法重复触发 | 玩法不用 `ui_accept` 等内置动作 |
 
 ## 参考
 
-- `references/localization.md`：CSV 与 PO 导入，注册翻译，复数与上下文，TranslationServer，伪本地化，字体回退
-- `references/richtext.md`：BBCode 标签速查，自定义 RichTextEffect，打字机
-- `references/settings-menu.md`：设置即时生效，离开即保存与按应用保存两种做法，底栏与未保存状态显示，窗口模式与尺寸点应用后确认倒计时和还原，全屏与窗口尺寸陷阱，启动参数恢复入口，失焦暂停
-- [GUI 文档](https://docs.godotengine.org/en/stable/tutorials/ui/index.html)
-- [本地化](https://docs.godotengine.org/en/stable/tutorials/i18n/index.html)
-- [键盘与手柄导航](https://docs.godotengine.org/en/stable/tutorials/ui/gui_navigation.html)
+- [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
+- [references/localization.md](references/localization.md)：CSV 与 PO 导入、注册翻译、复数与上下文、TranslationServer、伪本地化、字体回退
+- [references/theme.md](references/theme.md)：StyleBox 种类与代码构造、theme type variation、LabelSettings
+- [references/layout.md](references/layout.md)：容器排版限制、stretch 各取值、整数缩放、界面缩放、安全区
+- [references/focus-navigation.md](references/focus-navigation.md)：手柄焦点导航、`focus_mode`、按键提示与键帽字母、设备切换、无障碍
+- [references/richtext.md](references/richtext.md)：BBCode 标签速查、自定义 RichTextEffect、打字机
+- [references/settings-menu.md](references/settings-menu.md)：设置即时生效、离开即保存与按应用保存、未保存状态显示、窗口模式与尺寸的确认倒计时和还原、全屏与窗口尺寸陷阱、启动参数恢复入口、失焦暂停
+- https://docs.godotengine.org/en/stable/tutorials/ui/index.html
+- https://docs.godotengine.org/en/stable/tutorials/i18n/index.html
+- https://docs.godotengine.org/en/stable/tutorials/ui/gui_navigation.html
