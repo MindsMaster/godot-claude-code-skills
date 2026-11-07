@@ -32,9 +32,13 @@ TYPE_DECL = re.compile(r"^\s*(public|internal|file)?\s*(static\s+|sealed\s+|abst
 ERROR_LINE = re.compile(r"(S\d+\.cs)\((\d+),\d+\): error (\w+): (.*?)(?: \[|$)")
 
 
-def wrap(b, n: int) -> str:
-    # 每个片段单独命名空间 避免类名互撞
-    ns = f"Snippets.S{n}"
+def namespace(b, shared: dict) -> str:
+    doc = b.where.rsplit(":", 1)[0]
+    # 同一文件的片段共用命名空间 可互相引用
+    return shared.setdefault(doc, f"Snippets.D{len(shared)}")
+
+
+def wrap(b, n: int, ns: str) -> str:
     if re.search(r"^\s*namespace\s", b.code, re.M):
         return b.code
     if TYPE_DECL.search(b.code):
@@ -44,7 +48,7 @@ def wrap(b, n: int) -> str:
             k += 1
         return "\n".join(lines[:k] + [f"namespace {ns};", ""] + lines[k:])
     body = "\n".join("    " + line if line.strip() else line for line in b.code.split("\n"))
-    return f"namespace {ns};\n\npublic partial class Fragment : {b.tags.get('extends', 'Node')}\n{{\n{body}\n}}\n"
+    return f"namespace {ns};\n\npublic partial class Fragment{n} : {b.tags.get('extends', 'Node')}\n{{\n{body}\n}}\n"
 
 
 def check(docs: list, dotnet: str, version: str) -> list:
@@ -58,8 +62,9 @@ def check(docs: list, dotnet: str, version: str) -> list:
         (proj / ".editorconfig").write_text(EDITORCONFIG)
         (proj / "GlobalUsings.cs").write_text(USINGS)
         files = {}
+        shared = {}
         for n, b in enumerate(blocks):
-            (proj / f"S{n}.cs").write_text(wrap(b, n))
+            (proj / f"S{n}.cs").write_text(wrap(b, n, namespace(b, shared)))
             files[f"S{n}.cs"] = b
         res = subprocess.run(
             [dotnet, "build", "-nologo", "-v", "q", "-clp:NoSummary"],
