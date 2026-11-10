@@ -42,7 +42,6 @@ public partial class MusicPlayer : AudioStreamPlayer
 ```
 
 - 转场用 `add_transition()`，`AudioStreamInteractive.CLIP_ANY` 表示任意片段，`FADE_AUTOMATIC` 选常用淡入淡出
-- AudioStreamSynchronized 最多 32 层，层音量用 `set_sync_stream_volume(index, db)`，改的是资源本身，多个播放器共用时一起变，需要时 `duplicate()`
 - 只要两首曲子交叉淡入淡出，对 `volume_db` 用 Tween 即可
 
 ## 代码构造 Interactive
@@ -110,55 +109,41 @@ public partial class InteractiveMusic : AudioStreamPlayer
 
 ## Synchronized 分层
 
-多条子流同一时刻开始，到最后一条结束才结束，任何一条循环则整体继续。用层音量表达强度：
+多条子流同一时刻开始，到最后一条结束才结束，任何一条循环则整体继续。资源写法与层淡入淡出见 SKILL.md 的动态音乐一节。
 
-```gdscript
-extends AudioStreamPlayer
-
-@export var base_layer: AudioStream
-@export var drums_layer: AudioStream
-
-func _ready() -> void:
-	var layers := AudioStreamSynchronized.new()
-	layers.stream_count = 2
-	layers.set_sync_stream(0, base_layer)
-	layers.set_sync_stream(1, drums_layer)
-	layers.set_sync_stream_volume(1, -60.0)
-	stream = layers
-	play()
-
-func set_intensity(high: bool) -> void:
-	var synced := stream as AudioStreamSynchronized
-	synced.set_sync_stream_volume(1, 0.0 if high else -60.0)
-```
-
-```csharp
-public partial class LayeredMusic : AudioStreamPlayer
-{
-    [Export] public AudioStream BaseLayer { get; set; }
-    [Export] public AudioStream DrumsLayer { get; set; }
-
-    public override void _Ready()
-    {
-        var layers = new AudioStreamSynchronized();
-        layers.StreamCount = 2;
-        layers.SetSyncStream(0, BaseLayer);
-        layers.SetSyncStream(1, DrumsLayer);
-        layers.SetSyncStreamVolume(1, -60.0f);
-        Stream = layers;
-        Play();
-    }
-
-    public void SetIntensity(bool high)
-    {
-        var synced = (AudioStreamSynchronized)Stream;
-        synced.SetSyncStreamVolume(1, high ? 0.0f : -60.0f);
-    }
-}
-```
-
-`set_sync_stream_volume` 直接设值。要渐变，用 `tween_method` 驱动一个回调，回调里调它。
+- 层音量 `set_sync_stream_volume` 直接设值，渐变用 Tween 的 `tween_method`
+- 层数上限 `AudioStreamSynchronized.MAX_STREAMS`，为 32
 
 ## Playlist
 
 `stream_count` 设曲目数，最多 64，`set_list_stream(index, stream)` 填曲目，`shuffle` 默认 false，开启后每次开始与每次循环重新洗牌，`loop` 默认 true，`fade_time` 默认 0.3 秒。淡出需要曲目末尾留一小段尾音。Playlist 是流资源，同样挂在播放器上，不用监听 `finished` 自己换曲。
+
+## 歌曲时间
+
+`get_playback_position()` 按混音块更新，同一块内返回同一值：
+
+```gdscript
+extends AudioStreamPlayer
+
+var _latency: float = AudioServer.get_output_latency()
+
+func song_time() -> float:
+	return get_playback_position() + AudioServer.get_time_since_last_mix() - _latency
+```
+
+```csharp
+public partial class Song : AudioStreamPlayer
+{
+    private readonly double _latency = AudioServer.GetOutputLatency();
+
+    public double SongTime()
+    {
+        return GetPlaybackPosition() + AudioServer.GetTimeSinceLastMix() - _latency;
+    }
+}
+```
+
+- `get_output_latency()` 开销大，取一次存起来
+- 结果有抖动，丢弃比上一帧小的值
+- stream 是 AudioStreamInteractive 时 `get_playback_position()` 恒为 0.0
+- 系统时钟法不抖但长时间与声卡漂移，长曲用上面的写法

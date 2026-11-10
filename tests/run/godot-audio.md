@@ -6,6 +6,8 @@
 ```gdscript
 AudioServer.add_bus()
 AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
+node.max_value = 1.0
+node.step = 0.01
 ```
 
 ```gdscript
@@ -14,10 +16,12 @@ var bus := AudioServer.get_bus_index("Music")
 node.value = 0.25
 expect(is_equal_approx(AudioServer.get_bus_volume_linear(bus), 0.25), "音量跟随滑条")
 node.value = 0.0
-expect(AudioServer.is_bus_mute(bus), "滑到 0 静音")
+expect(is_zero_approx(AudioServer.get_bus_volume_linear(bus)), "滑到 0 无声")
+expect(is_inf(AudioServer.get_bus_volume_db(bus)), "0 即负无穷 dB")
 ```
 
-## SKILL.md `AudioStreamRandomizer.new`
+
+## references/runtime.md `AudioStreamRandomizer.new`
 
 <!-- check: setup -->
 ```gdscript
@@ -32,12 +36,11 @@ node.play()
 await frames(30)
 ```
 
-## SKILL.md `AudioStreamPolyphonic.new`
+## references/runtime.md `func play_sfx`
 
 <!-- check: setup -->
 ```gdscript
-AudioServer.add_bus()
-AudioServer.set_bus_name(AudioServer.bus_count - 1, "SFX")
+node.stream = AudioStreamPolyphonic.new()
 ```
 
 ```gdscript
@@ -45,10 +48,12 @@ await frames(2)
 var first := node.play_sfx(make_tone())
 var second := node.play_sfx(make_tone(), -6.0)
 expect(first != AudioStreamPlaybackPolyphonic.INVALID_ID and second != first, "两个音效同时播放")
+expect((node.stream as AudioStreamPolyphonic).polyphony == 32, "polyphony 默认 32")
 await frames(30)
 ```
 
-## SKILL.md `func song_time`
+
+## references/dynamic-music.md `func song_time`
 
 <!-- check: setup -->
 ```gdscript
@@ -100,22 +105,41 @@ node.explore = make_tone(1.0)
 node.combat = make_tone(1.0)
 ```
 
-## references/dynamic-music.md `func set_intensity`
+## SKILL.md `func _fade_combat`
 
 <!-- check: setup -->
 ```gdscript
-node.base_layer = make_tone(1.0)
-node.drums_layer = make_tone(1.0)
+var layers := AudioStreamSynchronized.new()
+layers.stream_count = 2
+layers.set_sync_stream(0, make_tone(4.0))
+layers.set_sync_stream(1, make_tone(4.0))
+layers.set_sync_stream_volume(1, -60.0)
+node.stream = layers
+AudioServer.add_bus()
+AudioServer.set_bus_name(AudioServer.bus_count - 1, "Probe")
+node.bus = &"Probe"
 ```
 
 ```gdscript
-await frames(5)
-node.set_intensity(true)
-expect(is_zero_approx((node.stream as AudioStreamSynchronized).get_sync_stream_volume(1)), "鼓点层打开")
-await frames(5)
+var layers := node.stream as AudioStreamSynchronized
+var probe := AudioServer.get_bus_index("Probe")
+node.play()
+await wait_real(0.3)
+var quiet := AudioServer.get_bus_peak_volume_left_db(probe, 0)
+node.enter_combat()
+await wait_real(1.3)
+var loud := AudioServer.get_bus_peak_volume_left_db(probe, 0)
+print("quiet %.1f loud %.1f" % [quiet, loud])
+expect(is_zero_approx(layers.get_sync_stream_volume(1)), "战斗层 1 秒内淡到 0 dB")
+expect(loud > quiet + 4.0, "播放中改层音量立即生效")
+node.exit_combat()
+await wait_real(1.3)
+expect(layers.get_sync_stream_volume(1) <= -59.9, "战斗层淡出")
+expect(AudioStreamSynchronized.MAX_STREAMS == 32, "层数上限 32")
 ```
 
-## SKILL.md `_gun.attenuation_filter_cutoff_hz = 20500.0`
+
+## references/runtime.md `_gun.attenuation_filter_cutoff_hz = 20500.0`
 
 <!-- check: setup -->
 ```gdscript
@@ -164,7 +188,7 @@ var high_full := spectrum.get_magnitude_for_frequency_range(8000, 16000).length(
 expect(high_full > high_on * 5.0, "volume_db 回到 0 dB 滤波基本不生效")
 ```
 
-## SKILL.md `duck.sidechain = &"Voice"`
+## references/runtime.md `duck.sidechain = &"Voice"`
 
 <!-- check: setup -->
 ```gdscript
