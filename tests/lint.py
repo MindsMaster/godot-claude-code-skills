@@ -7,7 +7,10 @@ NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
 LINK_RE = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 MAX_SKILL_LINES = 300
 WRONG_LANG = {"gd", "py", "python", "c#", "cs"}
-SKELETON = ["范围", "先查内置", "做法", "陷阱", "参考"]
+# 陷阱前置 压缩后只保留 skill 开头 不报错就失效的坑要先读到
+SKELETON = ["先查内置", "陷阱", "做法", "范围", "参考"]
+# 迁移期间未改完的 skill 仍按旧顺序
+OLD_SKELETON = ["范围", "先查内置", "做法", "陷阱", "参考"]
 MAX_BULLET_CHARS = 40
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 SKILL_REF_RE = re.compile(r"\bgodot-[a-z0-9-]+")
@@ -84,7 +87,7 @@ def check_csharp_mirror(skill_doc, docs: list) -> list:
 def check_skeleton(d) -> list:
     out = []
     heads = [(n, l[3:].strip()) for n, l in d.prose if l.startswith("## ")]
-    if [h for _, h in heads] != SKELETON:
+    if [h for _, h in heads] not in (SKELETON, OLD_SKELETON):
         out.append(("ERROR", d.where, f"## 须依次为 {' '.join(SKELETON)} 实为 {' '.join(h for _, h in heads)}"))
     skills = d.path.parent.parent
     section = ""

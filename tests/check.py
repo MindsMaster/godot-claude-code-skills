@@ -7,13 +7,14 @@ import api
 import csharp
 import gdscript
 import lint
+import restext
 import run
 from markdown import ROOT, parse_doc
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("steps", nargs="*", default=["lint", "api", "gd", "run", "cs"])
+    ap.add_argument("steps", nargs="*", default=["lint", "api", "gd", "res", "run", "cs"])
     ap.add_argument("--godot", default=os.environ.get("GODOT_BIN", "godot"))
     ap.add_argument("--dotnet", default=os.environ.get("DOTNET_BIN", "dotnet"))
     ap.add_argument("--sdk-version", default=os.environ.get("GODOT_SDK_VERSION", "4.7.2"))
@@ -37,6 +38,11 @@ def main() -> int:
             findings += gdscript.check(docs, args.godot, args.jobs)
         else:
             findings.append(("ERROR", "gd", f"找不到 Godot {args.godot} 设 GODOT_BIN"))
+    if "res" in args.steps:
+        if shutil.which(args.godot):
+            findings += restext.check(docs, args.godot, args.jobs)
+        else:
+            findings.append(("ERROR", "res", f"找不到 Godot {args.godot} 设 GODOT_BIN"))
     if "run" in args.steps:
         if shutil.which(args.godot):
             findings += run.check(docs, args.godot, args.jobs)
