@@ -8,6 +8,19 @@ Claude Code 用的 Godot 4 skills，以插件形式发布。`skills/<name>/SKILL
 
 `plugin.json` 和 `marketplace.json` 不写 `version`，用户按提交 SHA 拿更新。加了却忘改，用户收不到新内容。
 
+# 定位
+
+skill 内容分两类：
+
+| 类 | 写什么 | 放哪 | 验证 |
+|---|---|---|---|
+| 约束 | 该用的内置功能、不报错只是没效果的配置、写进场景和资源的写法 | SKILL.md 正文，细节放 references | 代码检查加 `evals/` 端到端评测 |
+| 参考 | 完整功能的实践案例和可选方案，如设置界面、混音响度目标 | references | 只跑代码检查 |
+
+- 模型不装插件也能做好的内容不写，先跑不装插件的一组确认有缺口再补约束
+- 参考不是唯一答案，SKILL.md 参考节写明需求涉及哪个功能时读
+- 题目没要求的功能，参考里有也不加
+
 # 依据
 
 API 只以引擎源码为准，不凭记忆写。
@@ -24,30 +37,32 @@ API 只以引擎源码为准，不凭记忆写。
 ```
 ---
 name: 与目录同名
-description: 何时用 中文加英文关键词 写清触发场景 不超过 1024 字符
+description: 第三人称 先写管什么 再写何时加载 用用户的自然说法 写清不加载会踩什么坑 末尾加英文关键词 不超过 1024 字符
 ---
 
 # 标题
 
-一句话定义本 skill 管什么 可再加一句默认做法
-
-## 范围
-表格：不含 | 去哪   列出相邻主题归哪个 skill
+一句话定义本 skill 管什么 再一句默认做法
 
 ## 先查内置
 表格：需求 | 用这个 | 别自己写
 
-## 做法
-### 每个任务一节   一句结论 最短可运行代码 要点列表
-
 ## 陷阱
-表格：现象 | 做法
+表格：现象 | 做法   不报错只是没效果的配置优先放这里
+
+## 做法
+### 每个任务一节   一句结论 最短可运行示例 要点列表
+
+## 范围
+表格：不含 | 去哪   列出相邻主题归哪个 skill
 
 ## 参考
 references 链接 每条写清什么时候读 加 docs.godotengine.org 链接
 ```
 
-`##` 只有这五个，按这个顺序，其他主题一律放 `## 做法` 下的 `###`。lint 按此检查每个 SKILL.md。
+`##` 只有这五个，按这个顺序，其他主题一律放 `## 做法` 下的 `###`。陷阱放在做法前：会话压缩后只保留 skill 开头，最容易出错的要先读到。lint 按此检查每个 SKILL.md，迁移期间旧顺序 范围 先查内置 做法 陷阱 参考 也接受。
+
+description 决定 skill 会不会被加载。只写关键词时弱模型常常不加载，改动后用 `evals/triggers/` 的触发率用例量一遍，见 `evals/README.md`。
 
 SKILL.md 控制在 300 行内。细节表、长示例、少用的 API、单次排查得出的偏门问题放 references，并在 SKILL.md 里写清什么时候去读哪个文件。
 
@@ -91,20 +106,22 @@ references 文件结构：
 
 代码示例：
 
+- 能在场景、资源、导入设置或总线布局里设好的，示例写成 `.tscn` `.tres` `.import` 文本，脚本只写运行时会变的部分。模型照着示例直接改文件，示例在脚本里 `.new()` 拼装，它也会这么写
+- 用代码构造的写法放 references，写明只在程序生成或测试时用
 - GDScript 一律静态类型，`:=` 或显式类型，函数写返回类型。缩进用 tab
 - GDScript 代码块必须是能独立解析的完整脚本。只写方法片段时在代码块上一行加 `<!-- check: extends Node2D -->` 指定基类
 - C# 代码块写完整类，或只写成员并同样用 `<!-- check: extends CharacterBody2D -->` 指定基类。`if` 等一律带花括号
 - 不能独立编译的示例，如引用了其他文件定义的类，在上一行加 `<!-- check: skip -->`，尽量少用
 - 改了 GDScript 示例就同步改它的夹具和 C# 对照，夹具里用 `expect` 验证正文说的行为
 - 代码注释照 `docs/StylePrompt.md`：默认不写 只写陷阱和外部契约 不超过 15 字
-- 场景文件、项目设置用 `ini` 代码块，着色器用 `glsl` 代码块，这两类不跑检查
+- 场景文件、资源、项目设置用 `ini` 代码块，着色器用 `glsl` 代码块。首行是 `[gd_scene` 或 `[gd_resource` 的 `ini` 块由 res 检查用 Godot 加载并核对属性名，其余不跑检查
 
 同一文件内的 C# 代码块共用一个命名空间，可以引用彼此的类，类名不能重复。
 
 # 测试
 
 ```
-python3 tests/check.py              # lint api gd run cs 全跑
+python3 tests/check.py              # lint api gd res run cs 全跑
 python3 tests/check.py run          # 只真跑 GDScript 示例
 python3 tests/check.py lint api     # 不需要 Godot 和 dotnet
 python3 tests/check.py --only godot-2d
@@ -115,6 +132,7 @@ python3 tests/check.py --only godot-2d
 - lint：frontmatter、行数、断链、禁用措辞、骨架、范围表、列表长度、C# 对照
 - api：行内代码的类名和成员、代码块里的已弃用类、版本标注
 - gd：每个 GDScript 代码块用 Godot 无头加载，未标类型和引擎默认警告都按错误算
+- res：`.tscn` `.tres` 文本块用 Godot 加载，块里每个属性都要在加载后的对象上存在，ext_resource 缺的文件自动补占位
 - run：每个 GDScript 代码块真跑一遍，有错误或警告输出就失败。缺的场景、资源、调用写在 `tests/run/<skill>.md` 夹具里，格式见 `tests/README.md`。render 模式要 `xvfb-run` 和 Vulkan 驱动，没有 GPU 时装 `mesa-vulkan-drivers`
 - cs：所有 C# 代码块用 Godot.NET.Sdk 编译，开 IDE0011
 
