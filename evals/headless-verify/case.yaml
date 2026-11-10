@@ -1,4 +1,5 @@
 schema_version: "1.1"
 name: headless-verify
+tags: [godot-headless-testing]
 context:
   scaffold_script: scaffold.sh

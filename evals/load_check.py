@@ -6,7 +6,7 @@ eval 须带 --keep-temp 运行。每次运行的工程复制到临时目录后�
 - 其余先 --import 再跑主场景 60 帧 输出里有脚本或引擎错误即失败
 - 用例目录下有 verify.gd 时在工程里执行 输出 VERIFY FAIL 即失败
 
-结果写成 {用例: {arm: [{ok, errors}]}}，由 score.py --load 读入
+结果写成 {用例: {arm: [{ok, errors}]}}，由 score.py 读入
 """
 import argparse
 import json
@@ -63,6 +63,8 @@ def check(src: Path, case: str, godot: str, dotnet: str) -> list:
             text = run([dotnet, "build", "-nologo", "-v", "q"], proj, 600, env)
             out += [line.strip() for line in text.splitlines() if re.search(r"\berror\b", line)]
         else:
+            # 首次导入时 autoload 引用的素材还没导入会报加载失败 只算第二遍的错误
+            run([godot, "--headless", "--path", str(proj), "--import"], proj, 300, env)
             out += errors(run([godot, "--headless", "--path", str(proj), "--import"], proj, 300, env))
             out += errors(run([godot, "--headless", "--path", str(proj), "--quit-after", "60"], proj, 120, env))
         verify = HERE / case / "verify.gd"

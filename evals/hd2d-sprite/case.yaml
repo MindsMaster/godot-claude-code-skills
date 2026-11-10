@@ -1,4 +1,5 @@
 schema_version: "1.1"
 name: hd2d-sprite
+tags: [godot-2d-in-3d]
 context:
   scaffold_script: scaffold.sh
