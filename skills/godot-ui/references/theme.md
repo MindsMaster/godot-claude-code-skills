@@ -1,6 +1,6 @@
 # Theme 细节
 
-StyleBox 种类与代码构造、theme type variation、LabelSettings。
+StyleBox 种类与代码构造、theme type variation、LabelSettings、界面音效。
 
 ## StyleBox
 
@@ -54,3 +54,43 @@ public partial class StyledPanel : PanelContainer
 
 - 单个 Label 的字号颜色描边阴影用 `label_settings`
 - LabelSettings 可多个 Label 共用，优先于 Theme
+
+## 界面音效
+
+4.8+ Theme 有 sound 项，控件按交互自动播放，不用给每个按钮挂播放器。
+
+```ini
+[gd_resource type="Theme" load_steps=3 format=3]
+
+[ext_resource type="AudioStream" path="res://ui/sfx/click.wav" id="1"]
+[ext_resource type="AudioStream" path="res://ui/sfx/hover.wav" id="2"]
+
+[resource]
+Button/sounds/pressed_sound = ExtResource("1")
+Button/sounds/hover_sound = ExtResource("2")
+Button/sounds/focus_sound = ExtResource("2")
+```
+
+```ini
+[audio]
+
+buses/gui_theme_bus=&"UI"
+```
+
+| 控件类型 | sound 项 |
+|---|---|
+| `Button` | `pressed_sound` `hover_sound` `focus_sound` `pressed_disabled_sound` |
+| `Slider` | `value_changed_sound` `drag_started_sound` `drag_ended_sound` `focus_sound` |
+| `TabBar` `TabContainer` | `pressed_sound` `hover_sound` `focus_sound` |
+| `LineEdit` | `text_changed_sound` `text_submitted_sound` `caret_moved_sound` `focus_sound` |
+| `PopupMenu` | `item_activated_sound` `item_hovered_sound` |
+| `ItemList` `Tree` | `item_selected_sound` `item_hovered_sound` `focus_sound` |
+
+- 写在 `Button` 下，`CheckBox` `OptionButton` 等子类继承
+- 写在 `BaseButton` 下不生效，`TextureButton` `LinkButton` 要按各自类型名另写
+- `focus_sound` 只在键盘或手柄移动焦点时响，鼠标点击不响
+- 播放器临时挂在 `root` 下，`PROCESS_MODE_ALWAYS`，暂停菜单里照样响
+- 走 `audio/buses/gui_theme_bus` 指定的总线，默认 Master，总线不存在也回到 Master
+- 单个控件静音：用 override 设一个长度为 0 的 AudioStream
+- 每次音高略不同：sound 项填 AudioStreamRandomizer
+- 代码里播放同一套音效：`play_theme_sound(get_theme_sound(&"pressed_sound"))`

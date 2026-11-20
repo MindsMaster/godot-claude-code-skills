@@ -33,6 +33,7 @@ Control 界面：场景里用 Container 和 anchors 搭，项目级 Theme 统一
 | 面板背景 | PanelContainer 或 Panel 加 StyleBoxFlat | ColorRect 叠 ColorRect |
 | 血条 经验条 | ProgressBar 或 TextureProgressBar | 改 ColorRect 的 `size.x` |
 | 全局字体颜色按钮样式 | 项目级 Theme | 到处 `add_theme_*_override` |
+| 按钮点击 悬停 焦点音效 | Theme 的 sound 项 4.8+，如 `Button` 下的 `pressed_sound` | 每个按钮挂 AudioStreamPlayer 连 `pressed` |
 | 同类控件多种样式 | theme type variation | 每个节点单独覆盖 |
 | 富文本 打字机效果 | RichTextLabel 的 BBCode 与 `visible_ratio` | 多个 Label 拼接 |
 | 玩家可见文本 | `tr()` 加翻译表 | 字符串硬编码 |
@@ -119,7 +120,7 @@ theme/custom_font="res://ui/fonts/main.ttf"
 - 遇到其他类型的节点，继承断开
 - 颜色字号间距在 Theme 编辑器里改，脚本只读：`get_theme_color(&"font_color", &"Label")`
 - 同类控件多种样式用 theme type variation，单个 Label 用 `label_settings`
-- StyleBox 种类、变体、LabelSettings 见 [references/theme.md](references/theme.md)
+- StyleBox 种类、变体、LabelSettings、界面音效见 [references/theme.md](references/theme.md)
 
 单个节点的一次性差异才用 override，如血条填充色随阵营变：
 
@@ -269,6 +270,7 @@ func _notification(what: int) -> void:
 | `custom_minimum_size` 设小了控件仍很大 | 它只是下限，文字内容也会撑大 |
 | 手写 `.tscn` 给导出的节点引用赋 NodePath，运行时为 null | 节点头补 `node_paths=PackedStringArray("player")`，见 godot-scene-architecture |
 | 改 `get_theme_stylebox()` 的返回值，同类控件一起变 | 先 `duplicate()` |
+| 主题音效写在 `BaseButton` 类型下不响 | 写在 `Button` 下，见 references/theme.md |
 | 显示玩家名的 Label 被替换成译文 | 关 `auto_translate_mode`，名字与翻译键同名时会被翻译 |
 | 菜单打开时玩法重复触发 | 玩法不用 `ui_accept` 等内置动作 |
 | 按 Alt+Enter 窗口变全屏，设置里的窗口模式没跟着变 | 4.8+ 默认开 `display/window/size/enable_toggle_fullscreen_shortcut`，见 references/settings-menu.md |
