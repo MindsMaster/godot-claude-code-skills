@@ -1,6 +1,6 @@
 ---
 name: godot-csharp
-description: 在 Godot 里写 C# 时用。partial class 与源码生成器、[Export] [Signal] [GlobalClass] [Tool]、信号连接与断开、SignalName PropertyName 与 StringName 缓存、Variant 与 Godot.Collections、IsInstanceValid、async ToSignal、每帧分配。C# scripting in Godot.
+description: 在 Godot 里写 C# 时用。partial class 与源码生成器、[Export] [Signal] [GlobalClass] [Tool]、信号连接与断开、SignalName PropertyName 与 StringName 缓存、Variant 与 Godot.Collections、IsInstanceValid、async ToSignal、每帧分配、csproj 目标框架与 .NET 版本。C# scripting in Godot.
 ---
 
 # Godot C# 写法
@@ -260,6 +260,8 @@ public static class Actions
 
 | 现象 | 做法 |
 |---|---|
+| 构建报 `NU1202` GodotSharp 不兼容 `net8.0` | 4.8+ 最低 `net10.0`，csproj 写 `<TargetFramework>net10.0</TargetFramework>`，装 .NET 10 SDK |
+| 编辑器能编译 命令行或 CI 报 `NU1202` | 编辑器打开项目时自动改 SDK 版本和 `TargetFramework`，手写的 csproj 要自己改 |
 | `Vector2 * delta` 编译不过 | `delta` 是 `double`，写 `(float)delta` |
 | `Position.X = 1` 报 `CS1612` | `Position = Position with { X = 1 }` |
 | `GetNode<T>()` 抛 `InvalidCastException` | 类型不符，可能为空用 `GetNodeOrNull<T>()` 或 `is` 模式匹配 |
