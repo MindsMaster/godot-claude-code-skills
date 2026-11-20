@@ -17,7 +17,7 @@ def main() -> int:
     ap.add_argument("steps", nargs="*", default=["lint", "api", "gd", "res", "run", "cs"])
     ap.add_argument("--godot", default=os.environ.get("GODOT_BIN", "godot"))
     ap.add_argument("--dotnet", default=os.environ.get("DOTNET_BIN", "dotnet"))
-    ap.add_argument("--sdk-version", default=os.environ.get("GODOT_SDK_VERSION", "4.7.2"))
+    ap.add_argument("--sdk-version", default=os.environ.get("GODOT_SDK_VERSION", "4.8.0-beta.4"))
     ap.add_argument("--only", help="只查路径含此子串的文件")
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 2)
     ap.add_argument("--strict", action="store_true", help="警告也算失败")

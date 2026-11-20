@@ -10,7 +10,7 @@ python3 tests/check.py [lint] [api] [gd] [run] [cs] [--only 路径子串] [--str
 | api | 行内代码的类名、`Class.member`、项目设置路径、代码块里的已弃用类、版本标注 | `tests/data/godot_api.json.gz` |
 | gd | GDScript 代码块逐个无头加载 未标类型和引擎默认警告都按错误算 | `GODOT_BIN` |
 | run | GDScript 代码块逐个真跑 有错误或警告输出、没跑完、超时都算失败 | `GODOT_BIN`，render 模式另需 `xvfb-run` 与 Vulkan 驱动 |
-| cs | C# 代码块用 Godot.NET.Sdk 编译 开 IDE0011，同一文件的代码块共用命名空间 | `DOTNET_BIN` .NET 8 SDK |
+| cs | C# 代码块用 Godot.NET.Sdk 编译 开 IDE0011，同一文件的代码块共用命名空间 | `DOTNET_BIN` .NET 10 SDK |
 
 每个检查一个文件，从头读到尾就是这一项的全部逻辑：
 
@@ -94,7 +94,7 @@ expect(is_zero_approx(node.volume_db), "说明")
 
 ```
 mkdir -p ref && cd ref
-git clone --depth 1 --filter=blob:none --branch 4.7.2-stable https://github.com/godotengine/godot.git
+git init godot && git -C godot fetch --depth 1 --filter=blob:none https://github.com/godotengine/godot.git b070e63b161aa816afac71dcfc9d60859d38f220 && git -C godot checkout FETCH_HEAD
 git clone --depth 1 https://github.com/godotengine/godot-docs.git
 git clone --depth 1 https://github.com/godotengine/godot-cpp.git
 ```
@@ -102,7 +102,7 @@ git clone --depth 1 https://github.com/godotengine/godot-cpp.git
 # 升级 API 索引
 
 ```
-python3 tests/build_api_index.py --godot-cpp ref/godot-cpp --godot ref/godot --target 4.7
+python3 tests/build_api_index.py --godot-cpp ref/godot-cpp --godot ref/godot --target 4.8
 ```
 
-`--godot` 要指向对应稳定版标签的引擎源码，弃用标记和项目设置取自它的 `doc/classes`。
+`--godot` 要指向对应版本的引擎源码，弃用标记和项目设置取自它的 `doc/classes`。预发布版没有引擎仓库标签，按版本号里的提交取，4.8-beta4 是 `b070e63b1`。`godot-cpp` 的 `extension_api-4-8.json` 跟着 master 走，换成 `godot --dump-extension-api` 导出的文件。

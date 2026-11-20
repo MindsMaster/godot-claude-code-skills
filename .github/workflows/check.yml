@@ -5,7 +5,8 @@ on:
   pull_request:
 
 env:
-  GODOT_VERSION: 4.7.2
+  GODOT_TAG: 4.8-beta4
+  GODOT_SDK_VERSION: 4.8.0-beta.4
 
 jobs:
   check:
@@ -19,13 +20,13 @@ jobs:
         run: npx -y @anthropic-ai/claude-code plugin validate .
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: xvfb 与 lavapipe
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb mesa-vulkan-drivers
       - name: Godot
         run: |
-          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
           unzip -q godot.zip
-          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          mv "Godot_v${GODOT_TAG}_linux.x86_64" godot
           echo "GODOT_BIN=$PWD/godot" >> "$GITHUB_ENV"
-      - run: python3 tests/check.py --sdk-version "$GODOT_VERSION"
+      - run: python3 tests/check.py

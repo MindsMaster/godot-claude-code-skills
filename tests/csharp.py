@@ -5,7 +5,7 @@ from pathlib import Path
 
 PROJECT = """<Project Sdk="Godot.NET.Sdk/{version}">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>disable</Nullable>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <NoWarn>CS0105;CS0168;CS0169;CS0219;CS0414;CS0649;CS8019</NoWarn>

@@ -2,7 +2,7 @@
 
 Claude Code 用的 Godot 4 skills，以插件形式发布。`skills/<name>/SKILL.md` 是入口，长内容放 `skills/<name>/references/`。
 
-跟最新稳定版，现在是 4.7.2，最低照顾 4.4。4.5 以后才有的类和成员在正文写明 `4.5+` 这类版本号。dev 和 beta 里的新东西不写。
+`4.8` 分支跟 Godot 4.8 预发布版，现在是 4.8-beta4，4.8 正式版发布后合并进 master。最低照顾 4.4。4.5 以后才有的类和成员在正文写明 `4.5+` 这类版本号，4.8 新增的写 `4.8+`。master 跟最新稳定版 4.7.2，dev 和 beta 里的新东西只写在本分支。
 
 升级稳定版时：重跑 `tests/build_api_index.py --target <新版本>`，改 `tests/check.py` 的 `--sdk-version` 默认值和 `.github/workflows/check.yml` 的版本号，再跑全套测试。
 
@@ -127,7 +127,7 @@ python3 tests/check.py lint api     # 不需要 Godot 和 dotnet
 python3 tests/check.py --only godot-2d
 ```
 
-`GODOT_BIN` 指向 Godot 4.7.2 可执行文件，`DOTNET_BIN` 指向 .NET 8 SDK 的 dotnet。
+`GODOT_BIN` 指向 Godot 4.8-beta4 可执行文件，`DOTNET_BIN` 指向 .NET 10 SDK 的 dotnet。4.8 起 C# 最低 `net10.0`。
 
 - lint：frontmatter、行数、断链、禁用措辞、骨架、范围表、列表长度、C# 对照
 - api：行内代码的类名和成员、代码块里的已弃用类、版本标注
