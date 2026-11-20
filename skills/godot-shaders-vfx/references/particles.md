@@ -205,6 +205,49 @@ public partial class HitSpawner : Node3D
 
 2D 里 `GPUParticles2D` 有 `trail_enabled` `trail_lifetime` `trail_sections` `trail_section_subdivisions`。
 
+### Trail3D
+
+4.8+ 一个物体后面拖一条带子，如剑刃、飞镖、赛车尾灯，用 `Trail3D`，不用粒子。挂在移动的节点下，按自身全局位置记录轨迹。
+
+```ini
+[gd_scene format=3]
+
+[sub_resource type="Curve" id="Curve_w"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Gradient" id="Gradient_c"]
+colors = PackedColorArray(1, 0.9, 0.6, 1, 1, 0.6, 0.2, 0)
+
+[node name="Blade" type="Node3D"]
+
+[node name="Trail" type="Trail3D" parent="."]
+width = 0.5
+width_curve = SubResource("Curve_w")
+color_gradient = SubResource("Gradient_c")
+lifetime = 0.25
+material_mode = 1
+```
+
+| 属性 | 默认 | 说明 |
+|---|---|---|
+| `limit_mode` | 按寿命 | `LIMIT_MODE_LIFETIME` 按 `lifetime` 秒淡掉，`LIMIT_MODE_MAX_LENGTH` 按 `max_length` 截断 |
+| `lifetime` | 0.2 | 停下后尾巴在这段时间内收回 |
+| `min_section_length` | 0.2 | 走过这段距离才加一节，弧线不圆就调小 |
+| `mesh_alignment` | 公告牌 | `LineBase3D.MESH_ALIGNMENT_LOCAL` 时条带法线取节点的 Y 轴 |
+| `material_mode` | 混合 | `LineBase3D.MATERIAL_MODE_ADD` 发光叠加，`MATERIAL_MODE_CUSTOM` 用 `material` |
+| `width_curve` `color_gradient` | 无 | 按长度取样，0 端在头，1 端在尾 |
+| `tiling_mode` `pin_uv` | 平铺、关 | 贴图沿长度平铺，`pin_uv` 让纹理固定在空间里不随头部滑动 |
+
+- 停止发射设 `emitting = false`，按寿命时已有的尾巴照常收回
+- 再设 `emitting = true` 会清掉旧尾巴，瞬移前后用它断开
+- `clear()` 立即清空
+- 颜色不能超过 1，要发光用 `MATERIAL_MODE_ADD` 或自定义材质
+- 自定义材质要显示 `color`，`fragment()` 里乘 `COLOR`
+- 公告牌模式的自定义 shader 以类参考 `Trail3D.material` 的示例为底
+- 按寿命的拖尾在绘制前更新，无头模式下长度一直为 0
+- 实心管道 绳索用 `CSGPolygon3D` 的路径模式，不用 `Trail3D`
+
 ## 碰撞
 
 3D 粒子在 GPU 上，看不到物理世界，要放碰撞节点，不与 `PhysicsBody3D` 碰撞：

@@ -31,7 +31,8 @@ shader 语言用法、材质选择、粒子、后处理、屏幕与深度采样�
 | 2D 灯光与环境色 | `PointLight2D` `CanvasModulate` | 多个 `SubViewport` 模拟光照 |
 | 泛光 色调映射 亮度对比度 雾 景深 | `Environment` 与 `CameraAttributes` | `SubViewport` 链堆 bloom 与模糊 |
 | 粒子运动 颜色曲线 碰撞 子发射器 | `GPUParticles3D` 加 `ParticleProcessMaterial` | 脚本逐帧移动一堆节点 |
-| 子弹拖尾 刀光 | 粒子拖尾 `RibbonTrailMesh` 或 `Line2D` | 手拼网格 |
+| 3D 物体后的拖尾 刀光 | `Trail3D` 4.8+ 挂在移动节点下 | 每帧记位置手拼 `ImmediateMesh` |
+| 粒子各自的拖尾 2D 拖尾 | 粒子拖尾 `RibbonTrailMesh`，2D 用 `Line2D` | 手拼网格 |
 | 弹孔 污渍 假阴影 | `Decal` | 运行时生成网格 |
 | 多个精灵合成后加描边与特效 | `CanvasGroup` 加材质 | 每个精灵各写一份 |
 | 屏幕模糊 菜单背景 | `hint_screen_texture` 配 `textureLod`，3D 场景也可用 `Environment` 的 glow 模糊 | 额外相机加 `SubViewport` |
@@ -220,7 +221,7 @@ func _ready() -> void:
 - 拖尾：`trail_enabled`，绘制通道用 `RibbonTrailMesh` 或 `TubeTrailMesh`
 - 拖尾材质开 `use_particle_trails`，Compatibility 不支持
 - 3D 粒子只与 `GPUParticlesCollision3D` 派生节点碰撞，2D 只与 `LightOccluder2D`
-- 吸引器、湍流、序列帧细节见 [references/particles.md](references/particles.md)
+- 吸引器、湍流、序列帧、`Trail3D` 见 [references/particles.md](references/particles.md)
 
 ### VisualShader
 
@@ -264,7 +265,7 @@ func _ready() -> void:
 - [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法，从 C# 设置 shader 参数
 - [references/shader-language.md](references/shader-language.md)：render_mode 表、内置变量、uniform 提示、类型对照、预处理
 - [references/shader-recipes.md](references/shader-recipes.md)：溶解、描边、深度淡出、全屏雾、风摇、灰度、include
-- [references/particles.md](references/particles.md)：粒子细节、吸引器、湍流、序列帧
+- [references/particles.md](references/particles.md)：粒子细节、吸引器、湍流、序列帧、Trail3D
 - [references/post-processing.md](references/post-processing.md)：Environment 项、glow、CompositorEffect、全屏方案
 - https://docs.godotengine.org/en/stable/tutorials/shaders/index.html
 - https://docs.godotengine.org/en/stable/tutorials/3d/particles/index.html
