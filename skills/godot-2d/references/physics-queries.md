@@ -140,3 +140,4 @@ public partial class PointQuery : Node2D
 | `intersect_shape` | `Array[Dictionary]` | `collider` `collider_id` `rid` `shape` |
 
 - C# 中后两者返回 `Array<Dictionary>`，mask 参数是 `uint`
+- 每帧大量查询用 4.8+ 的 `intersect_ray_into()` 等，见 [engine-fast-paths.md](../../godot-performance/references/engine-fast-paths.md)
