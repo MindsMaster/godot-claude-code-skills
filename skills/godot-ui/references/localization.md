@@ -187,6 +187,8 @@ public partial class LanguageSetter : Node
 - `TranslationServer.set_locale()` 把 `en-US` 规整成 `en_US`
 - 语言代码丢掉地区，`zh_TW` 只得到 `zh`，会匹配 `zh_CN` 的翻译
 - 简繁并存时用 `OS.get_locale()` 取完整 locale
+- 4.8+ `OS.get_preferred_locales()` 按系统偏好顺序列出全部语言
+- 首选不支持时，按这个顺序找 `get_loaded_locales()` 里有的
 - 系统语言不在支持列表时用 `internationalization/locale/fallback`，默认 `en`
 - 相近程度：`TranslationServer.compare_locales(a, b)` 返回 0 到 10
 - 已加载语言：`TranslationServer.get_loaded_locales()`
