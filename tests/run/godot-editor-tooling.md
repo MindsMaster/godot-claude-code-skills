@@ -197,7 +197,10 @@ var key := "autoload/" + node.AUTOLOAD_NAME
 expect(not ProjectSettings.has_setting(key), "启用前没有 autoload")
 node._enable_plugin()
 var value: String = ProjectSettings.get_setting(key, "")
-expect(value.begins_with("*") and ResourceUID.uid_to_path(value.trim_prefix("*")) == "res://addons/items/items_service.gd", "启用时登记带星号的 autoload " + value)
+var path := value.trim_prefix("*")
+if path.begins_with("uid://"):
+	path = ResourceUID.uid_to_path(path)
+expect(value.begins_with("*") and path == "res://addons/items/items_service.gd", "启用时登记带星号的 autoload " + value)
 node._disable_plugin()
 expect(not ProjectSettings.has_setting(key), "停用时移除 autoload")
 ```
