@@ -104,6 +104,7 @@ public partial class AreaQuery : Node3D
 
 - `intersect_shape()` 第二个参数是最大结果数，默认 32
 - 只问有没有，用 `ShapeCast3D` 或 `Area3D` 的重叠查询
+- 每帧大量查询用 4.8+ 的 `intersect_shape_into()` 等，见 [engine-fast-paths.md](../../godot-performance/references/engine-fast-paths.md)
 
 ## ShapeCast3D
 
