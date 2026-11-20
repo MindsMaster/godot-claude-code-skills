@@ -1,6 +1,6 @@
 # GDScript 警告全表
 
-项目设置路径 `debug/gdscript/warnings/<名字>`，值 0 忽略、1 警告、2 错误。`debug/gdscript/warnings/enable` 为 `false` 时全部关闭。默认值取自 4.7 的 `ProjectSettings` 文档。
+项目设置路径 `debug/gdscript/warnings/<名字>`，值 0 忽略、1 警告、2 错误。`debug/gdscript/warnings/enable` 为 `false` 时全部关闭。默认值取自 4.8 的 `ProjectSettings` 文档。
 
 文件内忽略用 `@warning_ignore("名字")`，名字同下表。
 
@@ -28,6 +28,7 @@
 | `missing_tool` | 1 | 基类脚本是 `@tool` 而当前脚本不是 | 加 `@tool` |
 | `narrowing_conversion` | 1 | 浮点传给整数参数 | `int()` `roundi()` `floori()` |
 | `native_method_override` | 2 | 脚本里的方法覆盖了引擎原生方法 | 改名 |
+| `onready_with_cast` | 1 | 4.8+，`@onready` 初值对 `$` 或 `%` 取的节点用 `as`，类型不符时静默得 `null` | 写显式类型 `@onready var s: Sprite2D = $Sprite` |
 | `onready_with_export` | 2 | `@onready` 与 `@export` 同用 | 二选一 |
 | `redundant_await` | 1 | 对非协程用了 `await` | 去掉 `await` |
 | `redundant_static_unload` | 1 | 没有静态变量却写了 `@static_unload` | 去掉 |

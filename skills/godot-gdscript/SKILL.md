@@ -64,7 +64,7 @@ func _ready() -> void:
 | `var x := max(a, b)` | 同上，`clamp` `min` `max` `lerp` `abs` `sign` `floor` `ceil` `round` `snapped` 都返回 Variant | 用 `maxf` `clampi` 这类带类型版本 |
 | `load(path)` | 返回 `Resource` | `var tex: Texture2D = load(path)`，常量路径用 `preload()` |
 | `$Node`、`get_node()` | 返回 `Node` | `@onready var sprite: Sprite2D = $Sprite` |
-| `x as Sprite2D` 类型不符 | 静默得 `null` | 只在就要这个结果时用 |
+| `x as Sprite2D` 类型不符 | 静默得 `null`，4.8+ `@onready` 初值里对 `$` `%` 用 `as` 报警告 `onready_with_cast` | 只在就要这个结果时用，取节点写 `@onready var s: Sprite2D = $Sprite` |
 | `map()` 结果赋给 `Array[T]` | 报错，`map()` 返回无类型 Array | `typed.assign(untyped)` |
 | 整数传给枚举参数 | `int_as_enum_without_cast` | 写成员名或显式转换 |
 
