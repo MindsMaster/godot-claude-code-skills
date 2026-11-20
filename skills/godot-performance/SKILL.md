@@ -1,6 +1,6 @@
 ---
 name: godot-performance
-description: 排查卡顿 掉帧 帧率低 内存增长时用，也用于几百个怪物 子弹同屏、CharacterBody 拥挤变慢、每帧重建网格、线程池只用上两三个核、C# 跨界开销。先测再改 Profiler Monitors。不降画面与数量的内置解法 管理器统一驱动、MultiMesh、Server、对象池、空间哈希、WorkerThreadPool 分块、网格局部更新、物理插值、线程加载、着色器编译卡顿、每帧分配。Godot performance, stutter, many entities.
+description: 排查卡顿 掉帧 帧率低 内存增长 显存不够时用，也用于几百个怪物 子弹同屏、CharacterBody 拥挤变慢、每帧重建网格、线程池只用上两三个核、C# 跨界开销。先测再改 Profiler Monitors。不降画面与数量的内置解法 管理器统一驱动、MultiMesh、Server、对象池、空间哈希、WorkerThreadPool 分块、网格局部更新、物理插值、线程加载、着色器编译卡顿、每帧分配、贴图流送。Godot performance, stutter, many entities.
 ---
 
 # Godot 性能
@@ -37,6 +37,7 @@ description: 排查卡顿 掉帧 帧率低 内存增长时用，也用于几百�
 | 频繁创建销毁同类节点 | 对象池 | 每次 `instantiate()` 再 `queue_free()` |
 | 找固定目标 | 分组加缓存引用，或信号 | 每帧遍历全部对象做字符串比较 |
 | 项目自己的指标 | `Performance.add_custom_monitor()` | `print` 刷屏 |
+| 大量 3D 大贴图显存不够 | 贴图流送 4.8+，见 [texture-streaming.md](references/texture-streaming.md) | 手写按距离换贴图 |
 
 ## 做法
 
@@ -47,8 +48,7 @@ description: 排查卡顿 掉帧 帧率低 内存增长时用，也用于几百�
 | 合批调度、纯计算并行 | 隔帧更新、按距离降频 |
 | 只更新变化的部分 | 屏幕外的东西停止运动 |
 | 去掉重复查询 | 降 `physics_ticks_per_second` |
-| 屏幕外停用看不见也不影响结果的东西 | 调小 `max_slides` 或物理迭代 |
-| | 压缩顶点精度、关阴影、减数量 |
+| 屏幕外停用看不见也不影响结果的东西 | 调小 `max_slides` 或物理迭代，压缩顶点精度、关阴影、减数量 |
 
 ### 测量
 
@@ -292,6 +292,7 @@ Forward+ 与 Mobile 4.4+ 用 ubershader 与加载时预编译管线，Compatibil
 - [references/render-submission.md](references/render-submission.md)：引擎已有的渲染缓存、动态网格局部更新、共用蒙皮、2D 断批、动画子线程组
 - [references/engine-fast-paths.md](references/engine-fast-paths.md)：替代脚本循环的内置批量操作、GDScript 写法快慢
 - [references/stutter.md](references/stutter.md)：物理插值细节、加载卡顿、着色器编译卡顿
+- [references/texture-streaming.md](references/texture-streaming.md)：4.8 贴图流送开启、LOD 设置实际含义、单张覆盖、运行时覆盖与 flush
 - https://docs.godotengine.org/en/stable/tutorials/performance/general_optimization.html
 - https://docs.godotengine.org/en/stable/tutorials/performance/cpu_optimization.html
 - https://docs.godotengine.org/en/stable/tutorials/performance/gpu_optimization.html

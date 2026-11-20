@@ -361,3 +361,11 @@ var back := PackedVector2Array([Vector2(10.0, 1.0)]) * node.global_transform
 expect(back[0].is_equal_approx(Vector2(1.0, 0.0)), "数组在左是逆变换")
 expect(node.joined(PackedStringArray(["a", "b", "c"])) == "a, b, c", "join 一次拼好")
 ```
+
+## references/texture-streaming.md `func reveal`
+
+```gdscript
+node.show()
+await node.reveal()
+expect(not node.visible, "flush_completed 发出后隐藏，流送没开也会发")
+```
