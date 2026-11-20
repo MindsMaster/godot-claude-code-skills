@@ -476,7 +476,12 @@ public partial class DisplaySettings : Node
 | `WINDOW_MODE_EXCLUSIVE_FULLSCREEN` 切换黑屏片刻 | Windows 上切到别的程序也会触发一次 |
 | 窗口超出屏幕 | 存档尺寸不在当前屏幕列表里时退到最大一档 |
 | 无头模式尺寸列表只剩一档 | 无屏幕，usable rect 为零，属正常 |
+| 玩家按 Alt+Enter 后设置里的窗口模式显示不对 | 4.8+ 引擎默认处理 `ui_toggle_fullscreen`，打开设置时从 `DisplayServer.window_get_mode()` 读当前值 |
+| 窗口模式要完全由设置界面管 | 关 `display/window/size/enable_toggle_fullscreen_shortcut`，单个窗口关 `Window.fullscreen_shortcut_enabled` |
+| 快捷键从独占全屏切回后再按，变成普通全屏 | 快捷键只切 `Window.MODE_FULLSCREEN`，再按回到切换前的模式 |
 
+- 全屏快捷键默认 Alt+Enter，macOS 另有 Ctrl+Cmd+F，改键在 `input/ui_toggle_fullscreen`
+- 快捷键在游戏 `_input` 之前处理，`set_input_as_handled()` 拦不住
 - `DisplayServer.screen_get_usable_rect()` 已扣掉任务栏
 - `Window.size` 是客户区，标题栏另占高度
 - 降 3D 渲染分辨率用 `Viewport.scaling_3d_scale`，2D 和 UI 照常按窗口分辨率画

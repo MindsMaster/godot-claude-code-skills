@@ -271,6 +271,7 @@ func _notification(what: int) -> void:
 | 改 `get_theme_stylebox()` 的返回值，同类控件一起变 | 先 `duplicate()` |
 | 显示玩家名的 Label 被替换成译文 | 关 `auto_translate_mode`，名字与翻译键同名时会被翻译 |
 | 菜单打开时玩法重复触发 | 玩法不用 `ui_accept` 等内置动作 |
+| 按 Alt+Enter 窗口变全屏，设置里的窗口模式没跟着变 | 4.8+ 默认开 `display/window/size/enable_toggle_fullscreen_shortcut`，见 references/settings-menu.md |
 
 ## 参考
 
