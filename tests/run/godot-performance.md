@@ -369,3 +369,17 @@ node.show()
 await node.reveal()
 expect(not node.visible, "flush_completed 发出后隐藏，流送没开也会发")
 ```
+
+## references/engine-fast-paths.md `func ground_height`
+
+```gdscript
+var body := StaticBody3D.new()
+var shape := CollisionShape3D.new()
+shape.shape = BoxShape3D.new()
+body.add_child(shape)
+root.add_child(body)
+await frames(3)
+expect(is_equal_approx(node.ground_height(Vector3.ZERO), 0.5), "命中盒子顶面 y 0.5")
+expect(is_nan(node.ground_height(Vector3(10.0, 0.0, 0.0))), "没命中返回 NAN 不读旧值")
+expect(node._hit.position.y == 0.5, "没命中时结果对象保留上次的值")
+```
