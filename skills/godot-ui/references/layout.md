@@ -1,6 +1,6 @@
 # 布局细节
 
-Container 排版限制与多分辨率设置。
+Container 排版限制、字号自适应与多分辨率设置。
 
 ## 容器限制
 
@@ -17,6 +17,35 @@ Container 在子节点变化和 `queue_sort()` 时重排。
 | ScrollContainer 内容随滚动区变宽 | 内容子节点设 `SIZE_EXPAND` |
 | 手风琴 | FoldableContainer 4.5+ 配 FoldableGroup |
 | 折叠标题栏加按钮 | `add_title_bar_control` |
+
+## 字号自适应
+
+4.8+ `Label` 与 `RichTextLabel` 开 `resize_font_to_fit`，在两个字号之间取放得下的最大值。按钮文字、译文长短不一的标题用它。
+
+```ini
+[gd_scene format=3]
+
+[node name="Title" type="Label"]
+custom_minimum_size = Vector2(0, 48)
+size_flags_horizontal = 3
+text = "CONTINUE"
+horizontal_alignment = 1
+vertical_alignment = 1
+resize_font_to_fit = true
+minimum_font_size = 14
+maximum_font_size = 40
+```
+
+| 属性 | 默认 | 说明 |
+|---|---|---|
+| `minimum_font_size` | 10 | 下限，也决定控件的最小高度 |
+| `maximum_font_size` | 60 | 上限，下限大于上限时取下限 |
+
+- 按控件当前尺寸算，宽高都要由布局给出
+- 放在 Container 里不给高度，高度取下限字号的行高，字号缩到下限
+- 高度用 `custom_minimum_size.y` 或纵向 `SIZE_EXPAND_FILL` 给
+- 开 autowrap 时按多行排，字号比单行大
+- 实际字号用 `get_rendered_font_size()` 读
 
 ## 多分辨率
 

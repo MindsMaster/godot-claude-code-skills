@@ -1,6 +1,6 @@
 ---
 name: godot-ui
-description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用，做设置即时生效 窗口模式 全屏 窗口尺寸确认还原 失焦暂停时也用。Control 布局 Container anchors、项目级 Theme 统一字体、StyleBox、ProgressBar 血条、RichTextLabel、多分辨率 stretch aspect、tr() 本地化、手柄焦点导航、mouse_filter 吃点击、CanvasLayer HUD、弹窗 拖放。UI layout, theme, localization, settings menu, fullscreen, pause on focus loss.
+description: 写菜单 HUD 对话框 血条 设置界面 本地化 分辨率适配 UI 导航时用，做设置即时生效 窗口模式 全屏 窗口尺寸确认还原 失焦暂停时也用。Control 布局 Container anchors、项目级 Theme 统一字体、StyleBox、ProgressBar 血条、RichTextLabel、多分辨率 stretch aspect、tr() 本地化、手柄焦点导航、mouse_filter 吃点击、CanvasLayer HUD、弹窗 拖放、按钮音效、字号自适应。UI layout, theme, localization, settings menu, fullscreen, pause on focus loss.
 ---
 
 # Godot UI
@@ -32,6 +32,7 @@ Control 界面：场景里用 Container 和 anchors 搭，项目级 Theme 统一
 | 折叠面板 | FoldableContainer 4.5+ | Button 加手动 `visible` |
 | 面板背景 | PanelContainer 或 Panel 加 StyleBoxFlat | ColorRect 叠 ColorRect |
 | 血条 经验条 | ProgressBar 或 TextureProgressBar | 改 ColorRect 的 `size.x` |
+| 文字缩小字号放进框 | Label RichTextLabel 的 `resize_font_to_fit` 4.8+ | 循环试字号量宽度 |
 | 全局字体颜色按钮样式 | 项目级 Theme | 到处 `add_theme_*_override` |
 | 按钮点击 悬停 焦点音效 | Theme 的 sound 项 4.8+，如 `Button` 下的 `pressed_sound` | 每个按钮挂 AudioStreamPlayer 连 `pressed` |
 | 同类控件多种样式 | theme type variation | 每个节点单独覆盖 |
@@ -101,7 +102,7 @@ func _ready() -> void:
 Container 在子节点变化和 `queue_sort()` 时重排，子节点的 `position` `size` 动画会被覆盖。
 
 - 动画改动 `scale` `modulate` `rotation`，或外包一层普通 Control
-- 按中心缩放、Label 换行、滚动区宽度见 [references/layout.md](references/layout.md)
+- 按中心缩放、Label 换行、字号自适应、滚动区宽度见 [references/layout.md](references/layout.md)
 
 ### Theme
 
@@ -280,7 +281,7 @@ func _notification(what: int) -> void:
 - [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
 - [references/localization.md](references/localization.md)：CSV 与 PO 导入、注册翻译、复数与上下文、TranslationServer、伪本地化、字体回退
 - [references/theme.md](references/theme.md)：StyleBox 种类与代码构造、theme type variation、LabelSettings
-- [references/layout.md](references/layout.md)：容器排版限制、stretch 各取值、整数缩放、界面缩放、安全区
+- [references/layout.md](references/layout.md)：容器排版限制、字号自适应、stretch 各取值、整数缩放、界面缩放、安全区
 - [references/focus-navigation.md](references/focus-navigation.md)：手柄焦点导航、`focus_mode`、按键提示与键帽字母、设备切换、无障碍
 - [references/richtext.md](references/richtext.md)：BBCode 标签速查、自定义 RichTextEffect、打字机
 - [references/settings-menu.md](references/settings-menu.md)：设置即时生效、离开即保存与按应用保存、未保存状态显示、窗口模式与尺寸的确认倒计时和还原、全屏与窗口尺寸陷阱、启动参数恢复入口、失焦暂停
