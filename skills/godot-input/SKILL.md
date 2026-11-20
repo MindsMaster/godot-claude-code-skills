@@ -159,6 +159,7 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 | 自由画线要逐点轨迹 | 关 `Input.use_accumulated_input`，默认同帧鼠标移动合并 |
 | 触屏按钮 | TouchScreenButton 的 `action` 属性 |
 | 触屏摇杆 | VirtualJoystick 4.7+，`action_left` 等指到玩法动作，`Input.get_vector` 照常读 |
+| 触屏长按 | `InputEventScreenTouch.long_press` 4.8+，仅 Android iOS，桌面端自己计时 |
 
 - `InputEventMouseMotion.relative` 按拉伸缩放，灵敏度随分辨率变
 - VirtualJoystick 的 `action_*` 默认是 `ui_*`，必须改成玩法动作
@@ -170,6 +171,9 @@ func _apply(action: StringName, event: InputEventKey) -> void:
 - 震动：`Input.start_joy_vibration(device, weak, strong, duration)`，强度 0 到 1
 - `duration` 为 0 时约 65 秒，`Input.stop_joy_vibration` 提前停，给玩家留关闭选项
 - 热插拔：连 `Input.joy_connection_changed` 信号，已连接设备用 `Input.get_connected_joypads()`
+- 手柄触摸板 4.8+：`Input.get_joy_touchpad_fingers(device, 0)` 取手指 ID
+- 手指位置 `Input.get_joy_touchpad_finger_position()`，0 到 1，左上为原点
+- 触摸板不支持 Android 与网页，`Input.get_joy_num_touchpads()` 为 0 时隐藏相关提示
 
 ## 陷阱
 
