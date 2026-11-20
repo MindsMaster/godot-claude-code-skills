@@ -187,6 +187,10 @@ for i in 100:
 	await wait_real(0.05)
 expect(NavigationServer3D.map_get_iteration_id(map) > 0, "地图在后台线程同步完成")
 var target := Vector3(4.0, 0.0, 4.0)
+for i in 100:
+	if NavigationServer3D.map_get_path(map, node.global_position, target, true).size() > 1:
+		break
+	await wait_real(0.05)
 var start := node.global_position.distance_to(target)
 node.go_to(target)
 await frames(120)
