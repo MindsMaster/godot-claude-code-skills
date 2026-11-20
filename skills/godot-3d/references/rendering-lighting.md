@@ -17,6 +17,7 @@
 | LightmapGI | 能渲染 烘焙需 RenderingDevice | 是 | 是 |
 | SSAO | 是 | 否 | 是 |
 | VoxelGI SDFGI SSIL SSR 体积雾 次表面散射 | 否 | 否 | 是 |
+| 屏幕空间接触阴影 多次反弹 AO 4.8+ | 否 | 否 | 是 |
 | 色调映射 雾 泛光 调整 | 是 泛光实现更简单 | 是 | 是 |
 | 全屏 shader 后处理 | 是 | 是 | 是 |
 | `CompositorEffect` | 否 | 是 | 是 |
@@ -69,6 +70,29 @@
 
 - 定位灯阴影画质可在运行时改根视口
 - 方向光阴影质量通过 `RenderingServer` 改
+
+### 接触阴影
+
+4.8+ 屏幕空间接触阴影补上阴影贴图漏掉的小尺度阴影，如草叶、缝隙、物体与地面的接触处。
+
+```ini
+[rendering]
+
+lights_and_shadows/contact_shadow/enabled=true
+```
+
+| 项 | 默认 | 说明 |
+|---|---|---|
+| `contact_shadow/shadow_length` | 1 | 沿光线采样多远，越大越贵 |
+| `contact_shadow/surface_thickness` | 0.01 | 表面厚度，按深度范围的比例 |
+| `Light3D.shadow_contact_shadows_allow` | true | 单盏灯开关 |
+| `Light3D.shadow_contact_shadows_blur` | 1.0 | 边缘模糊，0 为硬边 |
+
+- 只作用于开了 `shadow_enabled` 的 DirectionalLight3D
+- 只有画面上可见的物体投射
+- `cast_shadow` 为 Shadows Only 的不投射，为 Off 的仍投射
+- 细物体阴影断开或有缝，调大 `surface_thickness`
+- 调太大阴影透过表面，开启后在实际场景里看接触处和受光面
 
 ## GI 与烘焙
 
@@ -128,8 +152,12 @@
 | 色调映射 | 默认 Linear 亮部截断 Filmic ACES AgX(4.4+) 可选 `tonemap_white` 写实场景至少 6.0，AgX 用 `tonemap_agx_white`，Mobile 的 `tonemap_white` 要 2.0 以下 |
 | 泛光 | `glow_hdr_threshold` 默认 1.0 `glow_bloom` 默认 0.0 只有超过阈值的亮部发光 Mobile 阈值降到 0.9。`glow_blend_mode` 默认 Screen Compatibility 固定用 Screen |
 | SSAO SSR SSIL | 昂贵 低端关 质量在项目设置 `rendering/environment/ssao/quality` 等 |
+| 多次反弹 AO | 4.8+ `rendering/lights_and_shadows/multi_bounce_occlusion/enabled`，按反照率减弱环境光遮蔽，浅色表面的 AO 不再发黑 |
 | 雾 | `fog_mode` 深度或指数 体积雾仅 Forward+ |
 | 调整 | `adjustment_enabled` 亮度 对比度 饱和度 |
+
+- 多次反弹 AO 引擎默认关，4.8 编辑器新建项目写入 true，从旧版升级的项目仍是关
+- 它作用于材质 AO 贴图与 SSAO 合成后的环境光，改后要重启
 
 ## 相机属性
 

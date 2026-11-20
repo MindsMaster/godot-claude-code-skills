@@ -285,13 +285,13 @@ func _physics_process(_delta: float) -> void:
 | `CharacterBody3D` 推不动 `RigidBody3D` | `move_and_slide()` 后对碰到的刚体 `apply_central_force`，方向取法线反向 |
 | 角色在斜坡抖动或飞出 | 先看 `floor_snap_length`，再看是否在 `_process` 里移动 |
 | 开物理插值后瞬移出现拖影 | 瞬移后调 `reset_physics_interpolation()` |
-| 阴影、GI、glow 显示不对 | 见 [references/rendering-lighting.md](references/rendering-lighting.md) 的阴影参数与环境 |
+| 阴影、GI、glow 显示不对，或升级 4.8 后与新建项目的 AO 不一样 | 见 [references/rendering-lighting.md](references/rendering-lighting.md) 的阴影参数、接触阴影与环境 |
 
 ## 参考
 
 - [references/csharp.md](references/csharp.md)：C# 项目先读，本文各节示例的 C# 写法
 - [references/physics-3d.md](references/physics-3d.md)：Jolt 差异、范围查询、ShapeCast3D
-- [references/rendering-lighting.md](references/rendering-lighting.md)：渲染器差异、灯、阴影、GI 烘焙
+- [references/rendering-lighting.md](references/rendering-lighting.md)：渲染器差异、灯、阴影、接触阴影、多次反弹 AO、GI 烘焙
 - [references/import-and-levels.md](references/import-and-levels.md)：导入、后缀全表、GridMap、CSG、继承场景
 - [references/culling-and-instancing.md](references/culling-and-instancing.md)：LOD、遮挡、MultiMesh、Decal
 - [references/skeleton-modifiers.md](references/skeleton-modifiers.md)：骨骼修改器与版本
