@@ -15,7 +15,7 @@ redundant_static_unload shadowed_global_identifier shadowed_variable shadowed_va
 standalone_expression standalone_ternary static_called_on_instance unassigned_variable
 unassigned_variable_op_assign unreachable_code unreachable_pattern unsafe_void_return
 unused_local_constant unused_parameter unused_private_class_variable unused_signal unused_variable
-untyped_declaration
+untyped_declaration onready_with_cast
 """.split()
 
 PROJECT = """config_version=5
